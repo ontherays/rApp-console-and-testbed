@@ -6,7 +6,7 @@ has to get right is narrow:
 * the password exists only as an argon2id hash, in the git-ignored env file, and
   the plain password is never written or logged (SE-03);
 * a session expires 12 hours after login and 2 hours after the last request
-  (SE-04) — both, because a forgotten open tab is the case that matters;
+  (SE-04), both, because a forgotten open tab is the case that matters;
 * five wrong passwords in ten minutes stops login for ten minutes (SE-05);
 * every non-GET request carries a CSRF token (SE-08).
 

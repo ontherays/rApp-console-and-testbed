@@ -10,11 +10,11 @@
   {{ bell(badges.new_runs) }}
   {% if figure.png %}
     <a class="btn" href="/graphs/file/{{ figure.folder }}/png" download>
-      <sl-icon name="download"></sl-icon>PNG</a>
+      <svg class="ic" aria-hidden="true"><use href="#icon-export"/></svg>PNG</a>
   {% endif %}
   {% if figure.pdf %}
     <a class="btn primary" href="/graphs/file/{{ figure.folder }}/pdf" download>
-      <sl-icon name="download"></sl-icon>PDF</a>
+      <svg class="ic" aria-hidden="true"><use href="#icon-export"/></svg>PDF</a>
   {% endif %}
 {% endblock %}
 {% block lede %}
@@ -27,7 +27,7 @@
 {% block content %}
 {% if figure.warnings %}
   <div class="banner warn">
-    <sl-icon name="exclamation-triangle"></sl-icon>
+    <svg class="ic" aria-hidden="true"><use href="#icon-warning"/></svg>
     <span>{{ figure.warnings | join(' · ') }}</span>
   </div>
 {% endif %}
@@ -42,7 +42,7 @@
 </div>
 
 <div class="card">
-  <header><span class="card-title">Data — the figure's own manifest</span></header>
+  <header><span class="card-title">Data, the figure's own manifest</span></header>
   <p class="muted">
     Inputs, filters, n per point and the ETHOS commit that drew it. This is what
     makes the figure reproducible; it is read from the archive, not recomputed.

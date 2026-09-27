@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import gated, ago, stack_chip, chip, initials_tile %}
+{% from "components/macros.html" import gated, ago, stack_chip, chip, initials_tile, ic %}
 {% from "components/header.html" import bell, primary %}
 
 {% block title %}Jobs · Testbed Console{% endblock %}
@@ -20,9 +20,15 @@
 
 {% block content %}
 <div class="card">
-  <header><span class="card-title">Starting, watching and stopping a campaign</span></header>
+  <header>
+    <span class="tile purple">{{ ic('play') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">Starting, watching and stopping a campaign</span>
+      <span class="card-sub">One executor, in ETHOS, not a second one here</span>
+    </span>
+  </header>
   {{ gated(caps, 'jobs',
-     'The console deliberately does not run campaigns itself. It has the same API the CLI drives, so it could — and a second campaign executor, with the testbed lock living in the web process instead of in ETHOS, is what the design rules out. One executor, in ETHOS, is backend change B2.') }}
+     'The console deliberately does not run campaigns itself. It has the same API the CLI drives, so it could, and a second campaign executor, with the testbed lock living in the web process instead of in ETHOS, is what the design rules out. One executor, in ETHOS, is backend change B2.') }}
   <p class="muted" style="margin:12px 0 0">
     A campaign started from the CLI writes the same run records this console
     reads, so its results appear under Results as each point finishes.
@@ -30,11 +36,15 @@
 </div>
 
 {% if error %}
-  <div class="banner bad"><sl-icon name="exclamation-octagon"></sl-icon>{{ error }}</div>
+  <div class="banner bad"><svg class="ic" aria-hidden="true"><use href="#icon-warning"/></svg>{{ error }}</div>
 {% else %}
 <div class="card flush">
   <header>
-    <span class="card-title">Campaigns in the run archive</span>
+    <span class="tile slate">{{ ic('sweep') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">Campaigns in the run archive</span>
+      <span class="card-sub">What the CLI has already run</span>
+    </span>
     <span class="faint">{{ campaigns | length }} campaign(s)</span>
   </header>
   <div class="table-wrap">
@@ -57,7 +67,7 @@
           </td>
           <td class="num">{{ c.n }}</td>
           <td class="num">{{ c.delivered }}</td>
-          <td>{{ c.rates | map('int') | join(', ') if c.rates else '—' }}</td>
+          <td>{{ c.rates | map('int') | join(', ') if c.rates else NOT_MEASURED }}</td>
           <td class="nowrap">{{ ago(c.first) }}</td>
           <td class="nowrap">{{ ago(c.last) }}</td>
           <td class="right"><a class="btn btn-sm" href="/results/campaigns/{{ c.campaign_id }}">Review</a></td>

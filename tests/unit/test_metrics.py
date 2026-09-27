@@ -14,7 +14,7 @@ import pytest
 
 from console.rapps.ethos.metrics import (
     COMPARABLE_METRICS,
-    DASH,
+    NOT_MEASURED,
     UE_METRICS,
     VENDOR_METRICS,
     channel_rows,
@@ -49,25 +49,25 @@ def _never_ran() -> Run:
 # --- the "not measured" rule (GL-09) -----------------------------------------
 
 def test_a_missing_value_is_an_em_dash_and_never_zero():
-    assert fmt(None, 2) == DASH
+    assert fmt(None, 2) == NOT_MEASURED
     assert fmt(0.0, 2) == "0.00"
     assert fmt(0, 4) == "0.0000"
 
 
 def test_a_run_that_never_ran_shows_dashes_not_zeroes():
     run = _never_ran()
-    assert throughput_text(run) == DASH
+    assert throughput_text(run) == NOT_MEASURED
     rows = channel_rows(run)
     for row in rows["comparable"]:
         for stat in row.stats:
-            assert stat.text == DASH
+            assert stat.text == NOT_MEASURED
             assert stat.measured is False
 
 
 def test_an_absent_block_does_not_raise():
     rows = channel_rows(Run(run_id="x"))
     assert rows["vendor"] == []
-    assert all(s.text == DASH for r in rows["latency"] for s in r.stats)
+    assert all(s.text == NOT_MEASURED for r in rows["latency"] for s in r.stats)
 
 
 # --- throughput ---------------------------------------------------------------
@@ -231,7 +231,7 @@ def test_an_ocudu_run_does_not_show_oai_only_fields():
 def test_the_sample_count_is_always_shown():
     run = _with_radio("oai")
     row = next(r for r in channel_rows(run)["comparable"] if r.label == "Radio samples")
-    assert row.stats[0].text != DASH
+    assert row.stats[0].text != NOT_MEASURED
     assert row.stats[0].label == ""
 
 

@@ -152,8 +152,8 @@ def test_no_example_line_puts_a_comment_after_a_value():
 
 
 def test_the_example_can_be_read_the_way_systemd_reads_it(tmp_path):
-    """Parse it the way systemd does — split on the first ``=``, keep the rest
-    verbatim — and check the values that must be machine-readable."""
+    """Parse it the way systemd does, split on the first ``=``, keep the rest
+    verbatim, and check the values that must be machine-readable."""
     values: dict[str, str] = {}
     for line in EXAMPLE.read_text(encoding="utf-8").splitlines():
         if not line.startswith("CONSOLE_") or "=" not in line:

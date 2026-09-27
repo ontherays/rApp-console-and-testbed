@@ -44,12 +44,49 @@ def _title_of(path: Path) -> str:
 
 
 def available() -> list[Doc]:
+    """Every document, including the design notes one folder down.
+
+    Slugs stay flat, so `docs/design/icons.md` is served at `/docs/icons`. Two
+    files with the same stem would collide; there are none, and the test that
+    lists them would show it.
+    """
     if not DOCS_DIR.is_dir():
         return []
+    found = list(DOCS_DIR.glob("*.md")) + list(DOCS_DIR.glob("design/*.md"))
     return [
         Doc(slug=path.stem, title=_title_of(path), path=path)
-        for path in sorted(DOCS_DIR.glob("*.md"))
+        for path in sorted(found, key=lambda p: (p.parent != DOCS_DIR, p.name))
     ]
+
+
+# The documents are the console's own, and one of them is the icon sheet, whose
+# whole point is to show the icons. So SVG is allowed through verbatim, by an
+# allowlist of the tags an icon needs, and everything else is still escaped.
+SVG_TAGS = (
+    "svg", "use", "defs", "g", "symbol", "path", "circle", "rect", "text",
+    "polygon", "polyline", "line", "ellipse",
+)
+SVG_BLOCK = re.compile(r"^\s*<(?:" + "|".join(SVG_TAGS) + r")\b", re.I)
+SVG_SPAN = re.compile(
+    r"<(?:" + "|".join(SVG_TAGS) + r")\b[^>]*>.*?</(?:" + "|".join(SVG_TAGS) + r")>|"
+    r"<(?:" + "|".join(SVG_TAGS) + r")\b[^>]*/>",
+    re.S | re.I,
+)
+
+
+def _keep_svg(text: str) -> str:
+    """Escape the text, then put any SVG back exactly as it was written."""
+    kept: list[str] = []
+
+    def stash(match):
+        kept.append(match.group(0))
+        return f"\x00svg{len(kept) - 1}\x00"
+
+    marked = SVG_SPAN.sub(stash, text)
+    escaped = html.escape(marked)
+    for index, original in enumerate(kept):
+        escaped = escaped.replace(f"\x00svg{index}\x00", original)
+    return escaped
 
 
 _INLINE = (
@@ -61,7 +98,7 @@ _INLINE = (
 
 
 def _inline(text: str) -> str:
-    out = html.escape(text)
+    out = _keep_svg(text)
     for pattern, replacement in _INLINE:
         out = pattern.sub(replacement, out)
     return out
@@ -83,6 +120,20 @@ def to_html(markdown: str) -> str:
 
     while index < len(lines):
         line = lines[index]
+
+        if SVG_BLOCK.match(line):
+            close_list()
+            block = []
+            depth = 0
+            while index < len(lines):
+                block.append(lines[index])
+                depth += lines[index].count("<svg")
+                depth -= lines[index].count("</svg>")
+                index += 1
+                if depth <= 0 and block:
+                    break
+            out.append("\n".join(block))
+            continue
 
         if line.startswith("```"):
             close_list()

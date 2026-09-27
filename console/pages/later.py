@@ -31,10 +31,10 @@ TESTBED = Section(
     title="Testbed control",
     phase="Phase 2",
     capability="ue",
-    icon="hdd-network",
+    icon="testbed",
     intro=(
         "Deploy a topology and leave it running without traffic, tear down what is "
-        "deployed, attach and detach a UE, and read the handset's signal — each "
+        "deployed, attach and detach a UE, and read the handset's signal, each "
         "action behind a confirmation that shows ETHOS's preview of what will happen."
     ),
     items=(
@@ -59,14 +59,14 @@ O1 = Section(
     title="O1",
     phase="Phase 3",
     capability="o1_freshness",
-    icon="broadcast-pin",
+    icon="o1",
     intro=(
         "PM per run and per cell, active alarms, the current CM of the deployed "
         "gNB, and tests driven by a CM change."
     ),
     items=(
         ("O1-01", "PM freshness per managed element of this testbed."),
-        ("O1-02", "PM per run, per vendor — OCUDU and OAI share no counters, so there is no combined chart."),
+        ("O1-02", "PM per run, per vendor, OCUDU and OAI share no counters, so there is no combined chart."),
         ("O1-03", "Active alarms and history, from the existing ONAP/VES path."),
         ("O1-04", "The current CM of the deployed gNB."),
         ("O1-05", "A CM change: pick a writable parameter, preview, confirm."),
@@ -76,7 +76,7 @@ O1 = Section(
     today=(
         "Per-run O1 reads already work and are on each run's page. The parameters "
         "ETHOS will let you write, with their safe ranges, are readable now at "
-        "GET /cm/params/writable — and a CM write is the only thing in this system "
+        "GET /cm/params/writable, and a CM write is the only thing in this system "
         "that mutates a live RAN, so it stays behind ETHOS's preview → confirm=true "
         "path and is never auto-confirmed."
     ),
@@ -86,7 +86,7 @@ O2 = Section(
     title="O2",
     phase="Phase 4",
     capability="o2_nf",
-    icon="cpu",
+    icon="o2",
     intro=(
         "NF checks in ravi-ns, pod deployment duration per deploy, O-Cloud energy "
         "and EE-KPI, and the StarlingX DMS inventory."
@@ -94,7 +94,7 @@ O2 = Section(
     items=(
         ("O2-01", "Helm releases and pods with status, restarts, age and readiness."),
         ("O2-02", "Time from helm install to all pods ready, per deploy and as a trend."),
-        ("O2-03", "Energy per run and EE-KPI — never for an Aerial run, since the DGX-Spark is ARM and Intel RAPL does not apply."),
+        ("O2-03", "Energy per run and EE-KPI, never for an Aerial run, since the DGX-Spark is ARM and Intel RAPL does not apply."),
         ("O2-04", "The O2 IMS/DMS inventory, which needs a client certificate held by ETHOS."),
     ),
     today=(

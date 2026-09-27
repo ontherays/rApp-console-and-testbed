@@ -4,7 +4,7 @@
 
 {% block title %}{{ run.run_id if run else 'Run' }} · Testbed Console{% endblock %}
 {% block page_title %}{{ (run.run_id if run else 'Run not found') }}{% endblock %}
-{% block page_icon %}file-earmark-text{% endblock %}
+{% block page_icon %}file{% endblock %}
 {% block page_tone %}teal{% endblock %}
 {% block crumbs %}
   {% if run and run.campaign_id %}
@@ -23,8 +23,8 @@
   {% if run %}
     <div class="chips" style="margin-top:12px">
       {{ stack_chip(run.config_id, series_for(run.config_id)) }}
-      {% if run.status == 'done' %}{{ chip('done', 'ok', 'check2') }}
-      {% elif run.status in ('defined', 'running') %}{{ chip(run.status, 'warn', 'dash-circle') }}
+      {% if run.status == 'done' %}{{ chip('done', 'ok', 'check') }}
+      {% elif run.status in ('defined', 'running') %}{{ chip(run.status, 'warn', 'flat') }}
       {% else %}{{ chip(run.status or 'unknown', 'bad', 'exclamation-triangle') }}{% endif %}
       {% if run.direction %}{{ chip(run.direction) }}{% endif %}
       {% if run.condition %}{{ chip(run.condition) }}{% endif %}
@@ -36,7 +36,7 @@
 
 {% block content %}
 {% if error %}
-  <div class="banner bad"><sl-icon name="exclamation-octagon"></sl-icon>{{ error }}</div>
+  <div class="banner bad"><svg class="ic" aria-hidden="true"><use href="#icon-warning"/></svg>{{ error }}</div>
 {% elif run %}
 
 <div class="card" style="padding:16px 20px">
@@ -61,12 +61,12 @@
         <header><span class="card-title">Traffic</span></header>
         <dl class="facts">
           <dt>offered</dt><dd>{{ num(run.offered_mbps, 0, 'Mbit/s') }}
-            <span class="muted">(identity — it is in the run id)</span></dd>
+            <span class="muted">(identity, it is in the run id)</span></dd>
           <dt>achieved</dt><dd><strong>{{ num(run.achieved_over_tx_mbps, 2, 'Mbit/s') }}</strong>
             <span class="muted mono">achieved_over_tx_mbps</span></dd>
           <dt>loss</dt><dd>{{ num(run.loss_pct, 2, '%') }}
             <span class="muted">(vs offered {{ num(run.loss_pct_vs_offered, 2, '%') }})</span></dd>
-          <dt>delivered</dt><dd>{% if run.delivered_bytes %}{{ '{:,}'.format(run.delivered_bytes) }} bytes{% else %}<span class="muted">—</span>{% endif %}</dd>
+          <dt>delivered</dt><dd>{% if run.delivered_bytes %}{{ '{:,}'.format(run.delivered_bytes) }} bytes{% else %}<span class="muted">{{ NOT_MEASURED }}</span>{% endif %}</dd>
           <dt>tx / rx duration</dt><dd>{{ num(run.tx_duration_s, 3, 's') }} / {{ num(run.rx_duration_s, 3, 's') }}
             <span class="muted">ratio {{ num(run.rx_tx_ratio, 3) }}</span></dd>
           <dt>mode</dt><dd>{{ run.traffic_mode or DASH }}
@@ -83,18 +83,18 @@
           <dt>config_hash</dt><dd><span class="mono">{{ run.config_hash or DASH }}</span></dd>
           <dt>campaign</dt><dd>
             {% if run.campaign_id %}<a href="/results/campaigns/{{ run.campaign_id }}">{{ run.campaign_id }}</a>
-            {% else %}<span class="muted">—</span>{% endif %}</dd>
+            {% else %}<span class="muted">{{ NOT_MEASURED }}</span>{% endif %}</dd>
           <dt>created</dt><dd>{{ utc(run.t_created, tz) }} <span class="muted">({{ ago(run.t_created) }})</span></dd>
           <dt>traffic window</dt><dd>{{ utc(run.t_traffic_start, tz) }} → {{ utc(run.t_traffic_end, tz) }}</dd>
           <dt>state verified</dt><dd>
-            {% if run.state_verified is none %}<span class="muted">—</span>
+            {% if run.state_verified is none %}<span class="muted">{{ NOT_MEASURED }}</span>
             {% elif run.state_verified %}<span class="chip ok">yes</span>
             {% else %}<span class="chip bad">no</span>{% endif %}
             {% if run.state_reason %}<div class="muted">{{ run.state_reason }}</div>{% endif %}</dd>
           <dt>UE</dt><dd>
             {% if run.ue %}{{ run.ue.get('ue') }} · {{ run.ue.get('detail') or run.ue.get('action') }}
               {% if run.ue.get('ip') %}<span class="mono">{{ run.ue.get('ip') }}</span>{% endif %}
-            {% else %}<span class="muted">—</span>{% endif %}</dd>
+            {% else %}<span class="muted">{{ NOT_MEASURED }}</span>{% endif %}</dd>
         </dl>
       </div>
       <div class="card span-6">
@@ -110,7 +110,7 @@
             No energy was captured for this run. O-Cloud power
             (<span class="mono">ocloud_power</span>) has had no point since
             2026-08-27, so EE-KPI would be null with a reason rather than a
-            number — the console does not show one.
+            number, the console does not show one.
           </p>
         {% endif %}
       </div>
@@ -137,14 +137,14 @@
           {{ metric_rows(rows.comparable) }}
           <p class="muted" style="margin:12px 0 0">
             Source: <span class="mono">{{ run.radio_summary.source or 'not recorded' }}</span> ·
-            window: {{ run.radio_summary.window_kind or '—' }} ·
-            DU vendor: {{ run.radio_summary.du_vendor or '—' }}
+            window: {{ run.radio_summary.window_kind or NOT_MEASURED }} ·
+            DU vendor: {{ run.radio_summary.du_vendor or NOT_MEASURED }}
           </p>
         </div>
       </div>
 
       {% if rows.vendor %}
-        <sl-details summary="Vendor-specific — {{ run.radio_summary.du_vendor or 'this stack' }} only ({{ rows.vendor | length }} fields)">
+        <sl-details summary="Vendor-specific, {{ run.radio_summary.du_vendor or 'this stack' }} only ({{ rows.vendor | length }} fields)">
           <p class="muted">
             These have no counterpart in the other stack. They are never compared
             with the fields above, and never charted against them.
@@ -163,7 +163,7 @@
         No channel conditions were collected for this run.
         {% if run.status == 'defined' %}It never ran traffic.{% endif %}
         Collection happens on every run since channel metrics were added, so
-        older runs have none — that is an absence, not a zero.
+        older runs have none, that is an absence, not a zero.
       </p>
     {% endif %}
   </sl-tab-panel>
@@ -174,9 +174,9 @@
         {{ metric_rows(rows.latency) }}
         <p class="muted" style="margin:12px 0 0">
           Source: {{ run.latency.source or 'not recorded' }} · window:
-          {{ run.latency.window_kind or '—' }}
+          {{ run.latency.window_kind or NOT_MEASURED }}
           {% if run.condition == 'C_ue_noTraffic' or run.direction == 'none' %}
-            — this run carried no traffic, so these are an idle baseline.
+           , this run carried no traffic, so these are an idle baseline.
           {% endif %}
         </p>
       </div></div>
@@ -191,7 +191,7 @@
         <dl class="facts">
           {% for key, value in run.cell_config.model_dump().items() %}
             <dt class="mono">{{ key }}</dt>
-            <dd>{% if value is none %}<span class="muted">—</span>{% else %}{{ value }}{% endif %}</dd>
+            <dd>{% if value is none %}<span class="muted">{{ NOT_MEASURED }}</span>{% else %}{{ value }}{% endif %}</dd>
           {% endfor %}
         </dl>
         <p class="muted" style="margin:12px 0 0">
@@ -202,7 +202,7 @@
           {% else %}
             The startup log did not confirm these values.
           {% endif %}
-          A field that OCUDU's configuration does not state stays "—"; deriving
+          A field that OCUDU's configuration does not state stays ","; deriving
           <span class="mono">n_prb</span> from bandwidth and SCS is backend change B14.
         </p>
       </div></div>

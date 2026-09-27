@@ -1,12 +1,12 @@
-"""Which options can actually be deployed — until ``GET /catalogue`` exists.
+"""Which options can actually be deployed, until ``GET /catalogue`` exists.
 
 ``GET /compatibility`` says what is *compatible*. It does not say what can be
 *deployed*, and the two differ: TM500, Foxconn and Aerial validate happily and
 then fail at deploy against a ``TODO(Ravi)`` profile. Offering them as if they
 were ready is the one failure mode the Test Plan page must not have.
 
-So the console reads ETHOS's ``deployment/deploy_profiles.yaml`` — a plain data
-file on this host, read and never written, holding no credential — and joins it
+So the console reads ETHOS's ``deployment/deploy_profiles.yaml``, a plain data
+file on this host, read and never written, holding no credential, and joins it
 with the catalogue itself. That is exactly what backend change B4 will do
 server-side; when it lands, this file goes and the endpoint answers instead.
 
@@ -38,7 +38,7 @@ class Profile:
     def deployable(self) -> bool:
         """``wired`` means the chart path, release name, values and namespace
         were confirmed from the real lab commands. ``todo`` is a placeholder the
-        resolver refuses rather than fabricate a chart path — a wrong
+        resolver refuses rather than fabricate a chart path, a wrong
         ``helm upgrade --install`` is a testbed change, not a bad reply."""
         return self.status == WIRED and bool(self.releases)
 
@@ -77,7 +77,7 @@ class Profiles:
         return None
 
     def resolve(self, selection: dict[str, Any]) -> Profile | None:
-        """The profile a selection resolves to, most specific first — so a
+        """The profile a selection resolves to, most specific first, so a
         TM500 UE picks ``ocudu-mono-tm500`` over ``ocudu-mono``."""
         candidates = [p for p in self.profiles if p.matches(selection)]
         if not candidates:
@@ -86,7 +86,7 @@ class Profiles:
 
     def deployable(self, selection: dict[str, Any]) -> tuple[bool | None, str]:
         """(deployable, reason). ``None`` means unknown, which is rendered as
-        "unknown" — an unreadable profile file must never read as "works"."""
+        "unknown", an unreadable profile file must never read as "works"."""
         if not self.available:
             return None, self.error or "deploy profiles were not read"
         profile = self.resolve(selection)
@@ -150,7 +150,7 @@ OPTION_REASONS: dict[tuple[str, str], str] = {
     ("ue", "TM500"): "Driven from its own chassis; no ETHOS UE driver.",
     ("ue", "Pegatron-Dongle"): (
         "The driver needs the vendor attach and detach commands, which have no "
-        "default — a guessed command would record an attach that never happened."
+        "default, a guessed command would record an attach that never happened."
     ),
     ("l1_backend", "Aerial-cuBB"): (
         "Requires the DGX-Spark GB10 host; no deploy profile yet."

@@ -4,7 +4,7 @@ ETHOS's plotting package already writes every figure as a folder holding the
 PNG, the PDF, ``points.csv``, ``raw.csv`` and a ``manifest.json`` that records
 the filters, the run ids, n per point and the git commit. That is a better
 archive than a console could invent, and it is the same image that goes into a
-paper — so the console lists and serves it rather than drawing its own chart.
+paper, so the console lists and serves it rather than drawing its own chart.
 
 Generation is not here. ``POST /plots`` is backend change B9, and until it
 exists a new figure comes from ``python -m plotting``; the Graphs page shows
@@ -163,7 +163,7 @@ def get_figure(graph_dir: Path | None, folder_id: str) -> Figure | None:
     """One figure by its ``<date>/<folder>`` id.
 
     The id comes from a URL, so it is resolved and then checked to be inside the
-    graph directory — a ``..`` segment must not reach another part of the disk.
+    graph directory, a ``..`` segment must not reach another part of the disk.
     """
     if graph_dir is None or not graph_dir.is_dir():
         return None

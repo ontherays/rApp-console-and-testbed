@@ -1,26 +1,66 @@
+{% from "components/macros.html" import ic %}
+
 {# The option groups the Test Plan is built from. #}
 
 {% macro radio(name, choices, current, locked=False, locked_reason='') %}
   {# choices: (value, label, reason). A reason disables one option and explains
      why, so an undeployable combination is never offered as if it worked.
-     `locked` disables the whole group — its answer follows from another field,
+     `locked` disables the whole group: its answer follows from another field,
      and a control you can change but that changes nothing is worse than one you
-     cannot. #}
+     cannot.
+
+     There is no "selected" class here on purpose. Which option is highlighted
+     follows the radio's own checked state, in CSS. A class written by the
+     server only changes when the server re-renders that fragment, and most of
+     these groups sit in cards that never do, so the highlight would stay on
+     whichever option was selected when the page loaded. #}
   <div class="chips">
-  {% for value, label, reason in choices %}
+  {% for choice in choices %}
+    {% set value, label, reason = choice[0], choice[1], choice[2] %}
+    {% set icon = choice[3] if choice | length > 3 else '' %}
     {% set off = reason or locked %}
-    {%- set classes = ['opt'] -%}
-    {%- if current == value and not locked %}{% set _ = classes.append('on') %}{% endif -%}
-    {%- if locked %}{% set _ = classes.append('locked') %}
-    {%- elif reason %}{% set _ = classes.append('off') %}{% endif -%}
-    <label class="{{ classes | join(' ') }}"
+    <label class="opt{{ ' locked' if locked else (' off' if reason else '') }}"
            {% if locked %}title="{{ locked_reason }}"{% elif reason %}title="{{ reason }}"{% endif %}>
       <input type="radio" name="{{ name }}" value="{{ value }}"
              {{ 'checked' if current == value }} {{ 'disabled' if off }}>
-      {{ label }}
-      {% if reason %}<sl-icon name="info-circle"></sl-icon>
-      {% elif locked and current == value %}<sl-icon name="lock"></sl-icon>{% endif %}
+      {% if icon %}{{ ic(icon) }}{% endif %}
+      <span>{{ label }}</span>
+      {% if reason %}<svg class="ic" aria-hidden="true"><use href="#icon-info"/></svg>
+      {% elif locked and current == value %}<svg class="ic" aria-hidden="true"><use href="#icon-lock"/></svg>{% endif %}
     </label>
   {% endfor %}
+  </div>
+{% endmacro %}
+
+{% from "components/macros.html" import ic %}
+
+{% macro pick_group(name, icon, title, cards, current, locked=False, locked_reason='', hint='') %}
+  {# A component chosen from a row of cards: icon or vendor mark, title, one
+     line of what it is. The highlight follows the radio's own checked state,
+     for the same reason the chip groups do. #}
+  <div class="pick-group">
+    <span class="pick-label">{{ ic(icon) }} {{ title }}</span>
+    <div class="pick-cards">
+      {% for value, label, reason, blurb, mark in cards %}
+        {% set off = reason or locked %}
+        <label class="pick{{ ' off' if reason else '' }}{{ ' locked' if locked else '' }}"
+               {% if locked %}title="{{ locked_reason }}"{% elif reason %}title="{{ reason }}"{% endif %}>
+          <input type="radio" name="{{ name }}" value="{{ value }}"
+                 {{ 'checked' if current == value }} {{ 'disabled' if off }}>
+          <span class="pick-mark">
+            {% if mark %}
+              <span class="vmark" style="--vmark: {{ mark.colour }}">{{ mark.short }}</span>
+            {% else %}
+              <svg class="ic ic-lg" aria-hidden="true"><use href="#icon-{{ icon }}"/></svg>
+            {% endif %}
+          </span>
+          <span class="pick-body">
+            <span class="pick-title">{{ label }}</span>
+            <span class="pick-blurb">{{ reason or blurb }}</span>
+          </span>
+        </label>
+      {% endfor %}
+    </div>
+    {% if hint %}<p class="hint">{{ hint }}</p>{% endif %}
   </div>
 {% endmacro %}

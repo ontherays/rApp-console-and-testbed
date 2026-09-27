@@ -1,8 +1,9 @@
+{% from "components/macros.html" import ic %}
 {# How much of the ETHOS backend is in place. It fills in by itself: the
    capability probe finds each endpoint as it lands. #}
 <div class="setup">
   <div class="art">
-    <span class="glyph"><sl-icon name="{{ 'check2-circle' if backend.complete else 'hdd-network' }}"></sl-icon></span>
+    <span class="glyph">{{ ic('check' if backend.complete else 'testbed') }}</span>
   </div>
   <div class="body">
     <b>ETHOS backend</b>

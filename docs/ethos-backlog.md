@@ -18,9 +18,9 @@ Checked against the live API on 127.0.0.1:8081 on 2026-09-27.
 backend-change id. It probes them at startup and every 60 seconds, and classifies
 each as:
 
-- `ok` — the endpoint answered
-- `not_built` — a 501 stub, or not routed at all
-- `unreachable` — ETHOS itself is down
+- `ok`: the endpoint answered
+- `not_built`: a 501 stub, or not routed at all
+- `unreachable`: ETHOS itself is down
 
 A page asks `caps.ready("jobs")` and renders the gated state from `caps.why()`.
 **When a backend change lands, the probe finds the endpoint and the page lights up
@@ -62,55 +62,55 @@ on its own.** Removing the entry from the table is the last step, not the first.
 
 ## What each change unlocks, and what to delete when it lands
 
-### B1 — testbed lock
+### B1, testbed lock
 
 Gated: the Overview's lock tile, the readiness panel's `lock` line, and the
 status strip's `Lock` item. All three read `unknown` today, which is the honest
-answer — an item that said "free" because nothing answered would be worse than no
+answer, an item that said "free" because nothing answered would be worse than no
 item at all.
 
 When it lands: add `lock()` to `client.py`; the tile and the strip read it. Remove
 the `lock` entry from `FEATURES`.
 
-### B2 — jobs
+### B2, jobs
 
 Gated: the RUN button, the whole Jobs page, and the Overview's running-job tile.
 
 The console deliberately does **not** run campaigns itself. It has the same API
-the CLI drives, so it could — and that is the reason not to: a second campaign
+the CLI drives, so it could, and that is the reason not to: a second campaign
 executor, with the lock living in the LAN-facing web process instead of in ETHOS,
 is what the design rules out. One executor, in ETHOS.
 
 When it lands: `POST /jobs/preview` fills the confirmation dialog the plan page
 already has a place for, `POST /jobs` replaces the "Save plan" primary action, and
-the Jobs page gains the SSE relay (`console/sse.py`, not yet written — there is
+the Jobs page gains the SSE relay (`console/sse.py`, not yet written: there is
 nothing to relay).
 
-### B3 — preview, then act with a token
+### B3, preview, then act with a token
 
 Nothing in the console acts on the testbed today, so nothing is gated on this
 directly. It is the prerequisite for Phase 2: deploy, teardown and UE attach act
 on the first call in ETHOS today, with no preview, which is why the Testbed page
 is a description rather than a control panel.
 
-### B4 — catalogue with deployability
+### B4, catalogue with deployability
 
 **Standing in today:** `console/rapps/ethos/profiles.py` reads ETHOS's
-`deployment/deploy_profiles.yaml` directly — a plain data file on this host, read
-and never written, holding no credential — and joins it with `/compatibility`
+`deployment/deploy_profiles.yaml` directly, a plain data file on this host, read
+and never written, holding no credential, and joins it with `/compatibility`
 itself. That is what makes the Test Plan disable TM500 with "Deploy profile
 ocudu-mono-tm500 is a placeholder" instead of validating happily and failing at
 deploy.
 
 Reasons that are hard-coded in `OPTION_REASONS` (Foxconn, TM500, the Pegatron
 dongle, Aerial, DGX-Spark, free5GC) each came from the profiles and chart values
-on this host. **They are the weakest part of the console** — they will drift.
+on this host. **They are the weakest part of the console**, they will drift.
 
 When it lands: delete `profiles.py`, delete `OPTION_REASONS`, drop
 `CONSOLE_DEPLOY_PROFILES`, and read `deployable` and `reason` per option from
 `/catalogue`.
 
-### B5 — readiness
+### B5, readiness
 
 Gated: four of the seven readiness lines (`lock`, `ue_reachable`, `iperf_server`,
 `core`). `topology` and `node_free` are answered today from `/validate` and
@@ -124,31 +124,31 @@ The console adds no readiness check of its own beyond that, because the point of
 When it lands: replace the whole list with ETHOS's, rendered in its order. Delete
 the pre-check's "console pre-check" label, or keep the parse as a form hint only.
 
-### B6 — status summary
+### B6, status summary
 
 Gated: the `Lock`, `Job`, `UE` and `iperf 5201` items in the status strip, and the
 Overview's data-freshness tile. Freshness needs InfluxDB, and the console holds no
-database token — this one cannot be worked around, only waited for.
+database token, this one cannot be worked around, only waited for.
 
 When it lands: `build_status()` in `console/status.py` becomes one call.
 
-### B7 — iperf server mode per job
+### B7, iperf server mode per job
 
 Not gated, but recorded: the plan carries `iperf_server`, and the mode is
 service-wide in ETHOS today (`ETHOS_IPERF_SERVER` in a systemd drop-in, currently
 `app_binary`). The plan page says so.
 
-### B8 — direction and repeats
+### B8, direction and repeats
 
 `--direction` exists in the campaign CLI; `--repeats` does not. A plan with more
 than one repeat says so, and the copy-able command explains that repeats mean
 running it that many times.
 
-### B9 — figures on request
+### B9, figures on request
 
 **Standing in today:** the Graphs page is a read-only gallery over
 `ETHOS_GRAPH_DIR`, listing each figure with its manifest, PNG and PDF. The
-console does not draw its own chart from the same numbers — that would be a
+console does not draw its own chart from the same numbers, that would be a
 second, differently-styled rendering of one figure, and the archive exists to
 stop exactly that.
 
@@ -156,7 +156,7 @@ When it lands: `POST /plots` behind the form the page already has disabled, and
 `GET /plots/series` replaces the copied palette in
 `console/rapps/ethos/series.py`. Drop `CONSOLE_GRAPH_DIR`.
 
-### B10 — results queries
+### B10, results queries
 
 **Standing in today:** `console/rapps/ethos/query.py` does the filtering,
 sorting, paging, CSV and sweep grouping in the console, because `GET /runs` takes
@@ -170,27 +170,27 @@ is not an option.
 When it lands: delete `query.py`, pass the filters through, use `GET /runs.csv`
 and `GET /campaigns/{id}/summary`.
 
-### B11 — standalone UE control
+### B11, standalone UE control
 
 Gated: the whole Testbed page's UE half, the Overview's UE tile, the
 `ue_reachable` and `iperf_server` readiness lines. ETHOS's UE endpoints are
 scoped to a run today, which is right for the record but means there is no
-standalone panel — and the console will not create a run just to read a UE's
+standalone panel, and the console will not create a run just to read a UE's
 state.
 
-### B12 — O1 freshness, alarms, CM-driven tests
-### B13 — O2 NF checks, deploy timing, energy, DMS
+### B12, O1 freshness, alarms, CM-driven tests
+### B13, O2 NF checks, deploy timing, energy, DMS
 
 Gated: the O1 and O2 pages. Each lists its requirement ids and what stands today.
 
-### B14 — derived cell-config fields
+### B14, derived cell-config fields
 
-The Cell config tab shows `—` where OCUDU's configuration does not state a value,
+The Cell config tab shows `,` where OCUDU's configuration does not state a value,
 and says that deriving `n_prb` is B14. It does not derive it itself: a number the
 console computed and ETHOS did not would appear in a screenshot as if it had been
 measured.
 
-### B15 — test-definition radio parameters
+### B15, test-definition radio parameters
 
 `POST /testdef/generate` reports 80 MHz and DDDSU for OCUDU, which runs 100 MHz
 and 7D2U. The plan page labels those values **planned** and points at the run's

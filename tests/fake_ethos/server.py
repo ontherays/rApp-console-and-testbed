@@ -2,7 +2,7 @@
 
 The unit tests reach the fake through an httpx transport, which is enough when
 the console is exercised in-process. A browser needs the console to be a running
-server, and that console opens real sockets to ETHOS — so the same replay logic
+server, and that console opens real sockets to ETHOS, so the same replay logic
 is wrapped in an ASGI app here and served.
 
 One implementation, two ways of reaching it: a fixture that drifts from what the

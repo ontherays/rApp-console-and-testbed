@@ -1,4 +1,4 @@
-# Testbed Console & Dashboard — Design
+# Testbed Console & Dashboard, Design
 
 Companion to `01-requirements.md` (requirement IDs in brackets refer to it).
 ETHOS-side changes are specified in `03-ethos-backend-changes.md` as B1–B15.
@@ -11,13 +11,13 @@ ETHOS-side changes are specified in `03-ethos-backend-changes.md` as B1–B15.
  browser (lab LAN)
     │  HTTPS :8443, session cookie
     ▼
- Testbed Console  — FastAPI + Jinja2, systemd user service "testbed-console"
+ Testbed Console : FastAPI + Jinja2, systemd user service "testbed-console"
     │  ├─ pages (server-rendered HTML, htmx swaps, SSE relay)
     │  ├─ auth (one password, sessions, CSRF)
     │  └─ rapps/ethos/client.py  ← the ONLY code that talks to ETHOS
     │  HTTP over loopback
     ▼
- ETHOS API  127.0.0.1:8081  — systemd user service "ethos-rapp"
+ ETHOS API  127.0.0.1:8081 , systemd user service "ethos-rapp"
     ├─ lock, jobs, readiness, previews, catalogue      (B1–B8)
     ├─ runs, results, plots, UE, O1, O2 endpoints      (existing + B9–B13)
     └─ SSH / kubectl / adb / InfluxDB / SDNC           (credentials stay here)
@@ -122,7 +122,7 @@ table of measurements still reads as measurement data.
 
 **Colour is never the only signal.** Every coloured chip also carries text or an
 icon, every change chip carries an arrow and a word, and every status dot sits
-beside its label — so a state survives greyscale and colour blindness.
+beside its label, so a state survives greyscale and colour blindness.
 
 | Token | Value | Use |
 |---|---|---|
@@ -133,7 +133,7 @@ beside its label — so a state survives greyscale and colour blindness.
 | `--muted` | `#6B7280` | secondary text |
 | `--faint` | `#9AA1AC` | labels, timestamps, units |
 | `--accent` | `#2563EB` | the one primary button per page, links, focus ring |
-| `--ok` / `--warn` / `--bad` | `#15803D` / `#B45309` / `#DC2626` | pass, caution, failure — always with a word |
+| `--ok` / `--warn` / `--bad` | `#15803D` / `#B45309` / `#DC2626` | pass, caution, failure, always with a word |
 | Stack colours | from `plotting/series.py`, replaced by `GET /plots/series` (B9) | chips, legend swatches, initials tiles |
 
 **Icon tiles.** Every KPI card, every page header and every topology row carries
@@ -151,13 +151,27 @@ config_ids and JSON in `ui-monospace`.
 page section. Radius 14 px on cards, 10 px on controls and tiles, 999 px on chips.
 
 **Grouping.** Related cards share one rounded container with 1 px dividers
-between them rather than floating separately — the Overview's KPI row is one
+between them rather than floating separately, the Overview's KPI row is one
 card holding six, which reads as one row of facts instead of six objects.
 
 **Tables.** 13 px, rows about 40 px, numeric columns right-aligned with tabular
 figures and fixed decimals (throughput 2, dB 1, BLER 4), sticky header on
 `#FBFBFC`, no vertical rules. A cell may carry a small muted sub-line under its
-value — a count under a bar, a config_id under a label.
+value, a count under a bar, a config_id under a label.
+
+**Icons.** One set, drawn for this console: 24 px grid, 1.5 px stroke, round
+joins, `currentColor`, in the flat line style of O-RAN architecture diagrams.
+`docs/design/icons.md` shows every one. Vendors get a wordmark rather than their
+logo, for the reasons in `console/vendors.py`.
+
+**No em dash.** Not in a template, not in a Python string that reaches the
+screen, not in this folder. A comma, a colon, a full stop or brackets. The "not
+measured" marker is the word `n/a`, which also settles GL-09's spelling of it.
+
+**Selected state.** An option's highlight comes from its own `:checked` state in
+CSS, never from a class the server wrote: most groups sit in cards the form does
+not re-render, so a written class would stay on the option that was selected
+when the page loaded.
 
 **Buttons.** One blue primary per page. Secondary buttons are white with a
 `#DEDEDE` border; destructive ones are white with a red border and red text.
@@ -172,7 +186,7 @@ out, look after the testbed, and read the documentation.
 
 | Group | Nav item | Path | Breadcrumb example | Phase |
 |---|---|---|---|---|
-| Essentials | Overview | `/` | — | 1 |
+| Essentials | Overview | `/` |, | 1 |
 | Essentials | Test Plan | `/plan` | Test Plan | 1 |
 | Essentials | Jobs | `/jobs`, `/jobs/{job_id}` | Jobs / j-0927-1412 | 1 |
 | Measure | Results | `/results`, `/results/campaigns/{id}`, `/results/runs/{run_id}` | Results / sweep-0927 / …-DL100M-015 | 1 |
@@ -181,8 +195,8 @@ out, look after the testbed, and read the documentation.
 | Network | O1 | `/o1` | O1 | 3 |
 | Network | O2 | `/o2` | O2 | 4 |
 | System | Docs | `/docs`, `/docs/{slug}` | Documentation / Requirements | 1 |
-| — | Search | `/search?q=` | Search | 1 |
-| — | Login | `/login` | — | 1 |
+|, | Search | `/search?q=` | Search | 1 |
+| (| Login | `/login` |) | 1 |
 
 ---
 
@@ -194,7 +208,7 @@ or forms inside them.
 
 ### 6.0 The shell
 
-**Sidebar** — a white card on the canvas, sticky, full height. Top to bottom:
+**Sidebar**: a white card on the canvas, sticky, full height. Top to bottom:
 the brand; a search box with a `/` shortcut that finds a run_id, a config_id or
 a campaign; then collapsible groups with small muted headings:
 
@@ -207,15 +221,15 @@ a campaign; then collapsible groups with small muted headings:
 
 Each item has an icon. A badge appears only where it counts something real:
 "new runs since your last visit" on Results today, running jobs once B2 lands,
-active alarms once B12 does. **A badge is never shown as 0** — a zero beside
+active alarms once B12 does. **A badge is never shown as 0**, a zero beside
 Jobs would read as "nothing is running" on a console that cannot tell.
 
-At the foot, a **backend-readiness card**: "ETHOS backend — n of 6 ready" over
+At the foot, a **backend-readiness card**: "ETHOS backend, n of 6 ready" over
 B1, B2, B4, B5, B6 and B9, with a progress ring, the next change named, and a
 link to `docs/ethos-backlog.md`. It fills in by itself as the capability probe
 finds each endpoint.
 
-**Page header** — the page's icon tile and title on the left, breadcrumbs above
+**Page header**: the page's icon tile and title on the left, breadcrumbs above
 it where there is a hierarchy. On the right: a notification bell, a secondary
 **Export** where the page has data, and at most **one blue primary button**
 ("New test" on Overview, Results, Jobs and Graphs). Filters sit below the title,
@@ -228,24 +242,24 @@ Two segmented controls: the period (**24 hours / 7 days / 30 days**) and the
 subset (**All runs / DL / UL / Needs attention**, the last with a red dot when
 any run in the archive carries a quality flag).
 
-**KPI row** — six cards in one container, each with its icon tile, a large
+**KPI row**: six cards in one container, each with its icon tile, a large
 numeral, and a change chip against the *previous period of the same length*:
 testbed lock, deployed now, runs in the period, best DL at 1000 M, median PUSCH
 SNR, and data freshness. A comparison with no previous period says "no previous
 run" rather than showing a change against nothing.
 
-**Runs by topology** — a honeycomb with one hexagon per run in the period,
+**Runs by topology**: a honeycomb with one hexagon per run in the period,
 coloured by stack in the figure colours, on a grey grid of empty cells; the size
 of the coloured area is itself the count. Below it, one legend row per topology
-with its share and run count. Two config_ids can carry the same label — OCUDU
-monolithic with a Samsung and with an MTK UE — so an ambiguous row shows its
+with its share and run count. Two config_ids can carry the same label, OCUDU
+monolithic with a Samsung and with an MTK UE, so an ambiguous row shows its
 config_id underneath.
 
-**Throughput over time** — a dot-matrix column chart of the best
+**Throughput over time**: a dot-matrix column chart of the best
 `achieved_over_tx_mbps` of each day, with a chip naming the source
 (`from run.json`). **A day with no run is an empty column, not a zero.**
 
-**Topologies that need you** — least complete first: a coloured initials tile
+**Topologies that need you**: least complete first: a coloured initials tile
 per topology (a unique two-letter code per stack head), its config_id, a chip
 for the last state, the run count, a tick-style bar of points delivered against
 planned for its latest sweep, the best DL at 1000 M with a change chip, when it
@@ -254,7 +268,7 @@ last ran, and a **Review** button opening that sweep.
 Below: running job and UE tiles naming their backend change, and links.
 
 **Charts are inline SVG rendered on the server, with no chart library.** They
-are operational summaries — counts and trends. Measurement figures still come
+are operational summaries, counts and trends. Measurement figures still come
 only from ETHOS's plotting package on the Graphs page: a chart library in the
 browser would produce a second, differently-styled rendering of numbers already
 archived with their manifest.
@@ -264,13 +278,13 @@ archived with their manifest.
 Two columns: the form on the left, saved plans on the right.
 
 **Topology** card: gNB stack, split, CU and DU vendor, L1, RU, UE, core, server
-— each a row of selectable chips showing the catalogue's **label**, never its
+each a row of selectable chips showing the catalogue's **label**, never its
 slug. An option that cannot be deployed is dimmed with the reason on hover.
 
 **CU and DU vendor follow the split.** With *Monolithic* selected both groups are
 disabled and show the gNB stack's own value, with the tooltip "Monolithic runs
 CU and DU in one process of the gNB stack". Choosing *CU + DU* makes both
-selectable, defaulting to the stack's vendor — opening a split must not silently
+selectable, defaulting to the stack's vendor, opening a split must not silently
 propose a cross-vendor F1 nobody asked for. Setting them to different vendors
 selects one of the cross-vendor splits. The groups are re-rendered by the same
 request that re-resolves the plan and swapped in out of band, so the gating

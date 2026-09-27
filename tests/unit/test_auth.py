@@ -49,7 +49,7 @@ def test_failures_outside_the_window_do_not_accumulate():
     now = [0.0]
     limiter = LoginLimiter(now=lambda: now[0])
     for step in range(4):
-        now[0] = step * 200.0     # 0, 200, 400, 600 — the first two age out
+        now[0] = step * 200.0     # 0, 200, 400, 600, the first two age out
         limiter.record_failure()
     now[0] = 600.0
     limiter.record_failure()

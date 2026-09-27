@@ -1,7 +1,7 @@
 """The test plan the console builds, and the checks it can make itself.
 
 The plan document is the one backend change B2 will accept, so the form is built
-against that shape from the start — a plan saved today is the body ``POST /jobs``
+against that shape from the start, a plan saved today is the body ``POST /jobs``
 will take unchanged.
 
 **The console adds no readiness check of its own.** ``POST /readiness`` (B5) is
@@ -33,7 +33,7 @@ class PlanInvalid(Exception):
 
 
 def parse_rates(text: str) -> list[float]:
-    """``500``, ``100,200,300`` or ``100-1000:100`` — the CLI's own grammar."""
+    """``500``, ``100,200,300`` or ``100-1000:100``, the CLI's own grammar."""
     raw = (text or "").strip()
     if not raw:
         raise PlanInvalid("an offered load is required")

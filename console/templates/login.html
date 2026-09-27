@@ -17,11 +17,11 @@
 
     {% if error %}
       <sl-alert variant="danger" open style="margin-bottom:16px">
-        <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>{{ error }}
+        <svg class="ic" slot="icon" aria-hidden="true"><use href="#icon-warning"/></svg>{{ error }}
       </sl-alert>
     {% elif reason %}
       <sl-alert variant="warning" open style="margin-bottom:16px">
-        <sl-icon slot="icon" name="info-circle"></sl-icon>{{ reason }}
+        <svg class="ic" slot="icon" aria-hidden="true"><use href="#icon-info"/></svg>{{ reason }}
       </sl-alert>
     {% endif %}
 

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import kpi, segmented, delta, chip, gated, ago, num, initials_tile %}
+{% from "components/macros.html" import kpi, segmented, delta, chip, gated, ago, num, initials_tile, ic %}
 {% from "components/header.html" import bell, export_button, primary %}
 
 {% block title %}Overview · Testbed Console{% endblock %}
 {% block page_title %}Overview{% endblock %}
-{% block page_icon %}grid-1x2{% endblock %}
+{% block page_icon %}overview{% endblock %}
 {% block page_tone %}blue{% endblock %}
 
 {% block actions %}
@@ -22,7 +22,7 @@
 
 {% block content %}
 {% if error %}
-  <div class="banner bad"><sl-icon name="exclamation-octagon"></sl-icon>{{ error }}</div>
+  <div class="banner bad"><svg class="ic" aria-hidden="true"><use href="#icon-warning"/></svg>{{ error }}</div>
 {% endif %}
 
 <div class="kpis of-6">
@@ -32,8 +32,12 @@
 <div class="grid cols-12">
   <div class="card span-5">
     <header>
-      <span class="card-title">Runs by topology</span>
-      <a href="/results?usable_only=no" class="faint">All runs <sl-icon name="arrow-right"></sl-icon></a>
+      <span class="tile blue">{{ ic('sweep') }}</span>
+      <span style="min-width:0">
+        <span class="card-title">Runs by topology</span>
+        <span class="card-sub">One hexagon per run in the period</span>
+      </span>
+      <a href="/results?usable_only=no" class="faint">All runs <svg class="ic" aria-hidden="true"><use href="#icon-arrow-right"/></svg></a>
     </header>
     <div class="numeral" style="margin-bottom:16px">
       {{ window.current | length }}<span class="unit">run(s), {{ window.label|lower }}</span>
@@ -42,7 +46,7 @@
     {% if shares %}
       <div class="legend-rows">
         {% for share in shares %}
-          {# Two config_ids can carry the same label — ocudu-mono with a Samsung
+          {# Two config_ids can carry the same label, ocudu-mono with a Samsung
              and with an MTK UE both read "OCUDU monolithic", and the legacy
              cross-vendor heads alias onto the current ones. The config_id is
              shown underneath so two rows are never the same thing twice. #}
@@ -64,11 +68,15 @@
 
   <div class="card span-7">
     <header>
-      <span class="card-title">Throughput over time</span>
-      {{ chip('from run.json', 'outline', 'file-earmark-text') }}
+      <span class="tile orange">{{ ic('rate') }}</span>
+      <span style="min-width:0">
+        <span class="card-title">Throughput over time</span>
+        <span class="card-sub">The best achieved rate of each day</span>
+      </span>
+      {{ chip('from run.json', 'outline', 'file') }}
     </header>
     <div class="value" style="margin-bottom:16px">
-      <span class="numeral">{% if period_best is not none %}{{ period_best | round | int }}{% else %}—{% endif %}</span>
+      <span class="numeral">{% if period_best is not none %}{{ period_best | round | int }}{% else %}{{ NOT_MEASURED }}{% endif %}</span>
       <span class="unit">
         {% if period_best is not none %}Mbit/s best in the period, over {{ measured_days }} day(s) with a run
         {% else %}nothing measured in this period{% endif %}
@@ -84,8 +92,12 @@
 
 <div class="card flush">
   <header>
-    <span class="card-title">Topologies that need you</span>
-    <span class="faint">least complete first</span>
+    <span class="tile teal">{{ ic('testbed') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">Topologies that need you</span>
+      <span class="card-sub">Least complete first</span>
+    </span>
+    <span class="faint">{{ rows | length }} topolog{{ 'y' if rows | length == 1 else 'ies' }}</span>
   </header>
   <div class="table-wrap">
     <table class="data">
@@ -107,8 +119,8 @@
               </span>
             </td>
             <td>
-              {% if row.last_state == 'completed' %}{{ chip('completed', 'ok', 'check2') }}
-              {% elif 'defined' in row.last_state %}{{ chip(row.last_state, 'warn', 'dash-circle') }}
+              {% if row.last_state == 'completed' %}{{ chip('completed', 'ok', 'check') }}
+              {% elif 'defined' in row.last_state %}{{ chip(row.last_state, 'warn', 'flat') }}
               {% else %}{{ chip(row.last_state, '', 'info-circle') }}{% endif %}
             </td>
             <td class="num">{{ row.runs }}</td>
@@ -120,7 +132,7 @@
               </span>
             </td>
             <td class="num">
-              {% if row.best_1000 is not none %}{{ row.best_1000 | round(1) }}{% else %}<span class="faint">—</span>{% endif %}
+              {% if row.best_1000 is not none %}{{ row.best_1000 | round(1) }}{% else %}<span class="faint">{{ NOT_MEASURED }}</span>{% endif %}
               <span class="sub">{% if row.change %}{{ delta(row.change) }}{% endif %}</span>
             </td>
             <td class="nowrap">{{ ago(row.last_seen) }}</td>
@@ -157,7 +169,7 @@
     <ul style="margin:0;padding-left:18px;line-height:2">
       {% if settings.grafana_url %}
         <li><a href="{{ settings.grafana_url }}" target="_blank" rel="noreferrer">Grafana
-          <sl-icon name="box-arrow-up-right"></sl-icon></a> <span class="faint">— linked, never embedded</span></li>
+          <svg class="ic" aria-hidden="true"><use href="#icon-external"/></svg></a> <span class="faint">, linked, never embedded</span></li>
       {% endif %}
       <li><a href="/docs">Console documentation</a></li>
       <li><a href="/docs/ethos-backlog">What ETHOS still owes the console</a></li>
@@ -165,7 +177,7 @@
     <sl-details summary="How to reach ETHOS Swagger" style="margin-top:12px">
       <p class="muted" style="margin-top:0">
         ETHOS stays on loopback (SE-07), and the console does not proxy its
-        Swagger — "Try it out" there would bypass every confirmation this console
+        Swagger: "Try it out" there would bypass every confirmation this console
         adds. Tunnel to it instead:
       </p>
       <pre class="cmd">ssh -L 8081:127.0.0.1:8081 oai-gnb@192.168.8.78

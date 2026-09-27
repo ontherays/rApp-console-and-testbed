@@ -6,7 +6,7 @@ the Content-Security-Policy can be `default-src 'self'` with nothing else allowe
 
 Downloaded once from the npm registry, on 2026-09-27, and committed. To update
 one, fetch the new version, replace the file, update its line here, and run the
-suite — a page test asserts that no page references an external host.
+suite, a page test asserts that no page references an external host.
 
 ## Versions
 
@@ -32,19 +32,19 @@ d5bdcd030d02204710e478da9c576fb0543460509709348691af4dc2b378da9c  shoelace/cdn/s
 Shoelace's distribution is 13 MB and 2545 files, most of it an icon set and
 editor metadata that no browser requests. What is served:
 
-- `cdn/shoelace-autoloader.js` and `cdn/chunks/` — the autoloader and the
+- `cdn/shoelace-autoloader.js` and `cdn/chunks/`, the autoloader and the
   component chunks it lazily fetches from beside itself. The whole `chunks`
   folder is kept: the components share code through it, and guessing which
   chunks a component needs is how a dialog stops opening.
-- `cdn/components/` and `cdn/themes/light.css` — the components and the theme.
-- `cdn/translations/` — kept; the autoloader reads them.
-- `cdn/assets/icons/` — **trimmed to the icons the console actually names.**
+- `cdn/components/` and `cdn/themes/light.css`, the components and the theme.
+- `cdn/translations/`: kept; the autoloader reads them.
+- `cdn/assets/icons/`: **trimmed to the icons the console actually names.**
   The icons Shoelace's own components use internally (a select's chevron, an
   alert's close button) come from its "system" library inside `chunks/`, not from
   this folder, so trimming it does not affect them.
 
   Adding an `<sl-icon name="…">` to a template means copying that SVG in from the
-  upstream package. A missing one renders as empty space and logs a 404 — it
+  upstream package. A missing one renders as empty space and logs a 404, it
   looks like a styling slip and is a missing file, which is why
   `tests/unit/test_vendored_icons.py` checks both directions: every icon the
   console names is present, and nothing is vendored that nothing names.

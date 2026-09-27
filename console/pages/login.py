@@ -94,7 +94,7 @@ async def login_submit(
                 "error": message,
                 "next": next,
                 # If this attempt was the one that locked login, the field is
-                # disabled on this very response — saying "refused for 10
+                # disabled on this very response, saying "refused for 10
                 # minutes" over an enabled field invites a sixth attempt.
                 "locked_s": int(limiter.locked_for_s()),
                 "configured": True,

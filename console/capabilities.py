@@ -3,7 +3,7 @@
 The console is specified against an ETHOS that has a testbed lock, a job model,
 a readiness endpoint and figure generation. None of that exists yet. The
 alternative to this file would be buttons that look live and fail on click, or
-pages quietly missing — both worse than a control that is disabled and says
+pages quietly missing, both worse than a control that is disabled and says
 exactly what it is waiting for.
 
 So every feature is declared here with the endpoint it needs and the backend
@@ -11,7 +11,7 @@ change that delivers it (B1–B15 in ``docs/03-ethos-backend-changes.md``). The
 probe runs at startup and every 60 s, and classifies each feature as:
 
     ok            the endpoint answered
-    not_built     501 stub, or not routed at all — the backend change is pending
+    not_built     501 stub, or not routed at all, the backend change is pending
     unreachable   ETHOS itself is down
 
 Pages ask ``caps.ready("jobs")`` and render the gated state from ``caps.why()``.
@@ -151,8 +151,8 @@ class Capabilities:
         if state == OK:
             return feature.what
         if state == UNREACHABLE:
-            return f"ETHOS is unreachable — {self.ethos_detail}"
-        return f"needs ETHOS {feature.change} — {feature.what}"
+            return f"ETHOS is unreachable, {self.ethos_detail}"
+        return f"needs ETHOS {feature.change}, {feature.what}"
 
     def cli_for(self, key: str) -> str | None:
         feature = BY_KEY.get(key)
@@ -197,7 +197,7 @@ class CapabilityProbe:
             try:
                 # A probe must not act. GET is harmless; the one POST probe is
                 # sent with an empty body, which a real endpoint rejects with
-                # 422 — and a 422 still proves it is there.
+                # 422, and a 422 still proves it is there.
                 await self._client.call(
                     method,
                     path,

@@ -25,6 +25,8 @@ from console.rapps.ethos.cli import campaign_command
 from console.rapps.ethos.client import EthosError
 from console.rapps.ethos.plan import Check, TrafficPlan
 from console.rapps.ethos.profiles import OPTION_REASONS, load_profiles
+from console.topology import build_presets, diagram
+from console.vendors import mark_for
 from console.templating import render
 
 router = APIRouter()
@@ -49,11 +51,69 @@ DEFAULTS: dict[str, str] = {
 
 
 
+BLURBS: dict[tuple[str, str], str] = {
+    ("gnb_stack", "OCUDU"): "The lab's own CU/DU stack",
+    ("gnb_stack", "OAI"): "OpenAirInterface 5G gNB",
+    ("l1_backend", "software-PHY"): "The DU runs its own L1 on the host CPU",
+    ("l1_backend", "Aerial-cuBB"): "NVIDIA high-PHY over nvIPC, on the DGX-Spark",
+    ("ru", "Pegatron"): "7.2x split O-RU, the lab's usual radio",
+    ("ru", "Foxconn"): "7.2x split O-RU",
+    ("ru", "TM500"): "RU emulated by the VIAVI instrument",
+    ("ue", "Samsung"): "Android handset, driven over adb",
+    ("ue", "MTK"): "MediaTek handset, driven over adb",
+    ("ue", "Pegatron-Dongle"): "USB dongle UE, driven over SSH",
+    ("ue", "TM500"): "UE emulated by the VIAVI instrument",
+    ("core", "Open5GS"): "The core the testbed normally runs",
+    ("core", "free5GC"): "An alternative 5G core",
+    ("server", "joule"): "StarlingX worker, DU on socket 1",
+    ("server", "DGX-Spark"): "GB10 ARM host for Aerial",
+}
+
+SPLIT_CARDS_WITH_MARK = (
+    ("monolithic", "Monolithic", "", "CU and DU in one process of the gNB stack", None),
+    ("CU+DU", "CU + DU", "", "CU and DU as separate releases, joined over F1", None),
+)
+
+
+def vendor_cards(catalogue) -> list[tuple[str, str, str, str, object]]:
+    """The two vendors, as CU or DU. Same marks as the gNB stack they name."""
+    return [
+        (value, value, "", BLURBS.get(("gnb_stack", value), ""), mark_for("gnb_stack", value))
+        for value in ("OCUDU", "OAI")
+    ]
+
+
+def topology_label(selection: dict[str, Any]) -> str:
+    """What the chosen topology is called, from ETHOS's own series names."""
+    from console.topology import HEADS, LABELS, PRESET_SELECTIONS
+
+    split = selection.get("gnb_split")
+    stack = selection.get("gnb_stack")
+    for profile, wanted in PRESET_SELECTIONS.items():
+        if wanted["gnb_split"] == split and wanted["gnb_stack"] == stack:
+            return LABELS[profile]
+    return f"{stack} {split}"
+
+
+def card_list(catalogue, category: str) -> list[tuple[str, str, str, str, object]]:
+    """(value, label, reason, blurb, vendor mark) for the picker's cards."""
+    return [
+        (
+            value,
+            label,
+            reason,
+            BLURBS.get((category, value), ""),
+            mark_for(category, value),
+        )
+        for value, label, reason in option_list(catalogue, category)
+    ]
+
+
 def option_list(catalogue, category: str) -> list[tuple[str, str, str]]:
     """(value, label, reason-it-is-disabled) for one catalogue category.
 
     The label is always what is shown (GL-05). A reason comes from
-    ``OPTION_REASONS`` — every entry there was checked against the deploy
+    ``OPTION_REASONS``, every entry there was checked against the deploy
     profiles and the chart values on this host, and each one disappears as
     ``GET /catalogue`` (B4) starts carrying ETHOS's own reason per option.
     """
@@ -108,8 +168,8 @@ def resolve_split(values: dict[str, Any]) -> tuple[str, str]:
 
     The catalogue spells the four splits ``monolithic``, ``CU+DU``,
     ``OCUDU-CU+OAI-DU`` and ``OAI-CU+OCUDU-DU``. The form asks the question the
-    way requirements TP-02 does — monolithic or CU+DU, then a CU vendor and a DU
-    vendor — and this maps the answer onto the catalogue's own ids.
+    way requirements TP-02 does, monolithic or CU+DU, then a CU vendor and a DU
+    vendor, and this maps the answer onto the catalogue's own ids.
 
     Monolithic has no CU or DU vendor to choose: both halves are the gNB stack,
     in one process. The form shows them as the stack's value and disabled, and
@@ -136,7 +196,7 @@ def vendor_fields(values: dict[str, Any]) -> dict[str, Any]:
     """How the CU and DU vendor groups are presented for this form state.
 
     Monolithic: both follow the gNB stack and are disabled, with the reason.
-    CU + DU: both selectable, defaulting to the gNB stack's vendor — so opening
+    CU + DU: both selectable, defaulting to the gNB stack's vendor, so opening
     the split does not silently propose a cross-vendor F1 nobody asked for.
     """
     stack = str(values.get("gnb_stack", "OCUDU"))
@@ -264,7 +324,7 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
                 "Nothing else is deployed",
                 "unknown",
                 f"{deployed.namespace_summary}, but the node itself was not "
-                f"checked — {deployed.node_detail}",
+                f"checked, {deployed.node_detail}",
             )
     except EthosError as exc:
         node_check = Check("node_free", "Nothing else is deployed", "unknown", exc.message)
@@ -291,16 +351,30 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
     document = traffic.as_document(config_id, selection)
     first_blocker = next((c for c in checks if c.status != "pass"), None)
 
+    # RUN needs the lock (B1) and the job endpoints (B2). It is disabled with a
+    # reason until the probe finds both, and lights up on its own when it does:
+    # nothing here has to be edited when they land.
+    run_ready = caps.ready("jobs") and caps.ready("lock")
+    if not caps.ready("jobs"):
+        run_reason = caps.why("jobs")
+    elif not caps.ready("lock"):
+        run_reason = caps.why("lock")
+    elif first_blocker is not None:
+        run_reason = f"{first_blocker.label}: {first_blocker.reason}"
+    else:
+        run_reason = ""
+    can_run = run_ready and first_blocker is None
+
     command = campaign_command(
         ethos_repo=settings.ethos_repo,
         topology=profile.name if profile and profile.deployable else None,
         rates=traffic.rates_text,
         direction=traffic.direction,
-        duration=traffic.duration_text,
+        duration_s=traffic.duration_s or 0,
         repeats=traffic.repeats,
         radio_samples=traffic.radio_samples,
-        core="open5gs" if values["core"] == "Open5GS" else "free5gc",
-        ue=str(values["ue"]).lower(),
+        core=str(values["core"]),
+        ue=str(values["ue"]),
     )
 
     catalogue = None
@@ -320,6 +394,17 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
             category: option_list(catalogue, category)
             for category in ("gnb_stack", "l1_backend", "ru", "ue", "core", "server")
         },
+        "cards": {
+            **{
+                category: card_list(catalogue, category)
+                for category in ("gnb_stack", "l1_backend", "ru", "ue", "core", "server")
+            },
+            "split": list(SPLIT_CARDS_WITH_MARK),
+            "cu_vendor": vendor_cards(catalogue),
+            "du_vendor": vendor_cards(catalogue),
+        },
+        "topology_svg": diagram(selection, split=selection["gnb_split"]),
+        "topology_label": topology_label(selection),
         "traffic": traffic,
         "validation": validation,
         "generated": generated,
@@ -331,11 +416,36 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
         "deploy_reason": deploy_reason,
         "checks": checks,
         "first_blocker": first_blocker,
+        "can_run": can_run,
+        "run_reason": run_reason,
+        "run_ready": run_ready,
         "document": document,
         "document_json": json.dumps(document, indent=2),
         "document_yaml": yaml.safe_dump(document, sort_keys=False, allow_unicode=True),
         "command": command,
     }
+
+
+async def _presets(request: Request, values: dict[str, Any]) -> list:
+    """The wired profiles, each with the date and result of its last run."""
+    from console.rapps.ethos.client import EthosError
+
+    settings = request.app.state.settings
+    profiles = load_profiles(settings.deploy_profiles)
+    runs: list = []
+    try:
+        runs = (await request.app.state.client.runs()).runs
+    except EthosError:
+        runs = []
+
+    defaults = {
+        "ue": values["ue"], "ru": values["ru"], "l1_backend": values["l1_backend"],
+        "core": values["core"], "server": values["server"],
+    }
+    presets = build_presets(profiles, defaults, runs)
+    for preset in presets:
+        preset.diagram = diagram(preset.selection, split=preset.split, size="mini")
+    return presets
 
 
 @router.get("/plan")
@@ -382,6 +492,7 @@ async def plan_page(request: Request, load: str = ""):
             "saved": store.list(),
             "loaded": loaded,
             "load_error": error,
+            "presets": await _presets(request, values),
         }
     )
     return render(request, "plan/page.html", context)
@@ -426,6 +537,37 @@ async def plan_save(request: Request):
             "X-Console-Toast": f"Plan saved as {saved.name}",
             "X-Console-Toast-Variant": "success",
         },
+    )
+
+
+@router.post("/plan/run")
+async def plan_run(request: Request):
+    """RUN. It refuses while the endpoints it needs are missing.
+
+    The button is disabled until the probe finds them, so this is the belt to
+    that brace: a stale page, a keyboard, or a second tab must not be able to
+    post a start that ETHOS has no way to honour.
+    """
+    values = await _values_from_request(request)
+    context = await _build(request, values)
+    if not context["can_run"]:
+        return render(
+            request,
+            "plan/resolved.html",
+            {**context, "run_error": context["run_reason"]},
+            status_code=409,
+            headers={
+                "X-Console-Toast": context["run_reason"],
+                "X-Console-Toast-Variant": "warning",
+            },
+        )
+    # Unreachable until B1 and B2 land. When they do, this is where the preview
+    # dialog and POST /jobs go (design section 7.2).
+    return render(
+        request,
+        "plan/resolved.html",
+        {**context, "run_error": "Starting a job is not wired up yet."},
+        status_code=501,
     )
 
 

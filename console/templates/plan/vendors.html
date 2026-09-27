@@ -4,34 +4,11 @@
    this fragment is re-rendered by the same request that re-resolves the plan and
    swapped in out of band. The gating stays on the server: the browser never
    decides on its own whether a vendor may be chosen. #}
+{% from "components/form.html" import pick_group %}
 <div id="vendor-groups" {% if oob %}hx-swap-oob="true"{% endif %}>
-  <div class="row top">
-    <div class="field" style="flex:1;min-width:220px">
-      <span class="label">
-        CU vendor
-        {% if not vendors.enabled %}
-          <sl-tooltip content="{{ vendors.reason }}" hoist>
-            <sl-icon name="info-circle" class="faint"></sl-icon>
-          </sl-tooltip>
-        {% endif %}
-      </span>
-      {{ radio('cu_vendor', [('OCUDU','OCUDU',''), ('OAI','OAI','')], vendors.cu,
-               locked=not vendors.enabled, locked_reason=vendors.reason) }}
-    </div>
-    <div class="field" style="flex:1;min-width:220px">
-      <span class="label">
-        DU vendor
-        {% if not vendors.enabled %}
-          <sl-tooltip content="{{ vendors.reason }}" hoist>
-            <sl-icon name="info-circle" class="faint"></sl-icon>
-          </sl-tooltip>
-        {% endif %}
-      </span>
-      {{ radio('du_vendor', [('OCUDU','OCUDU',''), ('OAI','OAI','')], vendors.du,
-               locked=not vendors.enabled, locked_reason=vendors.reason) }}
-    </div>
-  </div>
-  {% if not vendors.enabled %}
-    <p class="hint" style="margin-top:-8px">{{ vendors.reason }}.</p>
-  {% endif %}
+  {{ pick_group('cu_vendor', 'cu', 'CU vendor', cards.cu_vendor, vendors.cu,
+                locked=not vendors.enabled, locked_reason=vendors.reason,
+                hint=('' if vendors.enabled else vendors.reason ~ '.')) }}
+  {{ pick_group('du_vendor', 'du', 'DU vendor', cards.du_vendor, vendors.du,
+                locked=not vendors.enabled, locked_reason=vendors.reason) }}
 </div>

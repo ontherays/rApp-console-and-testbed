@@ -1,6 +1,6 @@
 """Search: find a run, a configuration or a campaign by name.
 
-The archive is the only thing there is to search — 528 run records keyed by
+The archive is the only thing there is to search: 528 run records keyed by
 run_id, each carrying a config_id and sometimes a campaign_id. A single exact
 run_id goes straight to that run; anything else lists what matched, grouped by
 what kind of thing it is.

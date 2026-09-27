@@ -1,8 +1,8 @@
 """The Overview: what this testbed has been doing, and what needs attention.
 
 Each tile and chart is computed from the run archive, which is the only thing
-the console can read without a credential. Values ETHOS cannot answer yet — the
-lock, the running job, the UE — name the backend change instead of guessing.
+the console can read without a credential. Values ETHOS cannot answer yet, the
+lock, the running job, the UE, name the backend change instead of guessing.
 """
 
 from __future__ import annotations
@@ -38,10 +38,10 @@ router = APIRouter()
 
 def _age(iso: str | None, now: datetime) -> tuple[str, str, str]:
     """(value, unit, tone) for a timestamp's age. Green under a day, amber under
-    a week, red beyond — with the words present as well as the colour."""
+    a week, red beyond, with the words present as well as the colour."""
     moment = parse_utc(iso)
     if moment is None:
-        return "—", "", "slate"
+        return ",", "", "slate"
     hours = (now - moment).total_seconds() / 3600
     if hours < 1:
         return f"{int(hours * 60)}", "min ago", "teal"
@@ -96,14 +96,14 @@ async def overview(request: Request, period: str = DEFAULT_PERIOD, kind: str = D
         {
             "icon": "lock", "tone": "slate", "label": "Testbed lock",
             "value": "unknown", "small": True,
-            "note": caps.why("lock"), "note_icon": "info-circle",
+            "note": caps.why("lock"), "note_icon": "info",
         },
         {
-            "icon": "hdd-network", "tone": "blue", "label": "Deployed now",
+            "icon": "testbed", "tone": "blue", "label": "Deployed now",
             "value": deployed_value, "small": True, "note": deployed_note,
         },
         {
-            "icon": "activity", "tone": "purple", "label": f"Runs, {window.label.lower()}",
+            "icon": "jobs", "tone": "purple", "label": f"Runs, {window.label.lower()}",
             "value": f"{len(window.current)}",
             "change": Change.between(
                 float(len(window.current)), float(len(window.previous))
@@ -111,25 +111,25 @@ async def overview(request: Request, period: str = DEFAULT_PERIOD, kind: str = D
             "vs": f"vs {len(window.previous)}",
         },
         {
-            "icon": "speedometer2", "tone": "teal", "label": "Best DL at 1000 M",
-            "value": f"{best_now:.0f}" if best_now is not None else "—",
+            "icon": "rate", "tone": "teal", "label": "Best DL at 1000 M",
+            "value": f"{best_now:.0f}" if best_now is not None else ",",
             "unit": "Mbit/s" if best_now is not None else "",
             "change": Change.between(best_now, best_before, decimals=1, unit="Mbit/s"),
             "vs": f"vs {best_before:.0f}" if best_before is not None else "no previous run",
         },
         {
-            "icon": "reception-4", "tone": "orange", "label": "Median PUSCH SNR",
-            "value": f"{snr_now:.1f}" if snr_now is not None else "—",
+            "icon": "ru", "tone": "orange", "label": "Median PUSCH SNR",
+            "value": f"{snr_now:.1f}" if snr_now is not None else ",",
             "unit": "dB" if snr_now is not None else "",
             "change": Change.between(snr_now, snr_before, decimals=1, unit="dB"),
             "vs": f"vs {snr_before:.1f} dB" if snr_before is not None else "no previous run",
             "note": None if snr_now is not None else "no run in this period recorded channel metrics",
         },
         {
-            "icon": "clock-history", "tone": age_tone, "label": "Data freshness",
+            "icon": "clock", "tone": age_tone, "label": "Data freshness",
             "value": age_value, "unit": age_unit,
             "note": "newest run in the archive · O1 and energy freshness need B6",
-            "note_icon": "info-circle",
+            "note_icon": "info",
         },
     ]
 

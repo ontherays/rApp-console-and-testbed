@@ -142,17 +142,17 @@ class Settings:
         found: list[str] = []
         if not self.password_hash:
             found.append(
-                f"{ENV_PASSWORD_HASH} is not set — run "
+                f"{ENV_PASSWORD_HASH} is not set, run "
                 "`.venv/bin/python -m console set-password`"
             )
         if not self.session_secret:
             found.append(
-                f"{ENV_SESSION_SECRET} is not set — 64 hex characters, "
+                f"{ENV_SESSION_SECRET} is not set, 64 hex characters, "
                 "`openssl rand -hex 32`"
             )
         if not self.tls_cert or not self.tls_key:
             found.append(
-                f"{ENV_TLS_CERT} and {ENV_TLS_KEY} must both be set — "
+                f"{ENV_TLS_CERT} and {ENV_TLS_KEY} must both be set, "
                 "run `deploy/make-cert.sh` (SE-01: HTTPS only)"
             )
         elif not self.tls_ready:

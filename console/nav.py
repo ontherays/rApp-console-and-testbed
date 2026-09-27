@@ -1,7 +1,7 @@
 """The navigation, its badges, and the backend-readiness card.
 
-The sidebar is grouped because the console does four different jobs — plan a
-test, read what came out, look after the testbed, and read the documentation —
+The sidebar is grouped because the console does four different jobs, plan a
+test, read what came out, look after the testbed, and read the documentation,
 and a flat list of nine items hides that.
 
 A badge is only shown when it counts something real. "Running jobs" needs a job
@@ -38,27 +38,27 @@ GROUPS: tuple[Group, ...] = (
     Group(
         "Essentials",
         (
-            Item("Overview", "/", "grid-1x2"),
-            Item("Test Plan", "/plan", "sliders"),
-            Item("Jobs", "/jobs", "activity", badge_key="jobs"),
+            Item("Overview", "/", "overview"),
+            Item("Test Plan", "/plan", "plan"),
+            Item("Jobs", "/jobs", "jobs", badge_key="jobs"),
         ),
     ),
     Group(
         "Measure",
         (
-            Item("Results", "/results", "table", badge_key="new_runs"),
-            Item("Graphs", "/graphs", "bar-chart-line"),
+            Item("Results", "/results", "results", badge_key="new_runs"),
+            Item("Graphs", "/graphs", "graphs"),
         ),
     ),
     Group(
         "Network",
         (
-            Item("Testbed", "/testbed", "hdd-network", phase="Phase 2"),
-            Item("O1", "/o1", "broadcast-pin", phase="Phase 3", badge_key="alarms"),
-            Item("O2", "/o2", "cpu", phase="Phase 4"),
+            Item("Testbed", "/testbed", "testbed", phase="Phase 2"),
+            Item("O1", "/o1", "o1", phase="Phase 3", badge_key="alarms"),
+            Item("O2", "/o2", "o2", phase="Phase 4"),
         ),
     ),
-    Group("System", (Item("Docs", "/docs", "journal-text"),)),
+    Group("System", (Item("Docs", "/docs", "docs"),)),
 )
 
 
@@ -111,7 +111,7 @@ def backend_readiness(caps) -> BackendReadiness:
 
     ready = [key for key in TRACKED if caps.ready(key)]
     pending = [
-        f"{BY_KEY[key].change} — {BY_KEY[key].what}"
+        f"{BY_KEY[key].change}, {BY_KEY[key].what}"
         for key in TRACKED
         if not caps.ready(key) and key in BY_KEY
     ]

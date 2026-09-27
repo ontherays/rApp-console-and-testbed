@@ -160,8 +160,8 @@ class TopologyShare:
     ambiguous: bool = False
     """True when another config_id in the same view carries this label.
 
-    Two rows reading "OCUDU monolithic" are two different configurations — a
-    different UE, or a legacy head that aliases onto the same stack — and a
+    Two rows reading "OCUDU monolithic" are two different configurations, a
+    different UE, or a legacy head that aliases onto the same stack, and a
     legend that does not say so invites adding them together.
     """
 
@@ -206,7 +206,7 @@ def best_per_day(slice_: Slice) -> list[Day]:
     """The best achieved throughput on each day of the period.
 
     A day with no run keeps ``best`` as None. It is drawn as an empty column,
-    never as zero — a day nobody ran is not a day of zero throughput.
+    never as zero, a day nobody ran is not a day of zero throughput.
     """
     days: dict[str, list[Run]] = {}
     span_days = max(1, slice_.span.days or 1)

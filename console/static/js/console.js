@@ -98,6 +98,66 @@
     return Math.round(hours / 24) + " d ago";
   }
 
+  // The topology drawer, and the presets inside it. Handlers live here rather
+  // than inline because the Content-Security-Policy allows no inline script.
+  document.addEventListener("click", function (event) {
+    const opener = event.target.closest("[data-drawer-open]");
+    if (opener) {
+      const drawer = document.getElementById(opener.dataset.drawerOpen);
+      if (drawer && drawer.show) drawer.show();
+    }
+    const closer = event.target.closest("[data-drawer-close]");
+    if (closer) {
+      const drawer = document.getElementById(closer.dataset.drawerClose);
+      if (drawer && drawer.hide) drawer.hide();
+    }
+    const preset = event.target.closest("[data-preset]");
+    if (preset) applyPreset(preset.dataset.preset);
+  });
+
+  // A preset sets the form's own fields and lets the form ask ETHOS, exactly as
+  // picking each component by hand would. It decides nothing itself.
+  function applyPreset(raw) {
+    let wanted;
+    try {
+      wanted = JSON.parse(raw);
+    } catch (error) {
+      return;
+    }
+    const form = document.getElementById("plan-form");
+    if (!form) return;
+
+    const fields = {
+      gnb_stack: wanted.gnb_stack,
+      split_kind: wanted.gnb_split === "monolithic" ? "monolithic" : "CU+DU",
+      ue: wanted.ue,
+      ru: wanted.ru,
+      l1_backend: wanted.l1_backend,
+      core: wanted.core,
+      server: wanted.server,
+    };
+    if (wanted.gnb_split === "OCUDU-CU+OAI-DU") {
+      fields.cu_vendor = "OCUDU";
+      fields.du_vendor = "OAI";
+    } else if (wanted.gnb_split === "OAI-CU+OCUDU-DU") {
+      fields.cu_vendor = "OAI";
+      fields.du_vendor = "OCUDU";
+    } else {
+      fields.cu_vendor = wanted.gnb_stack;
+      fields.du_vendor = wanted.gnb_stack;
+    }
+
+    Object.keys(fields).forEach(function (name) {
+      const value = fields[name];
+      if (value === undefined || value === null) return;
+      const input = form.querySelector(
+        'input[name="' + name + '"][value="' + value + '"]'
+      );
+      if (input && !input.disabled) input.checked = true;
+    });
+    form.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
   // "/" jumps to the search box, the way the rest of the industry does it.
   // Ignored while typing, so it never swallows a character in a form.
   document.addEventListener("keydown", function (event) {

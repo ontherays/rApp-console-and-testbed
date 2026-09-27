@@ -3,7 +3,7 @@
    values that matter and small muted labels around them. Dense enough for
    measurement data: tables stay compact and numbers stay tabular.
 
-   Colour is never the only signal — every coloured chip also carries text or an
+   Colour is never the only signal: every coloured chip also carries text or an
    icon, so a state is still readable in greyscale or to a colour-blind eye. */
 
 :root {
@@ -358,14 +358,23 @@ input[type=text], input[type=date], input[type=number], input[type=password], se
 }
 select { padding-right: 26px; }
 
-/* radio groups drawn as selectable chips */
-.opt { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px;
+/* Radio groups drawn as selectable chips.
+   The highlight follows the input's own :checked state rather than a class the
+   server wrote, so it is right the instant you click and cannot be left behind
+   on a card that is not re-rendered. */
+.opt { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px;
        border: 1px solid var(--line-strong); border-radius: 999px; background: #fff;
        font-size: 13px; cursor: pointer; }
-.opt input { margin: 0; }
-.opt.on { border-color: var(--accent); background: #f2f6ff; font-weight: 500; }
+.opt input { margin: 0; accent-color: var(--accent); width: 15px; height: 15px; }
+.opt:hover:not(.off):not(.locked) { border-color: #c9cdd4; background: #fbfcfd; }
+.opt:has(input:checked) { border-color: var(--accent); background: #f2f6ff;
+                          font-weight: 500; box-shadow: 0 0 0 1px var(--accent) inset; }
 .opt.off { opacity: .5; cursor: not-allowed; background: #fafafa; }
-.opt.locked { opacity: .75; cursor: not-allowed; background: #f7f8f9; border-style: dashed; }
+.opt.locked { opacity: .8; cursor: not-allowed; background: #f6f7f9;
+              border-style: dashed; }
+.opt.locked:has(input:checked) { border-color: var(--line-strong); background: #f6f7f9;
+                                 box-shadow: none; font-weight: 500; }
+.opt:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .check { display: flex; gap: var(--s3); align-items: flex-start; padding: 9px 0;
          border-bottom: 1px solid #f2f2f3; }
@@ -416,6 +425,106 @@ sl-details::part(header) { padding: var(--s3) var(--s4); font-size: 13.5px; font
   .cols-2 { grid-template-columns: 1fr; }
   .span-4, .span-5, .span-6, .span-7, .span-8 { grid-column: span 12; }
 }
+
+/* --- icons ---------------------------------------------------------------- */
+
+/* Sized in em, so an icon grows with the text it sits in and never looks
+   stranded beside a large numeral. */
+.ic { width: 1.45em; height: 1.45em; flex: none; vertical-align: -0.3em; }
+.ic-lg { width: 28px; height: 28px; vertical-align: middle; }
+.tile .ic { width: 21px; height: 21px; }
+.tile.lg .ic { width: 25px; height: 25px; }
+.side .item .ic { width: 20px; height: 20px; color: var(--muted); }
+.side .item.active .ic { color: var(--accent); }
+.btn .ic { width: 18px; height: 18px; }
+.chip .ic { width: 16px; height: 16px; }
+.strip .ic { width: 16px; height: 16px; }
+.title-ico .ic { width: 23px; height: 23px; }
+.check .ic { width: 14px; height: 14px; }
+.banner .ic { width: 19px; height: 19px; flex: none; }
+.pick-label .ic { width: 18px; height: 18px; color: var(--muted); }
+
+/* --- the topology summary and its diagram -------------------------------- */
+
+.topo-summary { display: grid; grid-template-columns: minmax(0, 1fr) 330px;
+                gap: var(--s5); align-items: center; }
+.topo-facts { min-width: 0; }
+.topo-facts .config-id { overflow-wrap: anywhere; font-size: 12px; }
+.topo-art { background: #fbfbfc; border: 1px solid var(--line); border-radius: var(--radius-sm);
+            padding: var(--s4) var(--s3); overflow-x: auto; }
+.topo { display: block; min-width: 420px; }
+.topo.mini { min-width: 0; }
+.card-sub { display: block; font-size: 12px; color: var(--faint); margin-top: 1px; }
+.card > header .tile { flex: none; }
+
+@media (max-width: 1400px) {
+  .topo-summary { grid-template-columns: 1fr; }
+}
+
+/* --- the picker ----------------------------------------------------------- */
+
+.topo-drawer::part(panel) { width: 560px; max-width: 96vw; }
+.topo-drawer::part(body) { padding-top: 0; }
+
+.preset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+               gap: var(--s3); }
+.preset { display: flex; flex-direction: column; gap: 6px; text-align: left;
+          padding: var(--s3); border: 1px solid var(--line-strong);
+          border-radius: var(--radius-sm); background: #fff; cursor: pointer;
+          font: inherit; color: var(--text); }
+.preset:hover { border-color: var(--accent); background: #f7faff; }
+.preset-art { background: #fbfbfc; border-radius: 8px; padding: 8px 6px; }
+.preset-name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+               font-size: 13px; font-weight: 600; }
+.preset-meta { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+
+.pick-group { margin-bottom: var(--s5); }
+.pick-label { display: flex; align-items: center; gap: 7px; font-size: 13px;
+              font-weight: 500; margin-bottom: var(--s2); }
+.pick-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+              gap: var(--s2); }
+.pick { display: flex; align-items: flex-start; gap: var(--s3); padding: 11px var(--s3);
+        border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+        background: #fff; cursor: pointer; min-width: 0; }
+.pick input { margin: 4px 0 0; accent-color: var(--accent); flex: none;
+              width: 15px; height: 15px; }
+.pick:hover:not(.off):not(.locked) { border-color: #c9cdd4; background: #fbfcfd; }
+.pick:has(input:checked) { border-color: var(--accent); background: #f2f6ff;
+                           box-shadow: 0 0 0 1px var(--accent) inset; }
+.pick.off { opacity: .5; cursor: not-allowed; background: #fafafa; }
+.pick.locked { opacity: .8; cursor: not-allowed; background: #f6f7f9; border-style: dashed; }
+.pick.locked:has(input:checked) { border-color: var(--line-strong); background: #f6f7f9;
+                                  box-shadow: none; }
+.pick:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pick-mark { display: grid; place-items: center; width: 38px; flex: none; color: var(--muted); }
+.pick-body { min-width: 0; }
+.pick-title { display: block; font-size: 13px; font-weight: 500; }
+.pick-blurb { display: block; font-size: 11.5px; color: var(--faint); line-height: 1.4;
+              margin-top: 1px; }
+
+/* A vendor's short name, in its own colour. Not the vendor's logo: see
+   console/vendors.py for why. */
+.vmark { display: inline-grid; place-items: center; min-width: 38px; height: 26px;
+         padding: 0 7px; border-radius: 7px; font-size: 11px; font-weight: 700;
+         letter-spacing: .02em; color: #fff; background: var(--vmark, var(--muted)); }
+
+/* --- inputs with a unit suffix ------------------------------------------- */
+
+.input-wrap { display: inline-flex; align-items: stretch; border: 1px solid var(--line-strong);
+              border-radius: var(--radius-sm); background: #fff; overflow: hidden;
+              max-width: 100%; }
+.input-wrap input { border: 0; border-radius: 0; height: 36px; min-width: 0; }
+.input-wrap input:focus { outline: none; }
+.input-wrap:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.input-wrap .suffix { display: grid; place-items: center; padding: 0 10px; font-size: 12px;
+                      color: var(--faint); background: #fafbfc; border-left: 1px solid var(--line);
+                      white-space: nowrap; }
+.tabular { font-variant-numeric: tabular-nums; }
+
+.sticky-col { position: sticky; top: var(--s4); display: flex; flex-direction: column;
+              gap: var(--s4); max-height: calc(100vh - var(--s8)); overflow-y: auto; }
+.run-foot { margin-top: var(--s4); padding-top: var(--s4); border-top: 1px solid var(--line); }
+.run-foot .btn { width: 100%; justify-content: center; height: 40px; font-size: 14px; }
 
 /* --- a rendered markdown document ---------------------------------------- */
 

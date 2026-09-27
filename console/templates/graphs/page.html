@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import gated, chip %}
+{% from "components/macros.html" import gated, chip, ic %}
 {% from "components/header.html" import bell, primary %}
 
 {% block title %}Graphs · Testbed Console{% endblock %}
@@ -20,7 +20,13 @@
 
 {% block content %}
 <div class="card">
-  <header><span class="card-title">Request a new figure</span></header>
+  <header>
+    <span class="tile orange">{{ ic('graphs') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">Request a new figure</span>
+      <span class="card-sub">Metric, kind and grouping, once ETHOS can take a plot request</span>
+    </span>
+  </header>
   {{ gated(caps, 'plots',
      'The metric, kind, grouping and width all exist in the plotting package; what is missing is an endpoint that takes a plot request. That is backend change B9, and it is what makes a figure from the console identical to the same request from the CLI.') }}
 </div>

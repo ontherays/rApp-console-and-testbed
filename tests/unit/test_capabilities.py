@@ -40,7 +40,7 @@ def test_a_501_stub_is_also_not_built():
 
 def test_a_probe_that_needs_query_parameters_still_sees_the_stub():
     """``/compare`` answers 422 for missing parameters, which would hide the 501
-    behind it — so the probe supplies them."""
+    behind it, so the probe supplies them."""
     seen: list[str] = []
 
     def handler(request):

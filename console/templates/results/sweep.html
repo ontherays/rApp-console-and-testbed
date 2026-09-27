@@ -32,12 +32,12 @@
 </p>
 
 {% if error %}
-  <div class="banner bad"><sl-icon name="exclamation-octagon"></sl-icon>{{ error }}</div>
+  <div class="banner bad"><svg class="ic" aria-hidden="true"><use href="#icon-warning"/></svg>{{ error }}</div>
 {% else %}
 
 {% if not consistent %}
   <div class="banner warn">
-    <sl-icon name="exclamation-triangle"></sl-icon>
+    <svg class="ic" aria-hidden="true"><use href="#icon-warning"/></svg>
     <span>The runs in this view do not all share one cell configuration:
     {{ cell_configs | join(' / ') }}. A comparison across them is partly a
     comparison of two radio configurations.</span>
@@ -116,7 +116,7 @@
     {{ gated(caps, 'plots', 'The plotting CLI takes the run ids directly, so a figure of exactly these runs is one command.') }}
     <p class="muted" style="margin-bottom:0">
       MCS columns are means of an index; compare them only with the MCS table and
-      the cap in view — OCUDU clamps at 27 DL / 24 UL and sits on the cap under
+      the cap in view, OCUDU clamps at 27 DL / 24 UL and sits on the cap under
       load, OAI sets no cap. First-transmission BLER is OAI-only and is never
       compared with residual BLER.
     </p>

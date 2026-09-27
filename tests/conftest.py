@@ -2,7 +2,7 @@
 
 ``CONSOLE_ENV_FILE`` is pinned to a path that does not exist **before any console
 module is imported**, so a developer's real ``console.env`` can never change what
-the suite sees — a password hash or an ETHOS URL leaking in from the host would
+the suite sees, a password hash or an ETHOS URL leaking in from the host would
 make a green suite meaningless.
 """
 

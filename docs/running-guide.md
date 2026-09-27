@@ -1,12 +1,12 @@
-# Testbed Console — running guide
+# Testbed Console, running guide
 
 How to install, configure, run and use the console on the KVM host
 (`oai-gnb-KVM`, 192.168.8.78). Every command below was run on that host on
 2026-09-27, and the output shown is what it returned.
 
 The console **presents** the testbed. ETHOS is the component that touches it, and
-the console reaches ETHOS over loopback, so no credential — the InfluxDB token,
-the SSH keys, the SDNC password — is ever held here or sent to a browser.
+the console reaches ETHOS over loopback, so no credential, the InfluxDB token,
+the SSH keys, the SDNC password, is ever held here or sent to a browser.
 
 `RUNNING_CAMPAIGNS.md` and `running-guide.md` in the ETHOS documentation remain
 the reference for running a campaign. This guide covers the console only.
@@ -25,7 +25,7 @@ active
 ```
 
 Both active: go to §5. Either one inactive: §2 for the console, or start ETHOS
-first — the console works without it but every page reports it unreachable.
+first, the console works without it but every page reports it unreachable.
 
 ---
 
@@ -175,7 +175,7 @@ journalctl --user -u testbed-console -f       # follow it
 ```
 
 Restarting the console never disturbs a campaign: it holds no testbed state,
-starts no traffic and runs no job. Restarting `ethos-rapp` does — check that no
+starts no traffic and runs no job. Restarting `ethos-rapp` does, check that no
 campaign is running first.
 
 ---
@@ -202,7 +202,7 @@ HTTP 200
 HTTP 000
 ```
 
-The second is 000 — nothing answers on plain HTTP, which is the intent: HTTPS
+The second is 000: nothing answers on plain HTTP, which is the intent: HTTPS
 only. An unauthenticated page redirects rather than serving:
 
 ```bash
@@ -226,7 +226,7 @@ ssh -N -L 8443:127.0.0.1:8443 oai-gnb@192.168.8.78
 # then open https://127.0.0.1:8443
 ```
 
-The certificate already covers `127.0.0.1`. The login still applies — the tunnel
+The certificate already covers `127.0.0.1`. The login still applies, the tunnel
 replaces the LAN exposure, not the authentication.
 
 ### If the LAN address does not answer
@@ -254,14 +254,14 @@ sudo ufw allow from 192.168.8.0/24 to any port 8443 proto tcp
 
 ETHOS today has no testbed lock, no job model, no readiness endpoint and no
 figure generation. Every control that needs one of those is **disabled and says
-which backend change adds it** (`needs ETHOS B2 — starting, watching and
+which backend change adds it** (`needs ETHOS B2, starting, watching and
 stopping a campaign`), with the command that does the job now. `docs/ethos-backlog.md`
 lists them all.
 
 | Page | What it does today |
 |---|---|
 | **Overview** | Pick a period (24 hours / 7 days / 30 days) and a subset (all runs / DL / UL / needs attention). Six KPI cards with their change against the previous period; a honeycomb of one hexagon per run coloured by topology; the best throughput of each day as a dot-matrix chart; and "topologies that need you", least complete first, each with a Review button onto its latest sweep. The lock, running job and UE tiles name the backend change they need. |
-| **Test Plan** | Builds one test. Options come from ETHOS's catalogue and are shown by label; an option that cannot be deployed is dimmed with the reason. **CU and DU vendor follow the split**: monolithic disables both and shows the gNB stack's value; CU + DU makes both selectable, defaulting to the stack's vendor, and two different vendors select a cross-vendor split. ETHOS validates the selection and generates the `config_id`. The readiness panel lists all seven checks. Ends in **Save plan** and the exact `python -m campaign` command. |
+| **Test Plan** | Builds one test. The topology is a summary card: the chain drawn left to right (UE, O-RU, O-DU, O-CU, 5GC, O-Cloud), its label, its `config_id` and its status chips, with **Change topology** opening a side panel. That panel has two tabs: **Presets**, one card per wired deploy profile with the date and result of its last run, one click to select; and **Custom**, every component as a group of cards with an icon or vendor mark and one line of what it is, undeployable options greyed out with the reason. **CU and DU vendor follow the split**: monolithic disables both and shows the gNB stack's value; CU + DU makes both selectable, defaulting to that stack's vendor. Readiness is in the right-hand column, sticky, with RUN at its foot; RUN is also the primary button in the page header, disabled with its reason until B1 and B2 land. |
 | **Jobs** | The campaigns in the run archive, grouped by `campaign_id`, each linking to its sweep. Starting a campaign from the browser is B2. |
 | **Results** | Every archived run, with filters, sortable columns, CSV export of the filtered set from **Export** in the header, and a detail page per run: Summary, Channel conditions, Latency, Cell config, Config, Raw. Runs that cannot be analysed are hidden behind a toggle. |
 | **Sweep / Compare** | One row per offered load with repeats collapsed to a mean and an n, expandable to the individual runs. Amber warning when the runs do not share one cell configuration. |
@@ -270,12 +270,12 @@ lists them all.
 | **Testbed / O1 / O2** | What each will show, its requirement ids, and where things stand today. |
 | **Documentation** | These documents, served from `docs/`. |
 
-The sidebar's foot shows **ETHOS backend: n of 6 ready** — how many of B1, B2,
+The sidebar's foot shows **ETHOS backend: n of 6 ready**, how many of B1, B2,
 B4, B5, B6 and B9 are answering. It fills in by itself as the capability probe
 finds each endpoint; "Details" opens `docs/ethos-backlog.md`.
 
 The charts on the Overview are drawn as SVG by the console itself. They are
-operational summaries — counts and trends. **Paper figures still come only from
+operational summaries, counts and trends. **Paper figures still come only from
 ETHOS's plotting package**, on the Graphs page.
 
 ### Reading the numbers
@@ -283,14 +283,14 @@ ETHOS's plotting package**, on the Graphs page.
 - **Achieved throughput is `achieved_over_tx_mbps`.** It is the only throughput
   compared across stacks; the gNB's own MAC bitrate (OCUDU) and application
   goodput (OAI) differ by header overhead.
-- **A value that was not measured shows "—", never 0.** A stack that has no such
+- **A value that was not measured shows ",", never 0.** A stack that has no such
   counter and a counter that was not measured are both absences.
 - **BLER is always qualified.** "Residual BLER" is what survived HARQ and both
   stacks report it. "First-transmission BLER" is OAI-only, read 0.46 on an idle
   link whose residual BLER was 0, and never shares a column with it.
 - **Only PUSCH SNR is compared across stacks.** PUCCH SNR is a different channel.
 - **Four things are called RSRP** and are four separate fields. OCUDU's
-  `gnb_ul_rsrp_db` is *relative* dB, not dBm — it reads about −11 where the dBm
+  `gnb_ul_rsrp_db` is *relative* dB, not dBm, it reads about −11 where the dBm
   values read −69.
 - **MCS carries its table and its cap.** OCUDU clamps at 27 DL / 24 UL and sits
   on the cap under load; OAI sets no cap. A value at the cap is marked "capped".
@@ -318,7 +318,7 @@ cd ~/testbed-console
 
 That is 174 server tests plus 17 browser tests. The browser tests start a console
 process of their own, with ETHOS deliberately unreachable, and drive it with
-Chromium — they check what a status code cannot: that the vendored components
+Chromium: they check what a status code cannot: that the vendored components
 upgrade under the Content-Security-Policy, that no page reaches outside the
 console, and that every action is disabled with its reason when ETHOS is down.
 They need the optional extra, which is already installed here:
@@ -330,7 +330,7 @@ They need the optional extra, which is already installed here:
 
 Without it they skip themselves and the other 174 still run.
 
-To refresh the fixtures from the real API — read-only endpoints only, and never
+To refresh the fixtures from the real API: read-only endpoints only, and never
 `ee-kpi`, which writes the manifest:
 
 ```bash
@@ -358,7 +358,7 @@ never ran, an uplink run, and a few that carry a campaign id.
 **Every page shows a red "ETHOS API unreachable" banner.**
 ETHOS is down or not listening. `systemctl --user status ethos-rapp`, then
 `curl -s 127.0.0.1:8081/healthz`. The console itself stays up and reports itself
-healthy at `/healthz` — it must not claim to be down because the thing it
+healthy at `/healthz`, it must not claim to be down because the thing it
 displays is.
 
 **The service will not start.** `journalctl --user -u testbed-console -n 40`.
@@ -371,10 +371,10 @@ while the page was open. Reload the page.
 
 **Logged out unexpectedly.** 12 hours since login, or 2 hours idle. The login
 page says which. Restarting the service does not log you out, but changing
-`CONSOLE_SESSION_SECRET` does — every existing cookie becomes unreadable.
+`CONSOLE_SESSION_SECRET` does, every existing cookie becomes unreadable.
 
 **Locked out of login.** Five wrong passwords in ten minutes. Wait ten minutes,
-or restart the service — the counter is in memory.
+or restart the service, the counter is in memory.
 
 **The certificate warning is back.** The certificate was regenerated, or you are
 reaching the console by a name the certificate does not cover. It covers
@@ -388,16 +388,21 @@ analysed. Tick "show unusable runs".
 without figures. It should be ETHOS's own `ETHOS_GRAPH_DIR`
 (`/home/oai-gnb/ravi-ethos-rApp-graph`).
 
+**The RUN button will not light up.** It needs the testbed lock (B1) and the job
+endpoints (B2). Its tooltip names whichever is missing. When they land, the
+capability probe finds them within a minute and the button enables itself;
+nothing has to be edited.
+
 **A Test Plan option is disabled and you expect it to work.** Its tooltip gives
 the reason, read from ETHOS's `deploy_profiles.yaml`. A profile whose status is
 `todo` has no chart paths, so ETHOS would refuse the deploy rather than guess.
 
 **The CU and DU vendor groups will not change.** They follow the split. With
-*Monolithic* selected there is nothing to choose — CU and DU are one process of
-the gNB stack — so both groups show that stack and are disabled. Choose
+*Monolithic* selected there is nothing to choose, CU and DU are one process of
+the gNB stack, so both groups show that stack and are disabled. Choose
 *CU + DU* and they become selectable.
 
 **Readiness says "the node was not checked".** ETHOS probes the node only when
 the request names a stack, so the check needs a valid topology selected. If it
 still says so with a `config_id` on screen, the hover carries the real error
-from ETHOS — usually the SSH path to joule.
+from ETHOS, usually the SSH path to joule.

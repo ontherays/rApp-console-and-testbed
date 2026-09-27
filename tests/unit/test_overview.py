@@ -167,7 +167,7 @@ class TestNeedsYou:
         assert (rows[0].completed, rows[0].planned) == (2, 3)
 
     def test_each_topology_carries_its_config_id_and_a_unique_code(self):
-        """Two config_ids can share a label — ocudu-mono with a Samsung and with
+        """Two config_ids can share a label, ocudu-mono with a Samsung and with
         an MTK UE both read "OCUDU monolithic"."""
         runs = [
             run_at(1, run_id="a"),

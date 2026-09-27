@@ -2,21 +2,23 @@
    most; a secondary Export where the page has something to export; the bell for
    what finished while you were elsewhere. #}
 
+{% from "components/macros.html" import ic %}
+
 {% macro bell(count) %}
   <a class="btn icon" href="/results?since_last_visit=1"
      title="{% if count %}{{ count }} run(s) finished since your last visit{% else %}Nothing new since your last visit{% endif %}"
      aria-label="{% if count %}{{ count }} new run(s) since your last visit{% else %}No new runs since your last visit{% endif %}">
-    <sl-icon name="bell"></sl-icon>
+    <svg class="ic" aria-hidden="true"><use href="#icon-bell"/></svg>
     {% if count %}<span class="bell-dot"></span>{% endif %}
   </a>
 {% endmacro %}
 
 {% macro export_button(href, label='Export') %}
-  <a class="btn" href="{{ href }}"><sl-icon name="download"></sl-icon>{{ label }}</a>
+  <a class="btn" href="{{ href }}"><svg class="ic" aria-hidden="true"><use href="#icon-export"/></svg>{{ label }}</a>
 {% endmacro %}
 
-{% macro primary(href, label, icon='plus-lg') %}
-  <a class="btn primary" href="{{ href }}"><sl-icon name="{{ icon }}"></sl-icon>{{ label }}</a>
+{% macro primary(href, label, icon='plus') %}
+  <a class="btn primary" href="{{ href }}">{{ ic(icon) }}{{ label }}</a>
 {% endmacro %}
 
 {% macro crumbs(items) %}

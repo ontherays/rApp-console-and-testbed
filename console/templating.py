@@ -12,7 +12,7 @@ from starlette.responses import HTMLResponse
 
 from console.nav import GROUPS, Badges, backend_readiness
 from console.rapps.ethos import series as series_mod
-from console.rapps.ethos.metrics import DASH
+from console.rapps.ethos.metrics import NOT_MEASURED
 
 SEEN_COOKIE = "console_seen"
 
@@ -33,7 +33,7 @@ def _parse_utc(value: str) -> datetime | None:
 def localtime(value: Any, tz: str = "Asia/Taipei", fmt: str = "%Y-%m-%d %H:%M") -> str:
     """UTC in, the display zone out (GL-06). Everything stored stays UTC."""
     if not value:
-        return DASH
+        return NOT_MEASURED
     parsed = _parse_utc(str(value))
     if parsed is None:
         return str(value)
@@ -50,11 +50,11 @@ def clocktime(value: Any, tz: str = "Asia/Taipei") -> str:
 
 def duration(seconds: Any) -> str:
     if seconds is None:
-        return DASH
+        return NOT_MEASURED
     try:
         total = int(float(seconds))
     except (TypeError, ValueError):
-        return DASH
+        return NOT_MEASURED
     if total < 60:
         return f"{total} s"
     minutes, secs = divmod(total, 60)
@@ -75,7 +75,7 @@ def templates() -> Jinja2Templates:
         env.env.filters["clocktime"] = clocktime
         env.env.filters["duration"] = duration
         env.env.globals["series_for"] = series_mod.series_for
-        env.env.globals["DASH"] = DASH
+        env.env.globals["NOT_MEASURED"] = NOT_MEASURED
         _TEMPLATES = env
     return _TEMPLATES
 

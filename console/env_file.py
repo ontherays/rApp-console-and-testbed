@@ -25,7 +25,7 @@ from pathlib import Path
 
 from dotenv import dotenv_values
 
-# Read from the real environment only — it names the file, so a file cannot
+# Read from the real environment only, it names the file, so a file cannot
 # choose which file is read.
 ENV_FILE_VAR = "CONSOLE_ENV_FILE"
 

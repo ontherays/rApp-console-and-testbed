@@ -16,17 +16,17 @@ What the rules protect against, concretely:
   in dBm (OAI's L1 print, the RRC L3 report, and the handset's own reading via
   adb); OCUDU's ``gnb_ul_rsrp_db`` is a *relative* dB figure that reads about
   −11 where the dBm values read −69. It never shares an axis with them.
-* **MCS.** An index means nothing without its table — MCS 19 in qam64 and in
-  qam256 are different modulations — and nothing without the cap. OCUDU clamps
+* **MCS.** An index means nothing without its table, MCS 19 in qam64 and in
+  qam256 are different modulations, and nothing without the cap. OCUDU clamps
   at 27 DL / 24 UL and sits on the cap under load; OAI configures no cap and
   chose 19 by link adaptation. A value at the cap is marked.
 * **Rank.** Always direction-labelled. RI UL reads 1 on both stacks despite
   4T4R, so a column labelled just "MIMO layers" would imply a UL 4x4 that never
   happened.
 * **CQI.** Comparable as a field, but each gNB reports it against its own CSI-RS
-  configuration — OCUDU read 14 where OAI read 11 under the same conditions,
+  configuration, OCUDU read 14 where OAI read 11 under the same conditions,
   and that is not a channel difference.
-* **Not measured.** ``None`` renders "—", never 0 (GL-09).
+* **Not measured.** ``None`` renders ",", never 0 (GL-09).
 """
 
 from __future__ import annotations
@@ -34,7 +34,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-DASH = "—"  # em dash: the one and only "not measured" rendering
+# The one and only "not measured" rendering.
+#
+# Requirements GL-09 and section 7.4 spell this as an em dash, and the house
+# rule is that no UI text carries one. "n/a" settles it: it is words rather
+# than punctuation, it cannot be read as a minus sign beside a number, and it
+# still says plainly that nothing was measured, which is the point of the rule.
+# It is defined once so a template never spells it itself.
+NOT_MEASURED = "n/a"
 
 COMPARABLE = "comparable"
 VENDOR = "vendor"
@@ -58,16 +65,16 @@ class Metric:
 
 
 def fmt(value: Any, decimals: int, unit: str = "") -> str:
-    """A number, or "—". Never 0 for a missing value (GL-09)."""
+    """A number, or ",". Never 0 for a missing value (GL-09)."""
     if value is None:
-        return DASH
+        return NOT_MEASURED
     if isinstance(value, bool):
         return "yes" if value else "no"
     if isinstance(value, (int, float)):
         text = f"{value:.{decimals}f}"
         return f"{text} {unit}".strip() if unit else text
     text = str(value).strip()
-    return text or DASH
+    return text or NOT_MEASURED
 
 
 # --- comparable across OCUDU and OAI -----------------------------------------
@@ -125,7 +132,7 @@ COMPARABLE_METRICS: tuple[Metric, ...] = (
         fields=("ri_ul_mean",),
         decimals=2,
         unit="layers",
-        caveat="Reads 1 on both stacks despite 4T4R — the uplink ran one layer.",
+        caveat="Reads 1 on both stacks despite 4T4R, the uplink ran one layer.",
     ),
     Metric(
         key="mcs_dl",
@@ -205,7 +212,7 @@ VENDOR_METRICS: tuple[Metric, ...] = (
         group=VENDOR,
         vendor="oai",
         caveat="OAI only. UE-reported SSB L1 RSRP averaged over one print "
-               "interval — a UE measurement, not a gNB one, despite OAI "
+               "interval, a UE measurement, not a gNB one, despite OAI "
                "printing it as \"average RSRP\".",
     ),
     Metric(
@@ -247,7 +254,7 @@ VENDOR_METRICS: tuple[Metric, ...] = (
         unit="dB",
         group=VENDOR,
         vendor="ocudu",
-        caveat="OCUDU only, and relative dB — NOT dBm. It reads about −11 where "
+        caveat="OCUDU only, and relative dB, NOT dBm. It reads about −11 where "
                "the dBm figures read −69, so it never shares an axis with them.",
     ),
     Metric(
@@ -292,7 +299,7 @@ UE_METRICS: tuple[Metric, ...] = (
         unit="dBm",
         group=UE_REPORTED,
         caveat="Read from the handset. Updates slowly and did not move between "
-               "idle and 500 Mbit/s — a coarse cross-check, not a load-sensitive "
+               "idle and 500 Mbit/s, a coarse cross-check, not a load-sensitive "
                "measurement.",
     ),
     Metric(
@@ -436,7 +443,7 @@ def channel_rows(run: Any) -> dict[str, list[Row]]:
     """The Channel conditions tab (RS-07), split the way §7.4 requires.
 
     ``comparable`` is always open. ``vendor`` is collapsed and shows only the
-    fields the stack that ran actually reports — a vendor's absent counter is
+    fields the stack that ran actually reports, a vendor's absent counter is
     an absence, not a zero, and listing another vendor's fields under it would
     read as "not measured" when the truth is "does not exist here".
     """

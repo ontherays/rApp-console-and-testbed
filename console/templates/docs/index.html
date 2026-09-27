@@ -17,7 +17,7 @@
       {% for doc in docs %}
         <tr>
           <td class="who">
-            <span class="tile slate"><sl-icon name="file-earmark-text"></sl-icon></span>
+            <span class="tile slate"><svg class="ic" aria-hidden="true"><use href="#icon-file"/></svg></span>
             <span>{{ doc.title }}<span class="sub mono">docs/{{ doc.slug }}.md</span></span>
           </td>
           <td class="right"><a class="btn btn-sm" href="/docs/{{ doc.slug }}">Read</a></td>

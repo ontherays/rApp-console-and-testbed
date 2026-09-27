@@ -5,7 +5,7 @@
 
 **Read-only, by construction.** The list below is explicit and holds only
 endpoints that read: nothing here deploys, attaches a UE, starts traffic, writes
-CM or persists to a manifest. ``GET /runs/{id}/ee-kpi`` is deliberately absent —
+CM or persists to a manifest. ``GET /runs/{id}/ee-kpi`` is deliberately absent,
 it writes the manifest unless told not to, and a fixture is not worth a
 fingerprint on a run record.
 
@@ -107,7 +107,7 @@ def main() -> int:
     for name, method, path, body in READS:
         status, payload = fetch(args.api, method, path, body)
         if status >= 300:
-            print(f"  {name:22} HTTP {status} — not recorded")
+            print(f"  {name:22} HTTP {status}, not recorded")
             continue
         (RECORDED / f"{name}.json").write_text(
             json.dumps(payload, indent=2) + "\n", encoding="utf-8"
@@ -124,7 +124,7 @@ def main() -> int:
         print(f"  runs                   HTTP {status} recorded {len(runs)} of "
               f"{listing.get('count')}")
     else:
-        print(f"  runs                   HTTP {status} — not recorded")
+        print(f"  runs                   HTTP {status}, not recorded")
     return 0
 
 

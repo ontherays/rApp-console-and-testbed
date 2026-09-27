@@ -1,4 +1,4 @@
-# Testbed Console & Dashboard — Requirements
+# Testbed Console & Dashboard, Requirements
 
 Owner: Ravi (NTUST BMW Lab). Written 2026-09-27.
 Companion documents: `02-design.md`, `03-ethos-backend-changes.md`, `04-build-plan.md`.
@@ -58,7 +58,7 @@ acceptance tests refer to these IDs.
 - **GL-06** Times are displayed in Asia/Taipei with the offset shown on hover; everything stored and exchanged is UTC.
 - **GL-07** Any state-changing action (run, stop, deploy, teardown, attach, detach, stop Magic iPerf, CM apply) opens a confirmation dialog showing ETHOS's preview of exactly what will happen. Nothing acts on a single click.
 - **GL-08** When the testbed lock is held, every state-changing control is disabled and its tooltip names the holder, e.g. "Locked by job j-0927-1412 (running ocudu-mono) since 14:12".
-- **GL-09** A value that was not measured shows as "—" with a tooltip giving the reason when known. It is never shown as 0.
+- **GL-09** A value that was not measured shows as "," with a tooltip giving the reason when known. It is never shown as 0.
 
 ---
 
@@ -194,7 +194,7 @@ cross-vendor comparisons.
 | Rank | "RI DL" and "RI UL" | Always direction-labelled. OCUDU values are averages, OAI values instantaneous. |
 | CQI | DL only | A cross-vendor CQI difference carries a tooltip: "CQI is reported against each gNB's own CSI-RS configuration". |
 | TDD pattern | chip beside every result | Always visible; OCUDU (7D2U, 5 ms) and OAI (DDDSU, 2.5 ms) differ. |
-| Not measured | "—" | Never 0 (GL-09). |
+| Not measured | "," | Never 0 (GL-09). |
 
 ---
 
@@ -212,7 +212,7 @@ cross-vendor comparisons.
 
 ---
 
-## 9. Testbed control and UEs (TB, UE) — Phase 2
+## 9. Testbed control and UEs (TB, UE), Phase 2
 
 - **TB-01** Deploy a chosen topology and leave it running, without traffic. Confirmation shows the releases in order and the node state.
 - **TB-02** Tear down whatever is deployed, DU before CU. Confirmation lists what will be removed.
@@ -225,7 +225,7 @@ cross-vendor comparisons.
 
 ---
 
-## 10. O1 (O1) — Phase 3
+## 10. O1 (O1), Phase 3
 
 - **O1-01** PM freshness per vendor and cell: the last point time from `ran-pm-metrics`, filtered to this testbed's managed elements (the bucket also holds an unrelated satellite-simulator project's measurements).
 - **O1-02** PM per run: the run's O1 counters, per vendor. OCUDU and OAI share no counters, so there is no combined O1 chart.
@@ -238,7 +238,7 @@ cross-vendor comparisons.
 
 ---
 
-## 11. O2 (O2) — Phase 4
+## 11. O2 (O2), Phase 4
 
 - **O2-01** NF checks: Helm releases and pods in `ravi-ns` with status, restarts, age and readiness; one panel per deployed topology.
 - **O2-02** Pod deployment duration per deploy: time from `helm install` to all pods ready, recorded by ETHOS on every deploy and shown per run and as a trend per topology.

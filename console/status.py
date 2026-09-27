@@ -1,7 +1,7 @@
 """The status strip, assembled from what ETHOS can answer today.
 
-Requirements ST-01 asks for six indicators. Three of them — the testbed lock,
-the running job and the UE / port-5201 situation — need endpoints that do not
+Requirements ST-01 asks for six indicators. Three of them, the testbed lock,
+the running job and the UE / port-5201 situation, need endpoints that do not
 exist yet, and the design's own answer for a failed probe applies equally to a
 missing one: **show "unknown", never a guess.** An item that says "free" because
 nothing answered would be worse than no strip at all.
@@ -86,8 +86,8 @@ async def build_status(client: EthosClient, caps: Capabilities) -> Status:
         try:
             # No config_id here on purpose: the strip is on every page and must
             # not assume a topology. That means ETHOS answers the namespace but
-            # never probes the node, so the strip reports the namespace — which
-            # is what it actually knows — and the hover says the rest.
+            # never probes the node, so the strip reports the namespace, which
+            # is what it actually knows, and the hover says the rest.
             deployed = await client.deploy_status()
             if deployed.anything_deployed:
                 label = deployed.profile or deployed.config_id or deployed.stack or "something"

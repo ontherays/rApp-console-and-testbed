@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import stack_chip, num, ago, flags, chip, segmented %}
+{% from "components/macros.html" import stack_chip, num, ago, flags, chip, segmented, ic %}
 {% from "components/header.html" import bell, export_button, primary %}
 
 {% block title %}Results · Testbed Console{% endblock %}
 {% block page_title %}Results{% endblock %}
-{% block page_icon %}table{% endblock %}
+{% block page_icon %}results{% endblock %}
 {% block page_tone %}teal{% endblock %}
 {% block actions %}
   {{ bell(badges.new_runs) }}
@@ -15,7 +15,7 @@
   <p class="lede">
     Every run ETHOS archived. Achieved throughput is
     <span class="mono">achieved_over_tx_mbps</span>, the only throughput comparable
-    across stacks; a value that was not measured is “—”, never 0.
+    across stacks; a value that was not measured is “,”, never 0.
   </p>
 {% endblock %}
 
@@ -30,12 +30,18 @@
 
 {% block content %}
 {% if error %}
-  <div class="banner bad"><sl-icon name="exclamation-octagon"></sl-icon>ETHOS is unreachable — {{ error }}</div>
+  <div class="banner bad"><svg class="ic" aria-hidden="true"><use href="#icon-warning"/></svg>ETHOS is unreachable, {{ error }}</div>
 {% elif page %}
 
 <form class="card" method="get" action="/results">
-  <header><span class="card-title">Filters</span>
-    <a class="faint" href="/results">Clear all</a></header>
+  <header>
+    <span class="tile slate">{{ ic('filter') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">Filters</span>
+      <span class="card-sub">Narrow the table, then export what is left</span>
+    </span>
+    <a class="faint" href="/results">Clear all</a>
+  </header>
   <div class="row top">
     <div class="field" style="margin:0">
       <label for="config_id">Topology</label>
@@ -102,10 +108,10 @@
     </div>
     <div class="field" style="margin:0">
       <span class="label">Include</span>
-      <label class="opt {{ 'on' if filters.has_flags }}">
+      <label class="opt">
         <input type="checkbox" name="has_flags" value="1" {{ 'checked' if filters.has_flags }}>
         has quality flags</label>
-      <label class="opt {{ 'on' if not filters.usable_only }}"
+      <label class="opt"
              title="A run with no delivered bytes, or an iperf server ETHOS does not recognise, cannot be analysed.">
         <input type="checkbox" name="usable_only" value="no" {{ '' if filters.usable_only else 'checked' }}>
         show unusable runs</label>
@@ -119,13 +125,14 @@
 <form action="/results/compare" method="get">
 <div class="card flush">
   <header>
-    <span class="card-title">
+    <span class="tile teal">{{ ic('results') }}</span>
+    <span class="card-title" style="margin-right:auto">
       {{ page.matched }} run(s)
       <span class="faint" style="font-weight:400">of {{ page.total }} archived · page
         {{ page.page_number }} of {{ page.page_count }}</span>
     </span>
     {% if filters.usable_only %}
-      {{ chip('unusable runs hidden', 'outline', 'eye-slash') }}
+      {{ chip('unusable runs hidden', 'outline', 'filter') }}
     {% endif %}
   </header>
   <div class="table-wrap">
@@ -152,7 +159,7 @@
                      aria-label="select {{ run.run_id }}"></td>
           <td class="nowrap">{{ ago(run.t_created) }}</td>
           <td>{{ stack_chip(run.config_id, series_for(run.config_id)) }}</td>
-          <td>{{ run.direction or '—' }}</td>
+          <td>{{ run.direction or NOT_MEASURED }}</td>
           <td class="num">{{ num(run.offered_mbps, 0) }}</td>
           <td class="num">{{ num(run.achieved_over_tx_mbps, 2) }}</td>
           <td class="num">{{ num(run.loss_pct, 2) }}</td>
@@ -160,11 +167,11 @@
           <td class="num">{{ num(run.radio_summary.pusch_snr_db_mean if run.radio_summary else none, 1) }}</td>
           <td class="num">{{ num(run.radio_summary.bler_dl_residual_mean if run.radio_summary else none, 4) }}</td>
           <td class="num">{{ num(run.duration_requested_s, 0) }}</td>
-          <td>{{ 'Magic iPerf' if run.server_owner == 'app_binary' else (run.server_owner or '—') }}</td>
+          <td>{{ 'Magic iPerf' if run.server_owner == 'app_binary' else (run.server_owner or NOT_MEASURED) }}</td>
           <td>
             {% if run.cell_config and run.cell_config.tdd_pattern %}
               <span class="chip" title="{{ run.cell_config.chips | join(' · ') }}">{{ run.cell_config.tdd_pattern }}</span>
-            {% else %}<span class="faint">—</span>{% endif %}
+            {% else %}<span class="faint">{{ NOT_MEASURED }}</span>{% endif %}
           </td>
           <td>{{ flags(run.flag_names) }}</td>
           <td class="right"><a href="/results/runs/{{ run.run_id }}">open</a></td>
@@ -186,17 +193,17 @@
 
 <div class="row" style="justify-content:space-between;align-items:center">
   <div>
-    <button class="btn" type="submit"><sl-icon name="diagram-3"></sl-icon>Compare selected</button>
+    <button class="btn" type="submit"><svg class="ic" aria-hidden="true"><use href="#icon-sweep"/></svg>Compare selected</button>
     <span class="faint" style="margin-left:8px">Selected runs open as a sweep, grouped by offered load.</span>
   </div>
   <div class="row" style="gap:8px">
     {% if page.offset > 0 %}
       <a class="btn btn-sm" href="/results?{{ filters.query() }}&sort={{ sort }}&dir={{ dir }}&offset={{ page.offset - page.limit if page.offset > page.limit else 0 }}">
-        <sl-icon name="arrow-left"></sl-icon>newer</a>
+        <svg class="ic" aria-hidden="true"><use href="#icon-arrow-left"/></svg>newer</a>
     {% endif %}
     {% if page.has_more %}
       <a class="btn btn-sm" href="/results?{{ filters.query() }}&sort={{ sort }}&dir={{ dir }}&offset={{ page.offset + page.limit }}">
-        older<sl-icon name="arrow-right"></sl-icon></a>
+        older<svg class="ic" aria-hidden="true"><use href="#icon-arrow-right"/></svg></a>
     {% endif %}
   </div>
 </div>

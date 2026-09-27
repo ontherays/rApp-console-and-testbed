@@ -1,31 +1,34 @@
 {% extends "base.html" %}
 {% from "components/header.html" import bell %}
+{% from "components/macros.html" import ic %}
 {% from "components/form.html" import radio %}
 
 {% block title %}Test Plan · Testbed Console{% endblock %}
 {% block page_title %}Test Plan{% endblock %}
-{% block page_icon %}sliders{% endblock %}
+{% block page_icon %}plan{% endblock %}
 {% block page_tone %}purple{% endblock %}
+
 {% block actions %}
   {{ bell(badges.new_runs) }}
-  <button class="btn primary" type="button" hx-post="/plan/save" hx-include="#plan-form"
-          hx-target="#plan-result" hx-swap="innerHTML">
-    <sl-icon name="plus-lg"></sl-icon>Save plan</button>
+  <button class="btn" type="button" hx-post="/plan/save" hx-include="#plan-form"
+          hx-target="#plan-result" hx-swap="innerHTML">{{ ic('file') }}Save plan</button>
+  <span id="run-button">{% include "plan/run_button.html" %}</span>
 {% endblock %}
+
 {% block lede %}
   <p class="lede">
-    One test: a topology, a traffic plan, run options. The topology is validated by
-    ETHOS and the <span class="mono">config_id</span> comes from
-    <span class="mono">POST /testdef/generate</span> — the console never builds one.
+    One test: a topology, a traffic plan and run options. ETHOS validates the
+    selection and generates the config_id.
   </p>
 {% endblock %}
 
-
 {% block content %}
-{% if load_error %}<div class="banner bad"><sl-icon name="exclamation-octagon"></sl-icon>{{ load_error }}</div>{% endif %}
+{% if load_error %}
+  <div class="banner bad">{{ ic('warning') }}{{ load_error }}</div>
+{% endif %}
 {% if catalogue_error %}
-  <div class="banner bad"><sl-icon name="exclamation-octagon"></sl-icon>
-    The option lists come from ETHOS and it is unreachable — {{ catalogue_error }}</div>
+  <div class="banner bad">{{ ic('warning') }}
+    The option lists come from ETHOS and it is unreachable: {{ catalogue_error }}</div>
 {% endif %}
 
 <form id="plan-form" hx-post="/plan/resolve" hx-target="#plan-result"
@@ -34,110 +37,113 @@
   <div class="span-8" style="display:flex;flex-direction:column;gap:16px;min-width:0">
 
     <div class="card">
-      <header><span class="card-title">Topology</span></header>
+      <header>
+        <span class="tile blue">{{ ic('gnb') }}</span>
+        <span style="min-width:0">
+          <span class="card-title">Topology</span>
+          <span class="card-sub">What the test runs on, end to end</span>
+        </span>
+      </header>
+      {% with oob=False %}{% include "plan/topology_summary.html" %}{% endwith %}
+    </div>
+
+    <div class="card">
+      <header>
+        <span class="tile teal">{{ ic('dl') }}</span>
+        <span style="min-width:0">
+          <span class="card-title">Traffic</span>
+          <span class="card-sub">Which way, how fast and for how long</span>
+        </span>
+      </header>
 
       <div class="field">
-        <span class="label">gNB stack</span>
-        {{ radio('gnb_stack', options.gnb_stack, values.gnb_stack) }}
-      </div>
-
-      <div class="field">
-        <span class="label">Split</span>
-        {{ radio('split_kind', [('monolithic', 'Monolithic', ''), ('CU+DU', 'CU + DU', '')],
-                 values.split_kind) }}
-        <div class="hint">
-          Choosing CU + DU with two different vendors selects one of the
-          cross-vendor splits, which the catalogue marks experimental — the label
-          refers to F1 fragility, not to whether ETHOS can deploy it.
-        </div>
-      </div>
-
-      {% with oob=False %}{% include "plan/vendors.html" %}{% endwith %}
-
-      <div class="field">
-        <span class="label">L1 backend</span>
-        {{ radio('l1_backend', options.l1_backend, values.l1_backend) }}
-      </div>
-
-      <div class="field">
-        <span class="label">RU</span>
-        {{ radio('ru', options.ru, values.ru) }}
-      </div>
-
-      <div class="field">
-        <span class="label">UE</span>
-        {{ radio('ue', options.ue, values.ue) }}
-        <div class="hint">
-          A TM500 UE runs only against the TM500 RU emulation, and vice versa
-          (catalogue RULE-1). ETHOS refuses the other combinations.
-        </div>
+        <span class="label">{{ ic('swap', 'faint') }} Direction</span>
+        {{ radio('direction',
+                 [('DL','Downlink, core to UE','', 'dl'), ('UL','Uplink, UE to core','', 'ul')],
+                 values.direction) }}
       </div>
 
       <div class="row top">
-        <div class="field" style="flex:1;min-width:220px;margin:0">
-          <span class="label">Core network</span>
-          {{ radio('core', options.core, values.core) }}
+        <div class="field" style="flex:2;min-width:250px">
+          <label for="rates">
+            {{ ic('rate', 'faint') }} Offered load
+            <sl-tooltip hoist content="One rate (500), a list (100,200,300) or a range (100-1000:100), written the same way the campaign CLI takes it. Accepted range 1 to 10000 Mbit/s.">
+              {{ ic('info', 'faint') }}
+            </sl-tooltip>
+          </label>
+          <span class="input-wrap">
+            <input id="rates" type="text" name="rates" value="{{ values.rates }}"
+                   class="tabular" inputmode="text">
+            <span class="suffix">Mbit/s</span>
+          </span>
+          <p class="hint">One rate, a list, or a range.</p>
         </div>
-        <div class="field" style="flex:1;min-width:220px;margin:0">
-          <span class="label">Server</span>
-          {{ radio('server', options.server, values.server) }}
+        <div class="field">
+          <label for="duration">{{ ic('duration', 'faint') }} Duration per rate</label>
+          <span class="input-wrap">
+            <input id="duration" type="text" name="duration" value="{{ values.duration }}"
+                   class="tabular" style="width:110px">
+            <span class="suffix">s</span>
+          </span>
+          <p class="hint">Minimum 5 s.</p>
         </div>
+        <div class="field">
+          <label for="repeats">
+            {{ ic('repeats', 'faint') }} Repeats
+            <sl-tooltip hoist content="Each repeat is its own run at the same offered load. Paper figures need n of 5 or more. The campaign CLI has no repeats flag yet (B8), so repeats mean running its command again.">
+              {{ ic('info', 'faint') }}
+            </sl-tooltip>
+          </label>
+          <span class="input-wrap">
+            <input id="repeats" name="repeats" type="number" min="1" max="20"
+                   value="{{ values.repeats }}" class="tabular" style="width:92px">
+            <span class="suffix">×</span>
+          </span>
+          <p class="hint">1 to 20 per rate.</p>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:0">
+        <span class="label">
+          {{ ic('iperf', 'faint') }} iperf server
+          <sl-tooltip hoist content="The mode is service-wide in ETHOS today (ETHOS_IPERF_SERVER); choosing it per test is backend change B7, so this value is recorded in the plan and used by the command below.">
+            {{ ic('info', 'faint') }}
+          </sl-tooltip>
+        </span>
+        {{ radio('iperf_server', [('app_binary','Magic iPerf app on the UE','', 'ue'),
+                                  ('ethos','ETHOS server','', 'server')],
+                 values.iperf_server) }}
+        <p class="hint">Which end holds port 5201.</p>
       </div>
     </div>
 
     <div class="card">
-      <header><span class="card-title">Traffic</span></header>
-      <div class="field">
-        <span class="label">Direction</span>
-        {{ radio('direction', [('DL','DL — core to UE',''), ('UL','UL — UE to core','')],
-                 values.direction) }}
-      </div>
+      <header>
+        <span class="tile slate">{{ ic('plan') }}</span>
+        <span style="min-width:0">
+          <span class="card-title">Options</span>
+          <span class="card-sub">What to call this test, and what to keep</span>
+        </span>
+      </header>
       <div class="row top">
-        <div class="field" style="flex:2;min-width:260px">
-          <label for="rates">Offered load (Mbit/s)</label>
-          <input id="rates" type="text" name="rates" value="{{ values.rates }}" style="width:100%">
-          <div class="hint">
-            One rate (<span class="mono">500</span>), a list
-            (<span class="mono">100,200,300</span>) or a range
-            (<span class="mono">100-1000:100</span>). 1–10000 Mbit/s.
-          </div>
-        </div>
-        <div class="field">
-          <label for="duration">Duration per rate</label>
-          <input id="duration" type="text" name="duration" value="{{ values.duration }}" style="width:120px">
-          <div class="hint">30s, 5m … minimum 5 s</div>
-        </div>
-        <div class="field">
-          <label for="repeats">Repeats</label>
-          <input id="repeats" name="repeats" type="number" min="1" max="20"
-                 value="{{ values.repeats }}" style="width:90px">
-          <div class="hint">Paper figures need n ≥ 5</div>
-        </div>
-      </div>
-      <div class="field">
-        <span class="label">iperf server for this test</span>
-        {{ radio('iperf_server', [('app_binary','Magic iPerf app on the UE',''), ('ethos','ETHOS server','')],
-                 values.iperf_server) }}
-        <div class="hint">
-          The mode is service-wide in ETHOS today
-          (<span class="mono">ETHOS_IPERF_SERVER</span>); per-test selection is
-          backend change B7, so this value is recorded in the plan and used by the
-          command below.
-        </div>
-      </div>
-      <div class="row top">
-        <div class="field" style="flex:1;min-width:240px;margin:0">
+        <div class="field" style="flex:1;min-width:250px;margin:0">
           <label for="label">Label</label>
           <input id="label" type="text" name="label" value="{{ values.label }}" style="width:100%">
-          <div class="hint">Used as the campaign id prefix and the figure label</div>
+          <p class="hint">Used as the campaign id prefix and the figure label.</p>
         </div>
         <div class="field" style="margin:0">
-          <span class="label">Options</span>
-          <label class="opt {{ 'on' if values.radio_samples }}">
+          <span class="label">
+            Radio samples
+            <sl-tooltip hoist content="Keeps the per-second radio rows in radio.json beside run.json and publishes them to ethos_radio_v1. Off by default: a sweep's samples are a few thousand rows nobody reads. For debugging a link.">
+              {{ ic('info', 'faint') }}
+            </sl-tooltip>
+          </span>
+          <label class="opt">
             <input type="checkbox" name="radio_samples" value="1"
                    {{ 'checked' if values.radio_samples }}>
-            per-second radio samples</label>
-          <div class="hint">for debugging; off by default</div>
+            <span>Keep per-second samples</span>
+          </label>
+          <p class="hint">For debugging. Off by default.</p>
         </div>
       </div>
     </div>
@@ -146,25 +152,40 @@
   </div>
 
   <div class="span-4" style="min-width:0">
-    <div class="card" style="position:sticky;top:16px">
-      <header><span class="card-title">Saved plans</span></header>
-      {% if saved %}
-        {% for plan in saved %}
-          <div class="check">
-            <span class="what">
-              <a href="/plan?load={{ plan.name }}">{{ plan.name }}</a>
-              <div class="reason">{{ plan.summary }} · saved {{ plan.saved_at }}</div>
-            </span>
-          </div>
-        {% endfor %}
-      {% else %}
-        <p class="muted" style="margin:0">
-          No saved plans yet. They are written to
-          <span class="mono">{{ settings.plans_dir }}</span>, outside the repository.
-        </p>
-      {% endif %}
+    <div class="sticky-col">
+      <div class="card">
+        <header>
+          <span class="tile orange">{{ ic('file') }}</span>
+          <span style="min-width:0">
+            <span class="card-title">Saved plans</span>
+            <span class="card-sub">Kept on the console host</span>
+          </span>
+        </header>
+        {% if saved %}
+          {% for plan in saved %}
+            <div class="check">
+              <span class="what">
+                <a href="/plan?load={{ plan.name }}">{{ plan.name }}</a>
+                <div class="reason">{{ plan.summary }}</div>
+              </span>
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="muted" style="margin:0">
+            None yet. Plans are written to <span class="mono">{{ settings.plans_dir }}</span>,
+            outside the repository.
+          </p>
+        {% endif %}
+      </div>
+
+      <div id="readiness-panel">{% include "plan/readiness.html" %}</div>
     </div>
   </div>
 </div>
+
+{# Inside the form on purpose: the drawer's radios are form controls, and a
+   control outside the form is not submitted, not included by hx-include, and
+   not found when a preset sets the fields. #}
+{% include "plan/drawer.html" %}
 </form>
 {% endblock %}

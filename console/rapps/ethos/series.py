@@ -7,7 +7,7 @@ palette, with splits drawn solid and monolithic dashed so the figures still
 separate in greyscale.
 
 They are copied rather than imported, because the console does not import ETHOS
-code — the two are separate processes with separate virtual environments. When
+code, the two are separate processes with separate virtual environments. When
 ``GET /plots/series`` lands (B9) this table is replaced by that response, which
 is the point at which "copied" stops being a risk.
 

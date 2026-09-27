@@ -238,7 +238,7 @@ class EthosClient:
 
     async def testdef_generate(self, body: dict[str, Any]) -> TestDefGenerated:
         """The only sanctioned source of a config_id. The console never builds
-        one by string concatenation — a hand-built id once dropped a field and
+        one by string concatenation, a hand-built id once dropped a field and
         put malformed points in the results bucket."""
         return TestDefGenerated.model_validate(
             await self.call("POST", "/testdef/generate", json=body)
@@ -265,7 +265,7 @@ class EthosClient:
         when the request names a stack: ``deployment/orchestrator.py`` gates the
         probe on ``if self.prober is not None and stack``, so a bare call leaves
         ``node_free`` null and ``node_reason`` at its initialiser, "the node was
-        not observed". That reads like a failure and is not one — nothing was
+        not observed". That reads like a failure and is not one, nothing was
         asked. With a config_id the same endpoint answers
         ``node_free: true, "state verified: no gNB and no traffic on the node"``
         and a full ``node_check``.

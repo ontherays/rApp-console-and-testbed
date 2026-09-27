@@ -1,4 +1,4 @@
-"""``python -m console`` — serve, set the password, or check the configuration."""
+"""``python -m console``, serve, set the password, or check the configuration."""
 
 from __future__ import annotations
 

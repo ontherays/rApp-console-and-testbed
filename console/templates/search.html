@@ -12,7 +12,7 @@
 {% endblock %}
 
 {% block content %}
-{% if error %}<div class="banner bad"><sl-icon name="exclamation-octagon"></sl-icon>{{ error }}</div>{% endif %}
+{% if error %}<div class="banner bad"><svg class="ic" aria-hidden="true"><use href="#icon-warning"/></svg>{{ error }}</div>{% endif %}
 
 {% if q and not total and not error %}
   <div class="card"><p class="muted" style="margin:0">Nothing in the archive matches “{{ q }}”.</p></div>

@@ -1,7 +1,7 @@
 """Filtering, sorting, paging and CSV over the run list, in the console.
 
 ``GET /runs`` accepts three filters, no limit and no offset, and re-reads every
-manifest on disk for each request — 528 runs is 1.1 MB today and grows. So the
+manifest on disk for each request, 528 runs is 1.1 MB today and grows. So the
 console fetches the list once per cache window and does the rest here. Backend
 change B10 moves this to ETHOS (with ``GET /runs.csv``); this module is then
 deleted rather than kept as a second implementation.
@@ -296,7 +296,7 @@ CSV_COLUMNS: tuple[str, ...] = (
 def csv_rows(runs: Sequence[Run]) -> str:
     """One row per run, every summary field, UTC timestamps as recorded (RS-04).
 
-    A value that was not measured is an empty cell. It is never written as 0 —
+    A value that was not measured is an empty cell. It is never written as 0,
     a spreadsheet that reads 0 dB of SNR as a measurement is worse than a blank.
     """
     buffer = io.StringIO()

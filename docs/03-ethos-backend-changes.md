@@ -18,7 +18,7 @@ Each change is numbered B1–B15; the build plan schedules them.
 
 ---
 
-## B1 — Testbed lock
+## B1, Testbed lock
 
 **Why.** Nothing stops two campaigns, or a campaign and a manual deploy, from acting on joule at once. The investigation found no lock anywhere in `api/`, `campaign/`, `deployment/` or `execution/`; the only guard is a node-free `ps` check that two callers can race.
 
@@ -36,7 +36,7 @@ Each change is numbered B1–B15; the build plan schedules them.
 
 ---
 
-## B2 — Jobs: one campaign executor
+## B2, Jobs: one campaign executor
 
 **Why.** Campaigns only run from `python -m campaign` today; `POST /campaigns/{id}/run` and `GET /campaigns/{id}/status` return 501. The console needs to start a campaign, watch it, stop it, and survive a browser refresh.
 
@@ -84,7 +84,7 @@ Each change is numbered B1–B15; the build plan schedules them.
 
 ---
 
-## B3 — Confirmation: preview, then act with a token
+## B3, Confirmation: preview, then act with a token
 
 **Why.** Deploy, teardown, UE attach/detach and traffic act on the first call today. Only CM writes have preview → `confirm=true` (`o1/cm_writer.py`), which the investigation rated the strongest discipline in the codebase.
 
@@ -103,7 +103,7 @@ Each change is numbered B1–B15; the build plan schedules them.
 
 ---
 
-## B4 — Catalogue with deployability
+## B4, Catalogue with deployability
 
 **Why.** `GET /compatibility` says what is *compatible*, not what can be *deployed*. TM500, Foxconn and Aerial validate and then fail at deploy with `TODO(Ravi)` (investigation risk R8).
 
@@ -120,7 +120,7 @@ The console displays `label`, never `slug` (the split slugs `mixocuoai` / `mixoa
 
 ---
 
-## B5 — Readiness
+## B5, Readiness
 
 **Endpoint.** `POST /readiness` with a plan (B2 format) → an ordered list of checks:
 
@@ -138,7 +138,7 @@ Each check returns `status` (`pass | fail | unknown`), `reason`, and `checked_at
 
 ---
 
-## B6 — Status summary
+## B6, Status summary
 
 **Endpoint.** `GET /status/summary` → one object for the status strip and the Overview:
 
@@ -148,7 +148,7 @@ Each part has its own `checked_at` and `error`; one failing probe never fails th
 
 ---
 
-## B7 — iperf server mode per job
+## B7, iperf server mode per job
 
 **Why.** The mode is service-wide today, set by `ETHOS_IPERF_SERVER` in a systemd drop-in, and changing it needs a restart.
 
@@ -156,7 +156,7 @@ Each part has its own `checked_at` and `error`; one failing probe never fails th
 
 ---
 
-## B8 — Direction and repeats
+## B8, Direction and repeats
 
 **Check first.** Confirm whether the campaign runner already supports UL and repeated runs per rate. The channel-metrics investigation ran UL 50 M through the API, not through `python -m campaign`.
 
@@ -166,7 +166,7 @@ Each part has its own `checked_at` and `error`; one failing probe never fails th
 
 ---
 
-## B9 — Figures on request, including channel metrics
+## B9, Figures on request, including channel metrics
 
 **Endpoints.**
 
@@ -186,7 +186,7 @@ The `plotting runs` CLI and `python -m plotting throughput` keep working unchang
 
 ---
 
-## B10 — Results queries
+## B10, Results queries
 
 | Endpoint | Behaviour |
 |---|---|
@@ -199,7 +199,7 @@ Source: the run archive (`run.json`), which is the source of truth; InfluxDB is 
 
 ---
 
-## B11 — Standalone UE control (Phase 2)
+## B11, Standalone UE control (Phase 2)
 
 **Prerequisite.** Switch `iapc` to SSH-key login, so the long-running service needs no password for UE actions.
 
@@ -216,7 +216,7 @@ These use `ue.driver.UeDriver` and `ue.registry`, the same code the planned UE t
 
 ---
 
-## B12 — O1: freshness, alarms, CM-driven tests (Phase 3)
+## B12, O1: freshness, alarms, CM-driven tests (Phase 3)
 
 - `GET /o1/freshness`: the last PM point per managed element **of this testbed** (`ManagedElement=ocududu,…` and `ManagedElement=oai-gnb-mono,…`). Never enumerate `ran-pm-metrics`; it also holds an unrelated satellite-simulator project's measurements.
 - `GET /o1/alarms`: active alarms and history from the existing ONAP / VES path. Phase 3 starts with a short investigation of where FM events land today (VES collector → which topic or store).
@@ -225,7 +225,7 @@ These use `ue.driver.UeDriver` and `ue.registry`, the same code the planned UE t
 
 ---
 
-## B13 — O2 (Phase 4)
+## B13, O2 (Phase 4)
 
 - `GET /o2/nf`: Helm releases and pods in `ravi-ns` with status, readiness, restarts, age.
 - **Deploy timing.** On every deploy, record the time from `helm install` of the first release to all pods Ready, per release and in total. Store it on the deployment record, copy `deploy_duration_s` onto each run of that deployment, and expose `GET /o2/deploy-times?config_id=…`.
@@ -234,12 +234,12 @@ These use `ue.driver.UeDriver` and `ue.registry`, the same code the planned UE t
 
 ---
 
-## B14 — Derived cell-config fields
+## B14, Derived cell-config fields
 
 OCUDU's config doesn't state `n_prb` or max MIMO layers, so `cell_config` has nulls where OAI has numbers. Derive `n_prb` from bandwidth and SCS using 3GPP TS 38.101-1 Table 5.3.2-1 (100 MHz at 30 kHz → 273), and add `derived_fields: ["n_prb"]` so the console can mark it "derived". Leave max MIMO layers null; there is no reliable derivation.
 
 ---
 
-## B15 — Test-definition radio parameters
+## B15, Test-definition radio parameters
 
 `POST /testdef/generate` returns `bandwidth_mhz: 80` and `tdd_pattern: "DDDSU"` for OCUDU, while OCUDU runs 100 MHz and 7D2U. The console labels these values "planned" (requirements TP-20) and shows measured cell config from the run. Fix the source: fill the test definition's radio parameters from the topology's chart configuration (`values-pegatron.yaml` for OCUDU, `config.yaml` for OAI), or return them as null with a reason. Never return a hard-coded default as if it described the topology.

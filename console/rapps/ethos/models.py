@@ -6,8 +6,8 @@ so absent keys vanish rather than arriving as null; and a run manifest grows
 new blocks as ETHOS gains build steps, which must never break a page that does
 not use them.
 
-A missing value is ``None`` and is rendered "—". It is never coerced to 0
-(GL-09) — a stack that has no such counter and a counter that was not measured
+A missing value is ``None`` and is rendered ",". It is never coerced to 0
+(GL-09), a stack that has no such counter and a counter that was not measured
 are both absences, and neither is a zero.
 """
 
@@ -40,7 +40,7 @@ class Option(Loose):
 
     @property
     def display(self) -> str:
-        """Always the label. Never the slug (GL-05) — the split slugs
+        """Always the label. Never the slug (GL-05), the split slugs
         ``mixocuoai`` / ``mixoaiocu`` no longer match any config_id head."""
         return self.label or self.id or self.slug or "?"
 

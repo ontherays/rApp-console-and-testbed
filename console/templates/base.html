@@ -14,6 +14,7 @@
   <script src="/static/js/console.js"></script>
 </head>
 <body>
+{% include "components/sprite.html" %}
 <div class="shell">
   {% include "components/sidebar.html" %}
 
@@ -21,7 +22,7 @@
     <div class="topbar">
       <div class="row1">
         <span class="title-ico tile {% block page_tone %}blue{% endblock %}" aria-hidden="true">
-          <sl-icon name="{% block page_icon %}grid-1x2{% endblock %}"></sl-icon>
+          <svg class="ic" aria-hidden="true"><use href="#icon-{% block page_icon %}overview{% endblock %}"/></svg>
         </span>
         <div style="min-width:0">
           {% block crumbs %}{% endblock %}

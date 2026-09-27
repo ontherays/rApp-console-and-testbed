@@ -2,7 +2,7 @@
 
 A job is one campaign execution, and ETHOS has no job model: ``/campaigns/{id}/run``
 and ``/campaigns/{id}/status`` answer 501, and ``/jobs`` is not routed. The console
-therefore does not run campaigns. It could — it has the same API the CLI drives —
+therefore does not run campaigns. It could, it has the same API the CLI drives,
 and that is exactly why it must not: a second campaign executor beside
 ``python -m campaign``, with the lock in the web process rather than in ETHOS,
 is the thing the design forbids.

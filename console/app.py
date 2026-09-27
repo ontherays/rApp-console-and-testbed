@@ -67,7 +67,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
     """Login, session expiry and CSRF, in one place.
 
     A session is refused rather than extended when it is past either limit, and
-    the reason is carried to the login page — "your session was idle for 2 hours"
+    the reason is carried to the login page, "your session was idle for 2 hours"
     is a different fact from "wrong password", and conflating them wastes time.
     """
 

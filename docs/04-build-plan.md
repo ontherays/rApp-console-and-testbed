@@ -1,4 +1,4 @@
-# Testbed Console & Dashboard — Build plan
+# Testbed Console & Dashboard, Build plan
 
 Companion to `01-requirements.md`, `02-design.md`, `03-ethos-backend-changes.md`.
 
@@ -46,9 +46,9 @@ when you restart it.
 
 ---
 
-## Phase 0 — ETHOS foundation
+## Phase 0, ETHOS foundation
 
-### Task 0a — lock and confirmation (B1, B3)
+### Task 0a, lock and confirmation (B1, B3)
 
 ```
 [rules block]
@@ -77,7 +77,7 @@ Report: caller list, files changed, test count before/after, the
 verification output, branch and merge command.
 ```
 
-### Task 0b — jobs (B2)
+### Task 0b, jobs (B2)
 
 ```
 [rules block]
@@ -104,7 +104,7 @@ Verification on the testbed:
 Report as in 0a.
 ```
 
-### Task 0c — catalogue, readiness, status, iperf mode, direction and repeats (B4–B8)
+### Task 0c, catalogue, readiness, status, iperf mode, direction and repeats (B4–B8)
 
 ```
 [rules block]
@@ -130,7 +130,7 @@ Verification on the testbed:
 Report as in 0a.
 ```
 
-### Task 0d — figures, results, cell-config fixes (B9, B10, B14, B15)
+### Task 0d, figures, results, cell-config fixes (B9, B10, B14, B15)
 
 ```
 [rules block]
@@ -167,9 +167,9 @@ On the testbed, by you:
 
 ---
 
-## Phase 1 — Console MVP
+## Phase 1, Console MVP
 
-### Task 1a — scaffold, security, layout, Overview
+### Task 1a, scaffold, security, layout, Overview
 
 ```
 [rules block]
@@ -203,7 +203,7 @@ Report: tree, test count, screenshots of login, Overview, and the banner
 (Playwright can capture them), branch and merge command.
 ```
 
-### Task 1b — Test Plan
+### Task 1b, Test Plan
 
 ```
 [rules block]
@@ -225,7 +225,7 @@ confirm → job starts. Screenshots of the page, the config view and the
 preview dialog.
 ```
 
-### Task 1c — Jobs
+### Task 1c, Jobs
 
 ```
 [rules block]
@@ -245,13 +245,13 @@ rate 2; stop during rate 3; then the same from the CLI appears in the
 jobs list as CLI.
 ```
 
-### Task 1d — Results
+### Task 1d, Results
 
 ```
 [rules block]
 
 Build Results: RS-01…16 and the metric display rules in requirements §7.4
-exactly (labels, separate fields, "—" for not measured, capped chip, TDD
+exactly: labels, separate fields, "n/a" for not measured, capped chip, TDD
 chip). Run table with filters and CSV; run detail tabs (Summary, Channel
 conditions, Latency, Cell config, Config, Raw, Samples when present); sweep
 view with repeats collapsed and "Plot" links.
@@ -263,7 +263,7 @@ Verification: open the last full sweep and one OCUDU and one OAI run;
 screenshots of each tab and the sweep view.
 ```
 
-### Task 1e — Graphs
+### Task 1e, Graphs
 
 ```
 [rules block]
@@ -293,7 +293,7 @@ Then write `docs/operator-guide.md` in the console repo: start/stop the service,
 
 ---
 
-## Phase 2 — Testbed control and UEs
+## Phase 2, Testbed control and UEs
 
 Before it starts: switch `iapc` to SSH-key login (open item 4).
 
@@ -301,14 +301,14 @@ Before it starts: switch `iapc` to SSH-key login (open item 4).
 - **Task 2b (console):** Testbed and UE pages (TB-01…03, UE-01…05).
 - **Acceptance:** deploy `ocudu-mono` from the console without traffic; attach Samsung; read its signal; check Magic iPerf; stop Magic iPerf; detach; tear down. Every step shows a preview first and is refused while a job holds the lock.
 
-## Phase 3 — O1
+## Phase 3, O1
 
 - **Task 3a (investigation):** where FM events land today in the ONAP / SDNC / VES chain; PM freshness per managed element; SDNC mount state. Report only.
 - **Task 3b (ETHOS):** B12.
 - **Task 3c (console):** O1 pages (O1-01…08) and the CM step / CM sweep options in the Test Plan.
 - **Acceptance:** a CM sweep over one writable parameter at 3 values, DL 100 M 30 s each, with results grouped by value; the alarm list shows an alarm raised during the test, if one is raised.
 
-## Phase 4 — O2
+## Phase 4, O2
 
 - **Task 4a:** the RAPL shipper fix (separate from the console; `ocloud_power` has had no data since 2026-08-27).
 - **Task 4b (ETHOS):** B13 (NF checks, deploy timing on every deploy, energy freshness; DMS once the client certificate exists).
@@ -324,6 +324,6 @@ Before it starts: switch `iapc` to SSH-key login (open item 4).
 | Is the testbed free? | status strip | `curl -s 127.0.0.1:8081/lock` |
 | What is running? | Overview → Running job | `curl -s '127.0.0.1:8081/jobs?state=running'` |
 | What is deployed? | Overview → Deployed now | `curl -s 127.0.0.1:8081/deploy/status` |
-| Is the console up? | — | `systemctl --user status testbed-console` |
+| Is the console up? |, | `systemctl --user status testbed-console` |
 | Is ETHOS up? | red banner if not | `systemctl --user status ethos-rapp` |
-| Console logs | — | `journalctl --user -u testbed-console -n 100` |
+| Console logs |, | `journalctl --user -u testbed-console -n 100` |

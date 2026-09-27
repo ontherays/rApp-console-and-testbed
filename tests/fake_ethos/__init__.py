@@ -2,7 +2,7 @@
 
 Every console test runs against this, never against the testbed (NF-07). It
 answers from the JSON in ``tests/recorded/``, which ``tests/record.py`` captured
-from the real API — so the fixtures are the real shapes, including the 501 bodies
+from the real API, so the fixtures are the real shapes, including the 501 bodies
 of the endpoints that are still stubs.
 
 It can also be made to fail on purpose: a 409 naming a holder, a 412, a 422, or
@@ -109,7 +109,10 @@ class FakeEthos:
             body = json.loads(request.content or b"{}")
             return httpx.Response(200, json=self._validate(body), request=request)
         if path == "/testdef/generate":
-            return httpx.Response(200, json=self._load("testdef_generate"), request=request)
+            body = json.loads(request.content or b"{}")
+            return httpx.Response(
+                200, json=self._testdef(body.get("selection") or {}), request=request
+            )
         if path == "/deploy/status":
             return httpx.Response(200, json=self._load("deploy_status"), request=request)
         if path == "/status/health":
@@ -127,6 +130,56 @@ class FakeEthos:
             )
 
         return httpx.Response(404, json={"detail": "Not Found"}, request=request)
+
+    # The head ETHOS builds for each split, from identity/topology.py's rules.
+    HEADS = {
+        ("OCUDU", "monolithic"): "ocudu-mono",
+        ("OAI", "monolithic"): "oai-mono",
+        ("OCUDU", "CU+DU"): "ocudu-cudu",
+        ("OAI", "CU+DU"): "oai-cudu",
+        ("OCUDU", "OCUDU-CU+OAI-DU"): "ocuducu-oaidu",
+        ("OAI", "OCUDU-CU+OAI-DU"): "ocuducu-oaidu",
+        ("OCUDU", "OAI-CU+OCUDU-DU"): "oaicu-ocududu",
+        ("OAI", "OAI-CU+OCUDU-DU"): "oaicu-ocududu",
+    }
+    SLUGS = {
+        "Samsung": "samsung", "MTK": "mtk", "TM500": "tm500",
+        "Pegatron-Dongle": "pegadongle", "Pegatron": "pega", "Foxconn": "foxconn",
+        "software-PHY": "swphy", "Aerial-cuBB": "aerial",
+        "Open5GS": "o5gs", "free5GC": "f5gc", "joule": "joule", "DGX-Spark": "dgxspark",
+    }
+
+    def _testdef(self, selection: dict[str, Any]) -> dict[str, Any]:
+        """A generated test definition, keyed on the selection.
+
+        The recorded response is one topology's, and every page that changes a
+        topology would otherwise see that same answer come back. The fake builds
+        the config_id the way ETHOS documents it, so a test can tell one
+        selection from another. The console still never builds one itself: it
+        reads whatever this endpoint returns.
+        """
+        recorded = self._load("testdef_generate") or {}
+        head = self.HEADS.get(
+            (selection.get("gnb_stack", ""), selection.get("gnb_split", "")), "unknown"
+        )
+        parts = [
+            head,
+            self.SLUGS.get(selection.get("l1_backend", ""), "swphy"),
+            self.SLUGS.get(selection.get("ru", ""), "pega"),
+            self.SLUGS.get(selection.get("ue", ""), "samsung"),
+            self.SLUGS.get(selection.get("core", ""), "o5gs"),
+            self.SLUGS.get(selection.get("server", ""), "joule"),
+        ]
+        config_id = "_".join(parts)
+
+        definition = dict(recorded.get("test_definition") or {})
+        definition["config_id"] = config_id
+        definition["selection"] = selection
+        return {
+            "test_definition": definition,
+            "sample_run_id": f"20260927T1200Z-{config_id}-DL100M-001",
+            "validation": self._validate(selection),
+        }
 
     def _validate(self, selection: dict[str, Any]) -> dict[str, Any]:
         """The couplings the real ETHOS enforces, for the combinations a test uses."""

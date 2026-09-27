@@ -2,7 +2,7 @@
 
 Monolithic runs CU and DU in one process, so there is nothing to choose: the two
 groups follow the gNB stack and are disabled. CU + DU opens them, defaulting to
-the stack's own vendor — opening a split should not silently propose a
+the stack's own vendor, opening a split should not silently propose a
 cross-vendor F1 that nobody asked for.
 """
 

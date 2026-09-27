@@ -1,6 +1,6 @@
 """The Overview's charts, drawn as inline SVG on the server.
 
-These are **operational summaries** — how many runs, of which topology, and how
+These are **operational summaries**, how many runs, of which topology, and how
 the best throughput moved day to day. They exist so the Overview answers "what
 has this testbed been doing" at a glance, and they are counts and trends, not
 measurements.
@@ -64,7 +64,7 @@ def hex_grid(
     """One hexagon per item, coloured, on a grey honeycomb of empty cells.
 
     The grid is sized to hold what it is given, so a quiet week draws a small
-    dense blob and a busy month draws a large one — the size of the coloured
+    dense blob and a busy month draws a large one, the size of the coloured
     area is itself the count.
     """
     total = len(cells)
@@ -136,7 +136,7 @@ def dot_matrix(
 ) -> DotMatrix:
     """One column of dots per day, filled to that day's value.
 
-    A day with no run is drawn as an empty column, not as zero — the console
+    A day with no run is drawn as an empty column, not as zero, the console
     never shows a missing measurement as a number (GL-09).
     """
     measured = [c.value for c in columns if c.value is not None]

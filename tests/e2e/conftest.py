@@ -2,7 +2,7 @@
 
 The pytest suite covers the server: status codes, headers, rendered HTML. What it
 cannot check is that the Shoelace web components actually upgrade and that the
-htmx swaps land — both depend on the vendored assets being served correctly under
+htmx swaps land, both depend on the vendored assets being served correctly under
 a strict Content-Security-Policy, which is exactly the kind of thing that breaks
 silently.
 
