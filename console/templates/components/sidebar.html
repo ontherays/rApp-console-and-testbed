@@ -1,0 +1,59 @@
+{# Grouped navigation. A section that is not built yet is shown disabled with
+   the phase it arrives in (GL-01), so the page never hides planned work. #}
+<nav class="side">
+  <div class="brand">
+    <span class="mark"><sl-icon name="broadcast-pin"></sl-icon></span>
+    <span>
+      <b>Testbed Console</b>
+      <small>BMW Lab O-RAN</small>
+    </span>
+  </div>
+
+  <div class="search">
+    <form action="/search" method="get" role="search">
+      <sl-icon class="glass" name="search"></sl-icon>
+      <input type="text" name="q" id="console-search" autocomplete="off"
+             placeholder="Search runs, configs, campaigns"
+             aria-label="Search for a run id, config_id or campaign"
+             value="{{ search_q | default('') }}">
+      <kbd>/</kbd>
+    </form>
+  </div>
+
+  <div class="scroll">
+    {% for group in nav_groups %}
+      <details class="group" {% if group.open %}open{% endif %}>
+        <summary>{{ group.name }}<sl-icon class="chev" name="chevron-down"></sl-icon></summary>
+        {% for item in group.items %}
+          {% set here = request.url.path %}
+          {% set active = here == item.href or (item.href != '/' and here.startswith(item.href)) %}
+          {% set count = badges.get(item.badge_key) %}
+          {% if item.phase %}
+            <a class="item {{ 'active' if active else '' }}" href="{{ item.href }}"
+               title="{{ item.label }} arrives in {{ item.phase }}">
+              <sl-icon name="{{ item.icon }}"></sl-icon>
+              <span>{{ item.label }}</span>
+              <span class="phase">{{ item.phase }}</span>
+            </a>
+          {% else %}
+            <a class="item {{ 'active' if active else '' }}" href="{{ item.href }}">
+              <sl-icon name="{{ item.icon }}"></sl-icon>
+              <span>{{ item.label }}</span>
+              {% if count %}
+                <span class="badge {{ badges.tone(item.badge_key) }}"
+                      title="{{ count }} new since your last visit">{{ count }}</span>
+              {% endif %}
+            </a>
+          {% endif %}
+        {% endfor %}
+      </details>
+    {% endfor %}
+  </div>
+
+  <div class="foot">
+    {% include "components/backend_card.html" %}
+    <a class="item" href="/logout" style="margin-top:8px">
+      <sl-icon name="box-arrow-right"></sl-icon><span>Log out</span>
+    </a>
+  </div>
+</nav>

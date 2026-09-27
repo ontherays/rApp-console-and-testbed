@@ -1,10 +1,10 @@
 {# The status strip (ST-01…04). Every item carries its own state and its own
    "checked" time, so one failed probe shows as unknown without breaking the
-   rest of the strip — and the strip never claims a state it did not read. #}
-{% from "components/macros.html" import dot, ago %}
+   rest — and the strip never claims a state it did not read. #}
+{% from "components/macros.html" import dot %}
 
 {% if not status.ethos_up %}
-  <div class="banner">
+  <div class="banner bad" style="margin-top:12px">
     <sl-icon name="exclamation-octagon"></sl-icon>
     ETHOS API unreachable — {{ status.ethos_detail }}. Every action is disabled.
   </div>
@@ -15,12 +15,10 @@
     <span class="item">
       {{ dot(item.state) }}
       <sl-tooltip hoist content="{{ item.detail }}{% if item.checked_at %} · checked {{ item.checked_at }}{% endif %}">
-        <span>{{ item.label }}: <strong>{{ item.value }}</strong></span>
+        <span>{{ item.label }}: <b>{{ item.value }}</b></span>
       </sl-tooltip>
     </span>
   {% endfor %}
   <span class="spacer"></span>
-  <span class="item muted nowrap">
-    <sl-icon name="clock-history"></sl-icon> {{ status.as_of }}
-  </span>
+  <span class="item faint nowrap"><sl-icon name="clock-history"></sl-icon> {{ status.as_of }}</span>
 </div>

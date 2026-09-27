@@ -1,0 +1,27 @@
+{# How much of the ETHOS backend is in place. It fills in by itself: the
+   capability probe finds each endpoint as it lands. #}
+<div class="setup">
+  <div class="art">
+    <span class="glyph"><sl-icon name="{{ 'check2-circle' if backend.complete else 'hdd-network' }}"></sl-icon></span>
+  </div>
+  <div class="body">
+    <b>ETHOS backend</b>
+    <p>
+      {% if backend.complete %}
+        Every endpoint the console waits for is answering.
+      {% else %}
+        Next: {{ backend.next_up }}.
+      {% endif %}
+    </p>
+    <div class="row">
+      <svg class="ring" viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="10" cy="10" r="8" fill="none" stroke="#e8e8e8" stroke-width="3"/>
+        <circle cx="10" cy="10" r="8" fill="none" stroke="var(--accent)" stroke-width="3"
+                stroke-linecap="round" transform="rotate(-90 10 10)"
+                stroke-dasharray="{{ (backend.fraction * 50.26) | round(2) }} 50.26"/>
+      </svg>
+      <span class="faint" style="font-size:12px">{{ backend.summary }}</span>
+      <a class="btn btn-sm" style="margin-left:auto" href="/docs/ethos-backlog">Details</a>
+    </div>
+  </div>
+</div>

@@ -1,13 +1,21 @@
-{# Shared rendering. Everything that decides how a number or a state looks lives
-   here, so one rule is written once. #}
+{# Shared rendering. Anything that decides how a value or a state looks is
+   written once, here.
 
-{% macro dot(state) %}
-  {# state: ok | warn | bad | unknown #}
-  <span class="dot {{ state }}"></span>
+   Colour is never the only signal: every coloured chip also carries text or an
+   icon, so a state survives greyscale and colour blindness. #}
+
+{% macro dot(state) %}<span class="dot {{ state }}"></span>{% endmacro %}
+
+{% macro tile(icon, tone='slate', size='') %}
+  <span class="tile {{ tone }} {{ size }}" aria-hidden="true"><sl-icon name="{{ icon }}"></sl-icon></span>
 {% endmacro %}
 
-{% macro chip(text, tone='') %}
-  <span class="chip {{ tone }}">{{ text }}</span>
+{% macro initials_tile(text, colour) %}
+  <span class="tile initials" style="background: {{ colour }}" aria-hidden="true">{{ text }}</span>
+{% endmacro %}
+
+{% macro chip(text, tone='', icon='') %}
+  <span class="chip {{ tone }}">{% if icon %}<sl-icon name="{{ icon }}"></sl-icon>{% endif %}{{ text }}</span>
 {% endmacro %}
 
 {% macro stack_chip(config_id, series) %}
@@ -21,68 +29,104 @@
   {% if cell_config and cell_config.chips %}
     <span class="chips">
       {% for c in cell_config.chips %}<span class="chip">{{ c }}</span>{% endfor %}
-      {% if cell_config.n_prb and not cell_config.source %}{% endif %}
     </span>
-  {% else %}
-    <span class="muted">no cell config recorded</span>
-  {% endif %}
+  {% else %}<span class="faint">no cell config recorded</span>{% endif %}
 {% endmacro %}
 
 {% macro num(value, decimals=2, unit='') %}
-  {# A missing value is an em dash, never 0 (GL-09). #}
+  {#- A missing value is an em dash, never 0 (GL-09). -#}
   {%- if value is none -%}
-    <span class="muted" title="not measured">—</span>
+    <span class="faint" title="not measured">—</span>
   {%- else -%}
     {{ '%.*f'|format(decimals, value) }}{% if unit %} {{ unit }}{% endif %}
   {%- endif -%}
 {% endmacro %}
 
 {% macro utc(iso, tz='Asia/Taipei') %}
-  {%- if iso -%}
-    <time datetime="{{ iso }}" title="{{ iso }} (UTC)">{{ iso | localtime(tz) }}</time>
-  {%- else -%}
-    <span class="muted">—</span>
-  {%- endif -%}
+  {%- if iso -%}<time datetime="{{ iso }}" title="{{ iso }} (UTC)">{{ iso | localtime(tz) }}</time>
+  {%- else -%}<span class="faint">—</span>{%- endif -%}
 {% endmacro %}
 
 {% macro ago(iso) %}
-  {%- if iso -%}
-    <time datetime="{{ iso }}" data-ago="1" title="{{ iso }} (UTC)">{{ iso }}</time>
-  {%- else -%}
-    <span class="muted">—</span>
-  {%- endif -%}
+  {%- if iso -%}<time datetime="{{ iso }}" data-ago="1" title="{{ iso }} (UTC)">{{ iso }}</time>
+  {%- else -%}<span class="faint">—</span>{%- endif -%}
 {% endmacro %}
 
 {% macro flags(names) %}
   {% for name in names %}
-    <span class="chip warn" title="quality flag recorded by ETHOS">{{ name }}</span>
+    <span class="chip warn"><sl-icon name="exclamation-triangle"></sl-icon>{{ name }}</span>
   {% endfor %}
 {% endmacro %}
 
+{% macro delta(change) %}
+  {# A change against the previous period. Direction is an icon and a word as
+     well as a colour. #}
+  {% if change is none %}
+    <span class="delta flat"><sl-icon name="dash-circle"></sl-icon>no comparison</span>
+  {% elif change.direction == 'up' %}
+    <span class="delta up"><sl-icon name="arrow-up-circle-fill"></sl-icon>{{ change.text }}</span>
+  {% elif change.direction == 'down' %}
+    <span class="delta down"><sl-icon name="arrow-down-circle-fill"></sl-icon>{{ change.text }}</span>
+  {% else %}
+    <span class="delta flat"><sl-icon name="dash-circle"></sl-icon>No change</span>
+  {% endif %}
+{% endmacro %}
+
+{% macro kpi(item) %}
+  <div class="kpi">
+    <div class="head">
+      {{ tile(item.icon, item.tone) }}
+      <span class="name">{{ item.label }}</span>
+    </div>
+    <div class="value">
+      <span class="{{ 'numeral-sm' if item.small else 'numeral' }}">{{ item.value }}</span>
+      {% if item.unit %}<span class="unit">{{ item.unit }}</span>{% endif %}
+    </div>
+    <div class="foot">
+      {% if item.change is defined and item.change is not none %}{{ delta(item.change) }}{% endif %}
+      {% if item.vs %}<span class="vs">{{ item.vs }}</span>{% endif %}
+    </div>
+    {% if item.note %}
+      <div class="note">
+        {% if item.note_icon %}<sl-icon name="{{ item.note_icon }}"></sl-icon>{% endif %}
+        <span>{{ item.note }}</span>
+      </div>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{% macro segmented(options, current) %}
+  {# options: (value, label, href, alert). The alert dot is paired with a title,
+     so "needs attention" is never carried by colour alone. #}
+  <div class="segmented" role="tablist">
+    {% for value, label, href, alert in options %}
+      <a role="tab" aria-selected="{{ 'true' if current == value else 'false' }}"
+         class="{{ 'on' if current == value else '' }}" href="{{ href }}">
+        {{ label }}{% if alert %}<span class="alert" title="needs attention"></span>{% endif %}
+      </a>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
 {% macro gated(caps, key, extra='') %}
-  {# What a control shows when the ETHOS endpoint behind it does not exist yet.
-     It names the backend change, and the command that does the job today. #}
+  {# What a control shows when the ETHOS endpoint behind it does not exist yet:
+     the backend change that adds it, and the command that does the job today. #}
   <div class="gated">
-    <p style="margin-top:0">
-      <sl-icon name="lock"></sl-icon>
-      <strong>Not available yet.</strong> {{ caps.why(key) }}
-    </p>
+    <p><sl-icon name="lock"></sl-icon> <strong>Not available yet.</strong> {{ caps.why(key) }}</p>
     {% if extra %}<p>{{ extra }}</p>{% endif %}
     {% set cli = caps.cli_for(key) %}
     {% if cli %}
-      <p class="muted" style="margin-bottom:4px">Today this is done from the CLI on the console host:</p>
+      <p class="faint" style="margin-bottom:6px">Today this is done from the CLI on the console host:</p>
       <pre class="cmd">{{ cli }}</pre>
     {% endif %}
-    <p class="muted" style="margin-bottom:0">
-      See <a href="/docs/ethos-backlog">docs/ethos-backlog.md</a> for what lands when.
-    </p>
+    <p class="faint">See <a href="/docs/ethos-backlog">docs/ethos-backlog.md</a> for what lands when.</p>
   </div>
 {% endmacro %}
 
 {% macro check_item(check) %}
   <div class="check">
-    <span class="mark {{ check.status }}">
-      {%- if check.status == 'pass' -%}✔{%- elif check.status == 'fail' -%}✖{%- else -%}?{%- endif -%}
+    <span class="mark {{ check.status }}" title="{{ check.status }}">
+      {%- if check.status == 'pass' -%}✔{%- elif check.status == 'fail' -%}✕{%- else -%}?{%- endif -%}
     </span>
     <span class="what">
       {{ check.label }}
@@ -100,7 +144,7 @@
           {{ row.label }}
           {% if row.caveat %}
             <sl-tooltip content="{{ row.caveat }}" hoist>
-              <sl-icon name="info-circle" class="muted"></sl-icon>
+              <sl-icon name="info-circle" class="faint"></sl-icon>
             </sl-tooltip>
           {% endif %}
         </th>
@@ -112,8 +156,8 @@
           {% endfor %}
           {% if row.note %}<span class="chip">{{ row.note }}</span>{% endif %}
           {% if row.capped %}
-            <sl-tooltip content="The measured value sits at the stack's configured MCS cap, so the link was not free to choose a higher index." hoist>
-              <span class="chip warn">capped</span>
+            <sl-tooltip hoist content="The measured value sits at the stack's configured MCS cap, so the link was not free to choose a higher index.">
+              <span class="chip warn"><sl-icon name="exclamation-triangle"></sl-icon>capped</span>
             </sl-tooltip>
           {% endif %}
         </td>
