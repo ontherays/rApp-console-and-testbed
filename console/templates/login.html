@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="">
+  <title>Log in · Testbed Console</title>
+  <link rel="stylesheet" href="/static/vendor/shoelace/cdn/themes/light.css">
+  <link rel="stylesheet" href="/static/css/console.css">
+  <script type="module" src="/static/vendor/shoelace/cdn/shoelace-autoloader.js"></script>
+</head>
+<body>
+<div class="login-wrap">
+  <form class="login-card" method="post" action="/login">
+    <h1>Testbed Console</h1>
+    <p>BMW Lab O-RAN testbed · {{ settings.ethos_url }}</p>
+
+    {% if error %}
+      <sl-alert variant="danger" open style="margin-bottom:16px">
+        <sl-icon slot="icon" name="exclamation-octagon"></sl-icon>{{ error }}
+      </sl-alert>
+    {% elif reason %}
+      <sl-alert variant="warning" open style="margin-bottom:16px">
+        <sl-icon slot="icon" name="info-circle"></sl-icon>{{ reason }}
+      </sl-alert>
+    {% endif %}
+
+    <input type="hidden" name="next" value="{{ next }}">
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" required autofocus
+             autocomplete="current-password" style="width:100%;height:38px;
+             padding:0 10px;border:1px solid var(--border);border-radius:6px;
+             font:inherit" {% if locked_s %}disabled{% endif %}>
+    </div>
+    <button type="submit" style="width:100%;height:38px;border:0;border-radius:6px;
+            background:var(--accent);color:#fff;font:inherit;font-weight:600;
+            cursor:pointer" {% if locked_s %}disabled{% endif %}>Log in</button>
+
+    {% if not configured %}
+      <p style="margin-top:16px">
+        No password is set yet. On the console host:
+      </p>
+      <pre class="cmd">.venv/bin/python -m console set-password</pre>
+    {% endif %}
+  </form>
+</div>
+</body>
+</html>

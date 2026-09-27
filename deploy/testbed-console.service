@@ -1,0 +1,31 @@
+# Testbed Console — a systemd *user* unit, like ethos-rapp.
+#
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/testbed-console.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now testbed-console
+#
+# `loginctl enable-linger oai-gnb` is needed once so the service survives logout
+# (NF-03). It applies to every user service, so it makes ethos-rapp survive
+# logout too.
+
+[Unit]
+Description=Testbed Console & Dashboard
+Documentation=file:///home/oai-gnb/testbed-console/docs/running-guide.md
+After=network.target ethos-rapp.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/oai-gnb/testbed-console
+EnvironmentFile=/home/oai-gnb/testbed-console/console.env
+ExecStart=/home/oai-gnb/testbed-console/.venv/bin/python -m console serve
+Restart=always
+RestartSec=3
+
+# The console reads the run archive only through the ETHOS API, and writes
+# nothing outside its plans directory.
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
