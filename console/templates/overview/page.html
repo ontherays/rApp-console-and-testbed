@@ -1,73 +1,176 @@
 {% extends "base.html" %}
+{% from "components/macros.html" import kpi, segmented, delta, chip, gated, ago, num, initials_tile %}
+{% from "components/header.html" import bell, export_button, primary %}
+
 {% block title %}Overview · Testbed Console{% endblock %}
-{% from "components/macros.html" import gated %}
+{% block page_title %}Overview{% endblock %}
+{% block page_icon %}grid-1x2{% endblock %}
+{% block page_tone %}blue{% endblock %}
+
+{% block actions %}
+  {{ bell(badges.new_runs) }}
+  {{ export_button('/results/export.csv?usable_only=no', 'Export') }}
+  {{ primary('/plan', 'New test') }}
+{% endblock %}
+
+{% block filters %}
+  <div class="filters">
+    {{ segmented(period_options, period) }}
+    {{ segmented(kind_options, kind) }}
+  </div>
+{% endblock %}
 
 {% block content %}
-<h1>Overview</h1>
-<p class="lede">
-  What the testbed is doing right now. Each tile refreshes on its own, so a slow
-  probe never holds up the page.
-</p>
+{% if error %}
+  <div class="banner bad"><sl-icon name="exclamation-octagon"></sl-icon>{{ error }}</div>
+{% endif %}
 
-<div class="bento">
-  <div class="card span-4">
-    <h2>Testbed lock</h2>
-    {{ gated(caps, 'lock', 'Until the lock exists, confirm nothing is running before you deploy: curl -s 127.0.0.1:8081/deploy/status') }}
+<div class="kpis of-6">
+  {% for item in kpis %}{{ kpi(item) }}{% endfor %}
+</div>
+
+<div class="grid cols-12">
+  <div class="card span-5">
+    <header>
+      <span class="card-title">Runs by topology</span>
+      <a href="/results?usable_only=no" class="faint">All runs <sl-icon name="arrow-right"></sl-icon></a>
+    </header>
+    <div class="numeral" style="margin-bottom:16px">
+      {{ window.current | length }}<span class="unit">run(s), {{ window.label|lower }}</span>
+    </div>
+    {{ hex_svg | safe }}
+    {% if shares %}
+      <div class="legend-rows">
+        {% for share in shares %}
+          {# Two config_ids can carry the same label — ocudu-mono with a Samsung
+             and with an MTK UE both read "OCUDU monolithic", and the legacy
+             cross-vendor heads alias onto the current ones. The config_id is
+             shown underneath so two rows are never the same thing twice. #}
+          <div class="row">
+            <span class="swatch" style="background: {{ share.colour }}"></span>
+            <span class="name">
+              {{ share.label }}
+              {% if share.ambiguous %}<span class="sub mono">{{ share.config_id }}</span>{% endif %}
+            </span>
+            <span class="chip">{{ share.share | round | int }}%</span>
+            <span class="mono faint">{{ share.count }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted" style="margin:16px 0 0">No run in this period.</p>
+    {% endif %}
   </div>
 
-  <div class="card span-4" hx-get="/partials/tiles/deployed"
-       hx-trigger="load, every 15s" hx-swap="innerHTML">
-    <h2>Deployed now</h2>
-    <p class="muted">reading…</p>
+  <div class="card span-7">
+    <header>
+      <span class="card-title">Throughput over time</span>
+      {{ chip('from run.json', 'outline', 'file-earmark-text') }}
+    </header>
+    <div class="value" style="margin-bottom:16px">
+      <span class="numeral">{% if period_best is not none %}{{ period_best | round | int }}{% else %}—{% endif %}</span>
+      <span class="unit">
+        {% if period_best is not none %}Mbit/s best in the period, over {{ measured_days }} day(s) with a run
+        {% else %}nothing measured in this period{% endif %}
+      </span>
+    </div>
+    {{ matrix.svg | safe }}
+    <p class="faint" style="margin:12px 0 0;font-size:12px">
+      The best <span class="mono">achieved_over_tx_mbps</span> of each day. A day with
+      no run is an empty column, not a zero.
+    </p>
   </div>
+</div>
 
+<div class="card flush">
+  <header>
+    <span class="card-title">Topologies that need you</span>
+    <span class="faint">least complete first</span>
+  </header>
+  <div class="table-wrap">
+    <table class="data">
+      <thead>
+        <tr>
+          <th>topology</th><th>last state</th>
+          <th class="num">runs</th><th>points delivered</th>
+          <th class="num">best DL at 1000 M</th><th>last run</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td class="who">
+              {{ initials_tile(row.initials, row.colour) }}
+              <span>
+                {{ row.label }}
+                <span class="sub mono">{{ row.config_id }}</span>
+              </span>
+            </td>
+            <td>
+              {% if row.last_state == 'completed' %}{{ chip('completed', 'ok', 'check2') }}
+              {% elif 'defined' in row.last_state %}{{ chip(row.last_state, 'warn', 'dash-circle') }}
+              {% else %}{{ chip(row.last_state, '', 'info-circle') }}{% endif %}
+            </td>
+            <td class="num">{{ row.runs }}</td>
+            <td>
+              {{ tick_bar(row.completed, row.planned) | safe }}
+              <span class="sub">
+                {{ row.completed }} of {{ row.planned }}
+                {%- if row.latest_campaign %} in {{ row.latest_campaign }}{% else %} in this period{% endif %}
+              </span>
+            </td>
+            <td class="num">
+              {% if row.best_1000 is not none %}{{ row.best_1000 | round(1) }}{% else %}<span class="faint">—</span>{% endif %}
+              <span class="sub">{% if row.change %}{{ delta(row.change) }}{% endif %}</span>
+            </td>
+            <td class="nowrap">{{ ago(row.last_seen) }}</td>
+            <td class="right">
+              {% if row.latest_campaign %}
+                <a class="btn btn-sm" href="/results/campaigns/{{ row.latest_campaign }}">Review</a>
+              {% else %}
+                <a class="btn btn-sm" href="/results?config_id={{ row.config_id }}&usable_only=no">Review</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        {% if not rows %}
+          <tr><td colspan="7" class="muted" style="padding:20px">
+            No run in this period. Widen it above, or plan a test.
+          </td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="grid cols-12">
   <div class="card span-4">
-    <h2>Running job</h2>
+    <header><span class="card-title">Running job</span></header>
     {{ gated(caps, 'jobs') }}
   </div>
-
   <div class="card span-4">
-    <h2>UE and iperf server</h2>
+    <header><span class="card-title">UE and iperf server</span></header>
     {{ gated(caps, 'ue', 'The UE state a run recorded is on that run’s page, under Results.') }}
   </div>
-
-  <div class="card span-8" hx-get="/partials/tiles/runs"
-       hx-trigger="load, every 30s" hx-swap="innerHTML">
-    <h2>Last 5 runs</h2>
-    <p class="muted">reading…</p>
-  </div>
-
-  <div class="card span-6" hx-get="/partials/tiles/agent"
-       hx-trigger="load, every 30s" hx-swap="innerHTML">
-    <h2>O-Cloud telemetry agent</h2>
-    <p class="muted">reading…</p>
-  </div>
-
-  <div class="card span-6">
-    <h2>Links</h2>
-    <ul style="margin:0;padding-left:18px">
+  <div class="card span-4">
+    <header><span class="card-title">Links</span></header>
+    <ul style="margin:0;padding-left:18px;line-height:2">
       {% if settings.grafana_url %}
-        <li><a href="{{ settings.grafana_url }}" target="_blank" rel="noreferrer">
-          Grafana <sl-icon name="box-arrow-up-right"></sl-icon></a>
-          — shared with other users; linked, never embedded or changed.</li>
+        <li><a href="{{ settings.grafana_url }}" target="_blank" rel="noreferrer">Grafana
+          <sl-icon name="box-arrow-up-right"></sl-icon></a> <span class="faint">— linked, never embedded</span></li>
       {% endif %}
-      <li><a href="/docs">Console documentation</a> — requirements, design, backend
-          changes, build plan, and the running guide.</li>
-      <li>
-        <sl-details summary="How to reach ETHOS Swagger">
-          <p class="muted">ETHOS stays on loopback (SE-07), and the console does not
-          proxy its Swagger — "Try it out" there would bypass every confirmation
-          this console adds. Tunnel to it instead:</p>
-          <pre class="cmd">ssh -L 8081:127.0.0.1:8081 oai-gnb@192.168.8.78
-# then open http://127.0.0.1:8081/docs</pre>
-        </sl-details>
-      </li>
+      <li><a href="/docs">Console documentation</a></li>
+      <li><a href="/docs/ethos-backlog">What ETHOS still owes the console</a></li>
     </ul>
-  </div>
-
-  <div class="card span-12">
-    <h2>Data freshness</h2>
-    {{ gated(caps, 'status_summary', 'Freshness comes from InfluxDB, which only ETHOS queries — the console holds no database token (SE-06). One gap is already known: O-Cloud energy (ocloud_power) has had no point since 2026-08-27, so the console shows no EE-KPI anywhere.') }}
+    <sl-details summary="How to reach ETHOS Swagger" style="margin-top:12px">
+      <p class="muted" style="margin-top:0">
+        ETHOS stays on loopback (SE-07), and the console does not proxy its
+        Swagger — "Try it out" there would bypass every confirmation this console
+        adds. Tunnel to it instead:
+      </p>
+      <pre class="cmd">ssh -L 8081:127.0.0.1:8081 oai-gnb@192.168.8.78
+# then open http://127.0.0.1:8081/docs</pre>
+    </sl-details>
   </div>
 </div>
 {% endblock %}

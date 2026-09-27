@@ -28,15 +28,22 @@ class Series:
     colour: str
     marker: str
     linestyle: str
+    code: str
+    """Two letters for a tile, unique per head.
+
+    Derived from the head rather than from the label: four different splits
+    abbreviate to "OD" from their labels, and two monolithic stacks to "OM",
+    which would put the same tile on different topologies.
+    """
 
 
 SERIES: dict[str, Series] = {
-    "oai-cudu": Series("oai-cudu", "OAI CU + OAI DU", "#0072B2", "o", "solid"),
-    "oaicu-ocududu": Series("oaicu-ocududu", "OAI CU + OCUDU DU", "#009E73", "s", "solid"),
-    "ocuducu-oaidu": Series("ocuducu-oaidu", "OCUDU CU + OAI DU", "#D55E00", "^", "solid"),
-    "ocudu-cudu": Series("ocudu-cudu", "OCUDU CU + OCUDU DU", "#CC79A7", "D", "solid"),
-    "oai-mono": Series("oai-mono", "OAI monolithic", "#E69F00", "v", "dashed"),
-    "ocudu-mono": Series("ocudu-mono", "OCUDU monolithic", "#56B4E9", "h", "dashed"),
+    "oai-cudu": Series("oai-cudu", "OAI CU + OAI DU", "#0072B2", "o", "solid", "AD"),
+    "oaicu-ocududu": Series("oaicu-ocududu", "OAI CU + OCUDU DU", "#009E73", "s", "solid", "AO"),
+    "ocuducu-oaidu": Series("ocuducu-oaidu", "OCUDU CU + OAI DU", "#D55E00", "^", "solid", "OA"),
+    "ocudu-cudu": Series("ocudu-cudu", "OCUDU CU + OCUDU DU", "#CC79A7", "D", "solid", "OD"),
+    "oai-mono": Series("oai-mono", "OAI monolithic", "#E69F00", "v", "dashed", "AM"),
+    "ocudu-mono": Series("ocudu-mono", "OCUDU monolithic", "#56B4E9", "h", "dashed", "OM"),
 }
 
 # The legacy heads still parse as aliases, so a run archived before the rename
@@ -46,7 +53,7 @@ ALIASES: dict[str, str] = {
     "oai-mixoaiocu": "oaicu-ocududu",
 }
 
-FALLBACK = Series("", "Unknown stack", "#666666", "P", "dotted")
+FALLBACK = Series("", "Unknown stack", "#666666", "P", "dotted", "??")
 
 ORDER: tuple[str, ...] = (
     "ocudu-mono",
