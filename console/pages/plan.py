@@ -82,7 +82,25 @@ def _form_values(request: Request, source: dict[str, Any] | None = None) -> dict
         values["radio_samples"] = bool(source.get("radio_samples"))
     else:
         values["radio_samples"] = False
+
+    # A disabled radio group submits nothing, and a group that has just become
+    # selectable should start at the gNB stack's own vendor rather than at
+    # whatever the previous selection left behind.
+    stack = values["gnb_stack"]
+    if values["split_kind"] != "CU+DU":
+        values["cu_vendor"] = values["du_vendor"] = stack
+    else:
+        source_keys = source or {}
+        if not source_keys.get("cu_vendor"):
+            values["cu_vendor"] = stack
+        if not source_keys.get("du_vendor"):
+            values["du_vendor"] = stack
     return values
+
+
+MONOLITHIC_TOOLTIP = (
+    "Monolithic runs CU and DU in one process of the gNB stack"
+)
 
 
 def resolve_split(values: dict[str, Any]) -> tuple[str, str]:
@@ -92,6 +110,11 @@ def resolve_split(values: dict[str, Any]) -> tuple[str, str]:
     ``OCUDU-CU+OAI-DU`` and ``OAI-CU+OCUDU-DU``. The form asks the question the
     way requirements TP-02 does — monolithic or CU+DU, then a CU vendor and a DU
     vendor — and this maps the answer onto the catalogue's own ids.
+
+    Monolithic has no CU or DU vendor to choose: both halves are the gNB stack,
+    in one process. The form shows them as the stack's value and disabled, and
+    this ignores whatever they hold, so a vendor left over from a CU+DU
+    selection cannot leak into a monolithic config_id.
     """
     kind = values.get("split_kind", "monolithic")
     stack = str(values.get("gnb_stack", "OCUDU"))
@@ -107,6 +130,30 @@ def resolve_split(values: dict[str, Any]) -> tuple[str, str]:
     if cu == "OAI" and du == "OCUDU":
         return "OAI-CU+OCUDU-DU", "OAI"
     return "CU+DU", stack
+
+
+def vendor_fields(values: dict[str, Any]) -> dict[str, Any]:
+    """How the CU and DU vendor groups are presented for this form state.
+
+    Monolithic: both follow the gNB stack and are disabled, with the reason.
+    CU + DU: both selectable, defaulting to the gNB stack's vendor — so opening
+    the split does not silently propose a cross-vendor F1 nobody asked for.
+    """
+    stack = str(values.get("gnb_stack", "OCUDU"))
+    split_is_cudu = values.get("split_kind") == "CU+DU"
+    if not split_is_cudu:
+        return {
+            "enabled": False,
+            "cu": stack,
+            "du": stack,
+            "reason": MONOLITHIC_TOOLTIP,
+        }
+    return {
+        "enabled": True,
+        "cu": str(values.get("cu_vendor") or stack),
+        "du": str(values.get("du_vendor") or stack),
+        "reason": "",
+    }
 
 
 def selection_from(values: dict[str, Any]) -> dict[str, str]:
@@ -184,9 +231,12 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
 
     checks.append(Check("lock", "Testbed lock is free", "unknown", caps.why("lock")))
 
+    # Naming the config_id is what makes ETHOS probe the node at all: it gates
+    # the probe on the request naming a stack, so a bare call comes back
+    # "the node was not observed" having never looked.
     node_check = Check("node_free", "Nothing else is deployed", "unknown", "not checked")
     try:
-        deployed = await client.deploy_status()
+        deployed = await client.deploy_status(config_id=config_id)
         if deployed.anything_deployed:
             node_check = Check(
                 "node_free",
@@ -196,11 +246,26 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
                 f"{deployed.namespace} ({len(deployed.running_pods)} pod(s) running)",
             )
         elif deployed.node_free:
-            node_check = Check("node_free", "Nothing else is deployed", "pass",
-                               deployed.node_reason or "the namespace is empty and no gNB process runs")
+            node_check = Check(
+                "node_free",
+                "Nothing else is deployed",
+                "pass",
+                f"{deployed.namespace_summary}; {deployed.node_reason}",
+            )
+        elif deployed.node_free is False:
+            node_check = Check(
+                "node_free", "Nothing else is deployed", "fail", deployed.node_reason
+            )
         else:
-            node_check = Check("node_free", "Nothing else is deployed", "unknown",
-                               deployed.node_reason or "the node was not observed")
+            # The namespace was answered either way; only the on-node process
+            # check is missing, and the hover says why.
+            node_check = Check(
+                "node_free",
+                "Nothing else is deployed",
+                "unknown",
+                f"{deployed.namespace_summary}, but the node itself was not "
+                f"checked — {deployed.node_detail}",
+            )
     except EthosError as exc:
         node_check = Check("node_free", "Nothing else is deployed", "unknown", exc.message)
     checks.append(node_check)
@@ -247,6 +312,7 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "values": values,
+        "vendors": vendor_fields(values),
         "selection": selection,
         "catalogue": catalogue,
         "catalogue_error": catalogue_error,

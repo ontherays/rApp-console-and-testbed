@@ -1,0 +1,26 @@
+{# The option groups the Test Plan is built from. #}
+
+{% macro radio(name, choices, current, locked=False, locked_reason='') %}
+  {# choices: (value, label, reason). A reason disables one option and explains
+     why, so an undeployable combination is never offered as if it worked.
+     `locked` disables the whole group — its answer follows from another field,
+     and a control you can change but that changes nothing is worse than one you
+     cannot. #}
+  <div class="chips">
+  {% for value, label, reason in choices %}
+    {% set off = reason or locked %}
+    {%- set classes = ['opt'] -%}
+    {%- if current == value and not locked %}{% set _ = classes.append('on') %}{% endif -%}
+    {%- if locked %}{% set _ = classes.append('locked') %}
+    {%- elif reason %}{% set _ = classes.append('off') %}{% endif -%}
+    <label class="{{ classes | join(' ') }}"
+           {% if locked %}title="{{ locked_reason }}"{% elif reason %}title="{{ reason }}"{% endif %}>
+      <input type="radio" name="{{ name }}" value="{{ value }}"
+             {{ 'checked' if current == value }} {{ 'disabled' if off }}>
+      {{ label }}
+      {% if reason %}<sl-icon name="info-circle"></sl-icon>
+      {% elif locked and current == value %}<sl-icon name="lock"></sl-icon>{% endif %}
+    </label>
+  {% endfor %}
+  </div>
+{% endmacro %}
