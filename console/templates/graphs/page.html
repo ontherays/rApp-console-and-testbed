@@ -1,45 +1,47 @@
 {% extends "base.html" %}
-{% block title %}Graphs · Testbed Console{% endblock %}
-{% from "components/macros.html" import gated %}
+{% from "components/macros.html" import gated, chip %}
+{% from "components/header.html" import bell, primary %}
 
-{% block breadcrumbs %}
-<div class="crumbs"><sl-breadcrumb><sl-breadcrumb-item>Graphs</sl-breadcrumb-item></sl-breadcrumb></div>
+{% block title %}Graphs · Testbed Console{% endblock %}
+{% block page_title %}Graphs{% endblock %}
+{% block page_icon %}bar-chart-line{% endblock %}
+{% block page_tone %}orange{% endblock %}
+{% block actions %}
+  {{ bell(badges.new_runs) }}
+  {{ primary('/plan', 'New test') }}
+{% endblock %}
+{% block lede %}
+  <p class="lede">
+    Every figure ETHOS's plotting package has produced, newest first. Each one keeps
+    its manifest, <span class="mono">points.csv</span> and <span class="mono">raw.csv</span>,
+    so a figure here is the same image, from the same numbers, as the one in a paper.
+  </p>
 {% endblock %}
 
 {% block content %}
-<h1>Graphs</h1>
-<p class="lede">
-  Every figure ETHOS's plotting package has produced, newest first. Each one keeps
-  its manifest, <span class="mono">points.csv</span> and
-  <span class="mono">raw.csv</span>, so a figure on this page is the same image,
-  from the same numbers, as the one in a paper.
-</p>
-
-<div class="panel" style="margin-bottom:16px">
-  <header>Request a new figure</header>
-  <div class="body">
-    {{ gated(caps, 'plots',
-       'The metric, kind, grouping and width all exist in the plotting package; what is missing is an endpoint that takes a plot request. That is backend change B9, and it is what makes a figure from the console identical to the same request from the CLI.') }}
-  </div>
+<div class="card">
+  <header><span class="card-title">Request a new figure</span></header>
+  {{ gated(caps, 'plots',
+     'The metric, kind, grouping and width all exist in the plotting package; what is missing is an endpoint that takes a plot request. That is backend change B9, and it is what makes a figure from the console identical to the same request from the CLI.') }}
 </div>
 
 {% if not figures %}
-  <div class="panel"><div class="body">
+  <div class="card">
     <p class="muted" style="margin:0">
       No figures found in
       <span class="mono">{{ graph_dir or 'no graph directory configured' }}</span>.
       Set <span class="mono">CONSOLE_GRAPH_DIR</span> to ETHOS's
       <span class="mono">ETHOS_GRAPH_DIR</span> to list them.
     </p>
-  </div></div>
+  </div>
 {% else %}
-  <p class="muted">{{ figures | length }} figure(s)</p>
+  <p class="faint" style="margin:0 4px">{{ figures | length }} figure(s)</p>
   <div class="gallery">
     {% for figure in figures %}
       <div class="card">
-        <h2 style="text-transform:none;font-size:13px;color:var(--text)">
-          <a href="/graphs/view/{{ figure.folder }}">{{ figure.label }}</a>
-        </h2>
+        <header>
+          <a class="card-title" href="/graphs/view/{{ figure.folder }}">{{ figure.label }}</a>
+        </header>
         {% if figure.png %}
           <a href="/graphs/view/{{ figure.folder }}">
             <img src="/graphs/file/{{ figure.folder }}/png" alt="{{ figure.label }}" loading="lazy">
@@ -47,13 +49,13 @@
         {% else %}
           <p class="muted">no PNG in this folder</p>
         {% endif %}
-        <div class="chips" style="margin-top:8px">
-          <span class="chip">{{ figure.kind or 'figure' }}</span>
-          {% if figure.width %}<span class="chip">{{ figure.width }} column</span>{% endif %}
-          {% if figure.run_count %}<span class="chip">{{ figure.run_count }} runs</span>{% endif %}
-          {% if figure.warnings %}<span class="chip warn">{{ figure.warnings | length }} caveat(s)</span>{% endif %}
+        <div class="chips" style="margin-top:12px">
+          {{ chip(figure.kind or 'figure') }}
+          {% if figure.width %}{{ chip(figure.width ~ ' column') }}{% endif %}
+          {% if figure.run_count %}{{ chip(figure.run_count ~ ' runs') }}{% endif %}
+          {% if figure.warnings %}{{ chip(figure.warnings | length ~ ' caveat(s)', 'warn', 'exclamation-triangle') }}{% endif %}
         </div>
-        <p class="muted" style="margin:8px 0 0;font-size:12px">
+        <p class="faint" style="margin:10px 0 0;font-size:12px">
           {{ figure.date }} · <span class="mono">{{ figure.metric or 'metric not recorded' }}</span>
         </p>
       </div>

@@ -1,75 +1,78 @@
 {% extends "base.html" %}
-{% block title %}Jobs · Testbed Console{% endblock %}
-{% from "components/macros.html" import gated, ago, stack_chip, num %}
+{% from "components/macros.html" import gated, ago, stack_chip, chip, initials_tile %}
+{% from "components/header.html" import bell, primary %}
 
-{% block breadcrumbs %}
-<div class="crumbs"><sl-breadcrumb><sl-breadcrumb-item>Jobs</sl-breadcrumb-item></sl-breadcrumb></div>
+{% block title %}Jobs · Testbed Console{% endblock %}
+{% block page_title %}Jobs{% endblock %}
+{% block page_icon %}activity{% endblock %}
+{% block page_tone %}purple{% endblock %}
+{% block actions %}
+  {{ bell(badges.new_runs) }}
+  {{ primary('/plan', 'New test') }}
+{% endblock %}
+{% block lede %}
+  <p class="lede">
+    A job is one campaign execution, started from the console or the CLI, that can
+    be watched and stopped. ETHOS has no job model yet, so campaigns run from the
+    CLI and the console reports what they left behind.
+  </p>
 {% endblock %}
 
 {% block content %}
-<h1>Jobs</h1>
-<p class="lede">
-  A job is one campaign execution, started from the console or the CLI, that can
-  be watched and stopped. ETHOS has no job model yet, so campaigns run from the
-  CLI and the console reports what they left behind.
-</p>
-
-<div class="panel" style="margin-bottom:16px">
-  <header>Starting, watching and stopping a campaign</header>
-  <div class="body">
-    {{ gated(caps, 'jobs',
-       'The console deliberately does not run campaigns itself. It has the same API the CLI drives, so it could — and a second campaign executor, with the testbed lock living in the web process instead of in ETHOS, is what the design rules out. One executor, in ETHOS, is backend change B2.') }}
-    <p class="muted" style="margin-bottom:0">
-      A campaign started from the CLI writes the same run records this console
-      reads, so its results appear under Results as each point finishes.
-    </p>
-  </div>
+<div class="card">
+  <header><span class="card-title">Starting, watching and stopping a campaign</span></header>
+  {{ gated(caps, 'jobs',
+     'The console deliberately does not run campaigns itself. It has the same API the CLI drives, so it could — and a second campaign executor, with the testbed lock living in the web process instead of in ETHOS, is what the design rules out. One executor, in ETHOS, is backend change B2.') }}
+  <p class="muted" style="margin:12px 0 0">
+    A campaign started from the CLI writes the same run records this console
+    reads, so its results appear under Results as each point finishes.
+  </p>
 </div>
 
 {% if error %}
-  <div class="banner">{{ error }}</div>
+  <div class="banner bad"><sl-icon name="exclamation-octagon"></sl-icon>{{ error }}</div>
 {% else %}
-<div class="panel">
-  <header>Campaigns in the run archive</header>
-  <div class="body">
-    {% if campaigns %}
-      <div class="table-wrap">
-        <table class="data">
-          <thead>
-            <tr>
-              <th>campaign</th><th>topologies</th>
-              <th class="num">runs</th><th class="num">with traffic</th>
-              <th>offered loads</th><th>first</th><th>last</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for c in campaigns %}
-            <tr>
-              <td class="mono">{{ c.campaign_id }}</td>
-              <td>
-                {% for config_id in c.config_ids %}
-                  {{ stack_chip(config_id, series_for(config_id)) }}
-                {% endfor %}
-              </td>
-              <td class="num">{{ c.n }}</td>
-              <td class="num">{{ c.delivered }}</td>
-              <td>{{ c.rates | map('int') | join(', ') if c.rates else '—' }}</td>
-              <td class="nowrap">{{ ago(c.first) }}</td>
-              <td class="nowrap">{{ ago(c.last) }}</td>
-              <td><a href="/results/campaigns/{{ c.campaign_id }}">sweep</a></td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% else %}
-      <p class="muted" style="margin:0">No run carries a campaign id yet.</p>
-    {% endif %}
-    <p class="muted" style="margin-bottom:0">
-      {{ loose_runs }} archived run(s) carry no campaign id, so they do not group
-      here. They are all under <a href="/results">Results</a>.
-    </p>
+<div class="card flush">
+  <header>
+    <span class="card-title">Campaigns in the run archive</span>
+    <span class="faint">{{ campaigns | length }} campaign(s)</span>
+  </header>
+  <div class="table-wrap">
+    <table class="data">
+      <thead>
+        <tr><th>campaign</th><th>topologies</th><th class="num">runs</th>
+            <th class="num">with traffic</th><th>offered loads</th>
+            <th>first</th><th>last</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for c in campaigns %}
+        <tr>
+          <td class="who">
+            {% set first_config = c.config_ids[0] if c.config_ids else '' %}
+            {{ initials_tile(series_for(first_config).code, series_for(first_config).colour) }}
+            <span>{{ c.campaign_id }}</span>
+          </td>
+          <td>
+            {% for config_id in c.config_ids %}{{ stack_chip(config_id, series_for(config_id)) }}{% endfor %}
+          </td>
+          <td class="num">{{ c.n }}</td>
+          <td class="num">{{ c.delivered }}</td>
+          <td>{{ c.rates | map('int') | join(', ') if c.rates else '—' }}</td>
+          <td class="nowrap">{{ ago(c.first) }}</td>
+          <td class="nowrap">{{ ago(c.last) }}</td>
+          <td class="right"><a class="btn btn-sm" href="/results/campaigns/{{ c.campaign_id }}">Review</a></td>
+        </tr>
+      {% endfor %}
+      {% if not campaigns %}
+        <tr><td colspan="8" class="muted" style="padding:20px">No run carries a campaign id yet.</td></tr>
+      {% endif %}
+      </tbody>
+    </table>
   </div>
 </div>
+<p class="faint" style="margin:0 4px">
+  {{ loose_runs }} archived run(s) carry no campaign id, so they do not group here.
+  They are all under <a href="/results">Results</a>.
+</p>
 {% endif %}
 {% endblock %}

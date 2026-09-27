@@ -1,19 +1,27 @@
 {% extends "base.html" %}
+{% from "components/macros.html" import num, stack_chip, ago, chip, gated %}
+{% from "components/header.html" import bell, export_button, crumbs %}
+
 {% block title %}{{ title }} · Testbed Console{% endblock %}
-{% from "components/macros.html" import num, stack_chip, ago %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block page_icon %}diagram-3{% endblock %}
+{% block page_tone %}teal{% endblock %}
+{% block crumbs %}{{ crumbs([{'label': 'Results', 'href': '/results'}, {'label': subtitle}]) }}{% endblock %}
+{% block actions %}
+  {{ bell(badges.new_runs) }}
+  {{ export_button('/results/export.csv?usable_only=no', 'Export') }}
+{% endblock %}
+{% block lede %}
+  <p class="lede">
+    {{ subtitle | capitalize }} · {{ runs | length }} run(s) across {{ rows | length }}
+    offered load(s). Repeats of the same load are one row, with n; every number is a
+    mean of what ETHOS recorded.
+  </p>
+{% endblock %}
 
 {% macro mean(row, block, field, decimals=2) %}
   {{ num(row.field_mean(block, field), decimals) }}
 {% endmacro %}
-
-{% block breadcrumbs %}
-<div class="crumbs">
-  <sl-breadcrumb>
-    <sl-breadcrumb-item href="/results">Results</sl-breadcrumb-item>
-    <sl-breadcrumb-item>{{ title }}</sl-breadcrumb-item>
-  </sl-breadcrumb>
-</div>
-{% endblock %}
 
 {% block content %}
 <h1>{{ title }}</h1>
@@ -24,23 +32,24 @@
 </p>
 
 {% if error %}
-  <div class="banner">{{ error }}</div>
+  <div class="banner bad"><sl-icon name="exclamation-octagon"></sl-icon>{{ error }}</div>
 {% else %}
 
 {% if not consistent %}
-  <div class="banner info" style="background:#fffbeb;border-color:#fde68a;color:#92400e">
+  <div class="banner warn">
     <sl-icon name="exclamation-triangle"></sl-icon>
-    The runs in this view do not all share one cell configuration:
+    <span>The runs in this view do not all share one cell configuration:
     {{ cell_configs | join(' / ') }}. A comparison across them is partly a
-    comparison of two radio configurations.
+    comparison of two radio configurations.</span>
   </div>
 {% elif cell_configs %}
-  <div class="chips" style="margin-bottom:16px">
+  <div class="chips">
     {% for chips in cell_configs %}<span class="chip">{{ chips }}</span>{% endfor %}
   </div>
 {% endif %}
 
-<div class="table-wrap">
+<div class="card flush">
+  <div class="table-wrap">
   <table class="data">
     <thead>
       <tr>
@@ -98,12 +107,12 @@
     {% endif %}
     </tbody>
   </table>
+  </div>
 </div>
 
-<div class="panel" style="margin-top:16px">
-  <header>Plot these runs</header>
-  <div class="body">
-    {% from "components/macros.html" import gated %}
+<div class="card">
+  <header><span class="card-title">Plot these runs</span></header>
+  <div>
     {{ gated(caps, 'plots', 'The plotting CLI takes the run ids directly, so a figure of exactly these runs is one command.') }}
     <p class="muted" style="margin-bottom:0">
       MCS columns are means of an index; compare them only with the MCS table and

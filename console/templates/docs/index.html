@@ -1,29 +1,31 @@
 {% extends "base.html" %}
+{% from "components/header.html" import bell %}
 {% block title %}Documentation · Testbed Console{% endblock %}
-
-{% block breadcrumbs %}
-<div class="crumbs"><sl-breadcrumb><sl-breadcrumb-item>Documentation</sl-breadcrumb-item></sl-breadcrumb></div>
+{% block page_title %}Documentation{% endblock %}
+{% block page_icon %}journal-text{% endblock %}
+{% block page_tone %}slate{% endblock %}
+{% block actions %}{{ bell(badges.new_runs) }}{% endblock %}
+{% block lede %}
+  <p class="lede">The documents this console is built against, served from its own
+  <span class="mono">docs/</span> folder.</p>
 {% endblock %}
 
 {% block content %}
-<h1>Documentation</h1>
-<p class="lede">
-  The documents this console is built against, served from its own
-  <span class="mono">docs/</span> folder.
-</p>
-
 {% if docs %}
-  <div class="panel"><div class="body">
-    {% for doc in docs %}
-      <div class="check">
-        <span class="what">
-          <a href="/docs/{{ doc.slug }}">{{ doc.title }}</a>
-          <div class="reason mono">docs/{{ doc.slug }}.md</div>
-        </span>
-      </div>
-    {% endfor %}
-  </div></div>
+  <div class="card flush">
+    <div class="table-wrap"><table class="data"><tbody>
+      {% for doc in docs %}
+        <tr>
+          <td class="who">
+            <span class="tile slate"><sl-icon name="file-earmark-text"></sl-icon></span>
+            <span>{{ doc.title }}<span class="sub mono">docs/{{ doc.slug }}.md</span></span>
+          </td>
+          <td class="right"><a class="btn btn-sm" href="/docs/{{ doc.slug }}">Read</a></td>
+        </tr>
+      {% endfor %}
+    </tbody></table></div>
+  </div>
 {% else %}
-  <p class="muted">No documents found in docs/.</p>
+  <div class="card"><p class="muted" style="margin:0">No documents found in docs/.</p></div>
 {% endif %}
 {% endblock %}

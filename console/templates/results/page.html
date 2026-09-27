@@ -1,6 +1,23 @@
 {% extends "base.html" %}
+{% from "components/macros.html" import stack_chip, num, ago, flags, chip, segmented %}
+{% from "components/header.html" import bell, export_button, primary %}
+
 {% block title %}Results · Testbed Console{% endblock %}
-{% from "components/macros.html" import stack_chip, num, ago, flags %}
+{% block page_title %}Results{% endblock %}
+{% block page_icon %}table{% endblock %}
+{% block page_tone %}teal{% endblock %}
+{% block actions %}
+  {{ bell(badges.new_runs) }}
+  {{ export_button('/results/export.csv?' ~ filters.query() ~ '&sort=' ~ sort ~ '&dir=' ~ dir) }}
+  {{ primary('/plan', 'New test') }}
+{% endblock %}
+{% block lede %}
+  <p class="lede">
+    Every run ETHOS archived. Achieved throughput is
+    <span class="mono">achieved_over_tx_mbps</span>, the only throughput comparable
+    across stacks; a value that was not measured is “—”, never 0.
+  </p>
+{% endblock %}
 
 {% macro sort_link(key, label, numeric=False) %}
   {% set next_dir = 'asc' if (sort == key and dir == 'desc') else 'desc' %}
@@ -11,210 +28,181 @@
   </th>
 {% endmacro %}
 
-{% block breadcrumbs %}
-<div class="crumbs"><sl-breadcrumb><sl-breadcrumb-item>Results</sl-breadcrumb-item></sl-breadcrumb></div>
-{% endblock %}
-
 {% block content %}
-<h1>Results</h1>
-<p class="lede">
-  Every run ETHOS archived. Achieved throughput is
-  <span class="mono">achieved_over_tx_mbps</span>, the only throughput comparable
-  across stacks; a value that was not measured is "—", never 0.
-</p>
-
 {% if error %}
-  <div class="banner">ETHOS is unreachable — {{ error }}</div>
+  <div class="banner bad"><sl-icon name="exclamation-octagon"></sl-icon>ETHOS is unreachable — {{ error }}</div>
 {% elif page %}
 
-<form class="panel" method="get" action="/results" style="margin-bottom:16px">
-  <header>Filters</header>
-  <div class="body">
-    <div class="row">
-      <div class="field" style="margin:0">
-        <label for="config_id">Topology</label>
-        <select id="config_id" name="config_id">
-          <option value="">any</option>
-          {% for value in facets.config_id %}
-            <option value="{{ value }}" {{ 'selected' if filters.config_id == value }}>
-              {{ series_for(value).label }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field" style="margin:0">
-        <label for="direction">Direction</label>
-        <select id="direction" name="direction">
-          <option value="">any</option>
-          {% for value in facets.direction %}
-            <option value="{{ value }}" {{ 'selected' if filters.direction == value }}>{{ value }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field" style="margin:0">
-        <label for="rate">Offered</label>
-        <select id="rate" name="rate">
-          <option value="">any</option>
-          {% for value in facets.rate %}
-            <option value="{{ value }}" {{ 'selected' if filters.rate == value }}>{{ value }} Mbit/s</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field" style="margin:0">
-        <label for="tdd_pattern">TDD</label>
-        <select id="tdd_pattern" name="tdd_pattern">
-          <option value="">any</option>
-          {% for value in facets.tdd_pattern %}
-            <option value="{{ value }}" {{ 'selected' if filters.tdd_pattern == value }}>{{ value }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field" style="margin:0">
-        <label for="bandwidth_mhz">Bandwidth</label>
-        <select id="bandwidth_mhz" name="bandwidth_mhz">
-          <option value="">any</option>
-          {% for value in facets.bandwidth_mhz %}
-            <option value="{{ value }}" {{ 'selected' if filters.bandwidth_mhz == value }}>{{ value }} MHz</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field" style="margin:0">
-        <label for="campaign_id">Campaign</label>
-        <select id="campaign_id" name="campaign_id">
-          <option value="">any</option>
-          {% for value in facets.campaign_id %}
-            <option value="{{ value }}" {{ 'selected' if filters.campaign_id == value }}>{{ value }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field" style="margin:0">
-        <label for="server_owner">iperf server</label>
-        <select id="server_owner" name="server_owner">
-          <option value="">any</option>
-          {% for value in facets.server_owner %}
-            <option value="{{ value }}" {{ 'selected' if filters.server_owner == value }}>
-              {{ 'Magic iPerf (app_binary)' if value == 'app_binary' else value }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field" style="margin:0">
-        <label for="since">From (UTC date)</label>
-        <input id="since" type="date" name="since" value="{{ filters.since }}">
-      </div>
-      <div class="field" style="margin:0">
-        <label for="until">To (UTC date)</label>
-        <input id="until" type="date" name="until" value="{{ filters.until }}">
-      </div>
-      <div class="field" style="margin:0">
-        <label><input type="checkbox" name="has_flags" value="1"
-               {{ 'checked' if filters.has_flags }}> has quality flags</label>
-        <label title="A run with no delivered bytes, or an iperf server ETHOS does not recognise, cannot be analysed.">
-          <input type="checkbox" name="usable_only" value="no"
-                 {{ '' if filters.usable_only else 'checked' }}> show unusable runs
-        </label>
-      </div>
-      <div class="field" style="margin:0">
-        <button type="submit" style="height:32px">Apply</button>
-        <a href="/results" style="margin-left:8px">Clear</a>
-      </div>
+<form class="card" method="get" action="/results">
+  <header><span class="card-title">Filters</span>
+    <a class="faint" href="/results">Clear all</a></header>
+  <div class="row top">
+    <div class="field" style="margin:0">
+      <label for="config_id">Topology</label>
+      <select id="config_id" name="config_id">
+        <option value="">any</option>
+        {% for value in facets.config_id %}
+          <option value="{{ value }}" {{ 'selected' if filters.config_id == value }}>
+            {{ series_for(value).label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="margin:0">
+      <label for="direction">Direction</label>
+      <select id="direction" name="direction">
+        <option value="">any</option>
+        {% for value in facets.direction %}
+          <option value="{{ value }}" {{ 'selected' if filters.direction == value }}>{{ value }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="margin:0">
+      <label for="rate">Offered</label>
+      <select id="rate" name="rate">
+        <option value="">any</option>
+        {% for value in facets.rate %}
+          <option value="{{ value }}" {{ 'selected' if filters.rate == value }}>{{ value }} Mbit/s</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="margin:0">
+      <label for="tdd_pattern">TDD</label>
+      <select id="tdd_pattern" name="tdd_pattern">
+        <option value="">any</option>
+        {% for value in facets.tdd_pattern %}
+          <option value="{{ value }}" {{ 'selected' if filters.tdd_pattern == value }}>{{ value }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="margin:0">
+      <label for="bandwidth_mhz">Bandwidth</label>
+      <select id="bandwidth_mhz" name="bandwidth_mhz">
+        <option value="">any</option>
+        {% for value in facets.bandwidth_mhz %}
+          <option value="{{ value }}" {{ 'selected' if filters.bandwidth_mhz == value }}>{{ value }} MHz</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="margin:0">
+      <label for="campaign_id">Campaign</label>
+      <select id="campaign_id" name="campaign_id">
+        <option value="">any</option>
+        {% for value in facets.campaign_id %}
+          <option value="{{ value }}" {{ 'selected' if filters.campaign_id == value }}>{{ value }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="margin:0">
+      <label for="since">From (UTC)</label>
+      <input id="since" type="date" name="since" value="{{ filters.since }}">
+    </div>
+    <div class="field" style="margin:0">
+      <label for="until">To (UTC)</label>
+      <input id="until" type="date" name="until" value="{{ filters.until }}">
+    </div>
+    <div class="field" style="margin:0">
+      <span class="label">Include</span>
+      <label class="opt {{ 'on' if filters.has_flags }}">
+        <input type="checkbox" name="has_flags" value="1" {{ 'checked' if filters.has_flags }}>
+        has quality flags</label>
+      <label class="opt {{ 'on' if not filters.usable_only }}"
+             title="A run with no delivered bytes, or an iperf server ETHOS does not recognise, cannot be analysed.">
+        <input type="checkbox" name="usable_only" value="no" {{ '' if filters.usable_only else 'checked' }}>
+        show unusable runs</label>
+    </div>
+    <div class="field" style="margin:0">
+      <button class="btn primary" type="submit">Apply</button>
     </div>
   </div>
 </form>
 
-<div class="row" style="justify-content:space-between;margin-bottom:8px">
-  <div class="muted">
-    {{ page.matched }} run(s) match of {{ page.total }} archived ·
-    page {{ page.page_number }} of {{ page.page_count }}
-    {% if filters.usable_only %}
-      · <span title="has_delivered false, or an unrecognised iperf server">unusable runs hidden</span>
-    {% endif %}
-  </div>
-  <div>
-    <a href="/results/export.csv?{{ filters.query() }}&sort={{ sort }}&dir={{ dir }}">
-      <sl-icon name="download"></sl-icon> CSV of these {{ page.matched }} run(s)</a>
-  </div>
-</div>
-
 <form action="/results/compare" method="get">
-<div class="table-wrap">
-  <table class="data">
-    <thead>
-      <tr>
-        <th style="width:28px"></th>
-        {{ sort_link('time', 'time') }}
-        {{ sort_link('stack', 'topology') }}
-        <th>dir</th>
-        {{ sort_link('offered', 'offered', True) }}
-        {{ sort_link('achieved', 'achieved', True) }}
-        {{ sort_link('loss', 'loss %', True) }}
-        <th class="num">RTT p95</th>
-        {{ sort_link('snr', 'PUSCH SNR', True) }}
-        <th class="num">resid. BLER DL</th>
-        <th class="num">dur</th>
-        <th>iperf</th>
-        <th>cell</th>
-        <th>flags</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-    {% for run in page.rows %}
-      <tr class="{{ '' if run.usable else 'unusable' }}">
-        <td><input type="checkbox" name="run_id" value="{{ run.run_id }}"></td>
-        <td class="nowrap">{{ ago(run.t_created) }}</td>
-        <td>{{ stack_chip(run.config_id, series_for(run.config_id)) }}</td>
-        <td>{{ run.direction or DASH }}</td>
-        <td class="num">{{ num(run.offered_mbps, 0) }}</td>
-        <td class="num">{{ num(run.achieved_over_tx_mbps, 2) }}</td>
-        <td class="num">{{ num(run.loss_pct, 2) }}</td>
-        <td class="num">{{ num(run.latency.rtt_ms_p95 if run.latency else none, 2) }}</td>
-        <td class="num">{{ num(run.radio_summary.pusch_snr_db_mean if run.radio_summary else none, 1) }}</td>
-        <td class="num">{{ num(run.radio_summary.bler_dl_residual_mean if run.radio_summary else none, 4) }}</td>
-        <td class="num">{{ num(run.duration_requested_s, 0) }}</td>
-        <td>{{ 'Magic iPerf' if run.server_owner == 'app_binary' else (run.server_owner or DASH) }}</td>
-        <td>
-          {% if run.cell_config and run.cell_config.tdd_pattern %}
-            <span class="chip" title="{{ run.cell_config.chips | join(' · ') }}">{{ run.cell_config.tdd_pattern }}</span>
-          {% else %}<span class="muted">—</span>{% endif %}
-        </td>
-        <td>{{ flags(run.flag_names) }}</td>
-        <td><a href="/results/runs/{{ run.run_id }}">open</a></td>
-      </tr>
-    {% endfor %}
-    {% if not page.rows %}
-      <tr><td colspan="14" class="muted" style="padding:16px">
-        No run matches these filters.
-        {% if filters.usable_only %}
-          451 of the 528 archived runs were defined but never delivered traffic;
-          tick "show unusable runs" to include them.
-        {% endif %}
-      </td></tr>
+<div class="card flush">
+  <header>
+    <span class="card-title">
+      {{ page.matched }} run(s)
+      <span class="faint" style="font-weight:400">of {{ page.total }} archived · page
+        {{ page.page_number }} of {{ page.page_count }}</span>
+    </span>
+    {% if filters.usable_only %}
+      {{ chip('unusable runs hidden', 'outline', 'eye-slash') }}
     {% endif %}
-    </tbody>
-  </table>
+  </header>
+  <div class="table-wrap">
+    <table class="data">
+      <thead>
+        <tr>
+          <th style="width:30px"></th>
+          {{ sort_link('time', 'time') }}
+          {{ sort_link('stack', 'topology') }}
+          <th>dir</th>
+          {{ sort_link('offered', 'offered', True) }}
+          {{ sort_link('achieved', 'achieved', True) }}
+          {{ sort_link('loss', 'loss %', True) }}
+          <th class="num">RTT p95</th>
+          {{ sort_link('snr', 'PUSCH SNR', True) }}
+          <th class="num">resid. BLER DL</th>
+          <th class="num">dur</th><th>iperf</th><th>cell</th><th>flags</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for run in page.rows %}
+        <tr class="{{ '' if run.usable else 'unusable' }}">
+          <td><input type="checkbox" name="run_id" value="{{ run.run_id }}"
+                     aria-label="select {{ run.run_id }}"></td>
+          <td class="nowrap">{{ ago(run.t_created) }}</td>
+          <td>{{ stack_chip(run.config_id, series_for(run.config_id)) }}</td>
+          <td>{{ run.direction or '—' }}</td>
+          <td class="num">{{ num(run.offered_mbps, 0) }}</td>
+          <td class="num">{{ num(run.achieved_over_tx_mbps, 2) }}</td>
+          <td class="num">{{ num(run.loss_pct, 2) }}</td>
+          <td class="num">{{ num(run.latency.rtt_ms_p95 if run.latency else none, 2) }}</td>
+          <td class="num">{{ num(run.radio_summary.pusch_snr_db_mean if run.radio_summary else none, 1) }}</td>
+          <td class="num">{{ num(run.radio_summary.bler_dl_residual_mean if run.radio_summary else none, 4) }}</td>
+          <td class="num">{{ num(run.duration_requested_s, 0) }}</td>
+          <td>{{ 'Magic iPerf' if run.server_owner == 'app_binary' else (run.server_owner or '—') }}</td>
+          <td>
+            {% if run.cell_config and run.cell_config.tdd_pattern %}
+              <span class="chip" title="{{ run.cell_config.chips | join(' · ') }}">{{ run.cell_config.tdd_pattern }}</span>
+            {% else %}<span class="faint">—</span>{% endif %}
+          </td>
+          <td>{{ flags(run.flag_names) }}</td>
+          <td class="right"><a href="/results/runs/{{ run.run_id }}">open</a></td>
+        </tr>
+      {% endfor %}
+      {% if not page.rows %}
+        <tr><td colspan="14" class="muted" style="padding:20px">
+          No run matches these filters.
+          {% if filters.usable_only %}
+            Most archived runs were defined but never delivered traffic; tick
+            “show unusable runs” to include them.
+          {% endif %}
+        </td></tr>
+      {% endif %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
-<div class="row" style="margin-top:12px;justify-content:space-between">
+<div class="row" style="justify-content:space-between;align-items:center">
   <div>
-    <button type="submit" style="height:32px">Compare selected</button>
-    <span class="muted" style="margin-left:8px">
-      Selected runs open as a sweep, grouped by offered load.
-    </span>
+    <button class="btn" type="submit"><sl-icon name="diagram-3"></sl-icon>Compare selected</button>
+    <span class="faint" style="margin-left:8px">Selected runs open as a sweep, grouped by offered load.</span>
   </div>
-  <div>
+  <div class="row" style="gap:8px">
     {% if page.offset > 0 %}
-      <a href="/results?{{ filters.query() }}&sort={{ sort }}&dir={{ dir }}&offset={{ page.offset - page.limit if page.offset > page.limit else 0 }}">← newer</a>
+      <a class="btn btn-sm" href="/results?{{ filters.query() }}&sort={{ sort }}&dir={{ dir }}&offset={{ page.offset - page.limit if page.offset > page.limit else 0 }}">
+        <sl-icon name="arrow-left"></sl-icon>newer</a>
     {% endif %}
     {% if page.has_more %}
-      <a style="margin-left:12px"
-         href="/results?{{ filters.query() }}&sort={{ sort }}&dir={{ dir }}&offset={{ page.offset + page.limit }}">older →</a>
+      <a class="btn btn-sm" href="/results?{{ filters.query() }}&sort={{ sort }}&dir={{ dir }}&offset={{ page.offset + page.limit }}">
+        older<sl-icon name="arrow-right"></sl-icon></a>
     {% endif %}
   </div>
 </div>
 </form>
 
-<p class="muted" style="margin-top:16px">
+<p class="faint" style="margin:0 4px">
   Filtering, sorting, paging and the CSV are done in the console today, because
   <span class="mono">GET /runs</span> takes no limit and returns every manifest.
   They move to ETHOS with backend change B10.

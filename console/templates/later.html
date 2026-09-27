@@ -1,38 +1,39 @@
 {% extends "base.html" %}
-{% block title %}{{ section.title }} · Testbed Console{% endblock %}
 {% from "components/macros.html" import gated %}
+{% from "components/header.html" import bell %}
 
-{% block breadcrumbs %}
-<div class="crumbs">
-  <sl-breadcrumb><sl-breadcrumb-item>{{ section.title }}</sl-breadcrumb-item></sl-breadcrumb>
-</div>
+{% block title %}{{ section.title }} · Testbed Console{% endblock %}
+{% block page_title %}{{ section.title }}{% endblock %}
+{% block page_icon %}{{ section.icon }}{% endblock %}
+{% block page_tone %}slate{% endblock %}
+{% block actions %}{{ bell(badges.new_runs) }}{% endblock %}
+{% block lede %}
+  <p class="lede">{{ section.intro }}</p>
 {% endblock %}
 
 {% block content %}
-<h1>{{ section.title }} <span class="chip">{{ section.phase }}</span></h1>
-<p class="lede">{{ section.intro }}</p>
-
-<div class="panel" style="margin-bottom:16px">
-  <header>Not built yet</header>
-  <div class="body">{{ gated(caps, section.capability) }}</div>
+<div class="card">
+  <header>
+    <span class="card-title">Not built yet</span>
+    <span class="chip">{{ section.phase }}</span>
+  </header>
+  {{ gated(caps, section.capability) }}
 </div>
 
-<div class="panel" style="margin-bottom:16px">
-  <header>What this page will show</header>
-  <div class="body">
-    {% for id, text in section.items %}
-      <div class="check">
-        <span class="mark unknown">○</span>
-        <span class="what"><span class="mono">{{ id }}</span> — {{ text }}</span>
-      </div>
-    {% endfor %}
-  </div>
+<div class="card">
+  <header><span class="card-title">What this page will show</span></header>
+  {% for id, text in section.items %}
+    <div class="check">
+      <span class="mark unknown">○</span>
+      <span class="what"><span class="mono">{{ id }}</span> — {{ text }}</span>
+    </div>
+  {% endfor %}
 </div>
 
 {% if section.today %}
-<div class="panel">
-  <header>Where things stand today</header>
-  <div class="body"><p class="muted" style="margin:0">{{ section.today }}</p></div>
+<div class="card">
+  <header><span class="card-title">Where things stand today</span></header>
+  <p class="muted" style="margin:0">{{ section.today }}</p>
 </div>
 {% endif %}
 {% endblock %}

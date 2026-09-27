@@ -1,52 +1,48 @@
 {% extends "base.html" %}
-{% block title %}{{ figure.label }} · Graphs{% endblock %}
+{% from "components/header.html" import bell, crumbs %}
 
-{% block breadcrumbs %}
-<div class="crumbs">
-  <sl-breadcrumb>
-    <sl-breadcrumb-item href="/graphs">Graphs</sl-breadcrumb-item>
-    <sl-breadcrumb-item>{{ figure.label }}</sl-breadcrumb-item>
-  </sl-breadcrumb>
-</div>
+{% block title %}{{ figure.label }} · Graphs{% endblock %}
+{% block page_title %}{{ figure.label }}{% endblock %}
+{% block page_icon %}bar-chart-line{% endblock %}
+{% block page_tone %}orange{% endblock %}
+{% block crumbs %}{{ crumbs([{'label': 'Graphs', 'href': '/graphs'}, {'label': figure.label}]) }}{% endblock %}
+{% block actions %}
+  {{ bell(badges.new_runs) }}
+  {% if figure.png %}
+    <a class="btn" href="/graphs/file/{{ figure.folder }}/png" download>
+      <sl-icon name="download"></sl-icon>PNG</a>
+  {% endif %}
+  {% if figure.pdf %}
+    <a class="btn primary" href="/graphs/file/{{ figure.folder }}/pdf" download>
+      <sl-icon name="download"></sl-icon>PDF</a>
+  {% endif %}
+{% endblock %}
+{% block lede %}
+  <p class="lede">
+    {{ figure.kind }} · <span class="mono">{{ figure.metric or 'metric not recorded' }}</span>
+    · generated {{ figure.generated_at or figure.date }}
+  </p>
 {% endblock %}
 
 {% block content %}
-<h1>{{ figure.label }}</h1>
-<p class="lede">
-  {{ figure.kind }} · <span class="mono">{{ figure.metric or 'metric not recorded' }}</span>
-  · generated {{ figure.generated_at or figure.date }}
-</p>
-
 {% if figure.warnings %}
-  <div class="banner info" style="background:#fffbeb;border-color:#fde68a;color:#92400e">
+  <div class="banner warn">
     <sl-icon name="exclamation-triangle"></sl-icon>
-    {{ figure.warnings | join(' · ') }}
+    <span>{{ figure.warnings | join(' · ') }}</span>
   </div>
 {% endif %}
 
-<div class="panel" style="margin-bottom:16px">
-  <div class="body" style="text-align:center">
-    {% if figure.png %}
-      <img src="/graphs/file/{{ figure.folder }}/png" alt="{{ figure.label }}"
-           style="max-width:100%;height:auto">
-    {% else %}
-      <p class="muted">This folder holds no PNG.</p>
-    {% endif %}
-  </div>
-</div>
-
-<div class="row" style="margin-bottom:16px">
+<div class="card" style="text-align:center">
   {% if figure.png %}
-    <a href="/graphs/file/{{ figure.folder }}/png" download>
-      <sl-icon name="download"></sl-icon> PNG</a>
-  {% endif %}
-  {% if figure.pdf %}
-    <a href="/graphs/file/{{ figure.folder }}/pdf" download>
-      <sl-icon name="download"></sl-icon> PDF</a>
+    <img src="/graphs/file/{{ figure.folder }}/png" alt="{{ figure.label }}"
+         style="max-width:100%;height:auto">
+  {% else %}
+    <p class="muted">This folder holds no PNG.</p>
   {% endif %}
 </div>
 
-<sl-details summary="Data — the figure's own manifest">
+<div class="card">
+  <header><span class="card-title">Data — the figure's own manifest</span></header>
   <p class="muted">
     Inputs, filters, n per point and the ETHOS commit that drew it. This is what
     makes the figure reproducible; it is read from the archive, not recomputed.
@@ -59,6 +55,8 @@
       {% endfor %}
     </div>
   {% endif %}
-  <pre class="cmd" style="max-height:60vh;overflow:auto">{{ figure.manifest | tojson(indent=2) }}</pre>
-</sl-details>
+  <sl-details summary="Show the manifest">
+    <pre class="cmd" style="max-height:60vh;overflow:auto">{{ figure.manifest | tojson(indent=2) }}</pre>
+  </sl-details>
+</div>
 {% endblock %}

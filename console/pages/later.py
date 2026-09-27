@@ -21,6 +21,7 @@ class Section:
     title: str
     phase: str
     capability: str
+    icon: str
     intro: str
     items: tuple[tuple[str, str], ...]
     today: str = ""
@@ -30,6 +31,7 @@ TESTBED = Section(
     title="Testbed control",
     phase="Phase 2",
     capability="ue",
+    icon="hdd-network",
     intro=(
         "Deploy a topology and leave it running without traffic, tear down what is "
         "deployed, attach and detach a UE, and read the handset's signal — each "
@@ -57,6 +59,7 @@ O1 = Section(
     title="O1",
     phase="Phase 3",
     capability="o1_freshness",
+    icon="broadcast-pin",
     intro=(
         "PM per run and per cell, active alarms, the current CM of the deployed "
         "gNB, and tests driven by a CM change."
@@ -83,6 +86,7 @@ O2 = Section(
     title="O2",
     phase="Phase 4",
     capability="o2_nf",
+    icon="cpu",
     intro=(
         "NF checks in ravi-ns, pod deployment duration per deploy, O-Cloud energy "
         "and EE-KPI, and the StarlingX DMS inventory."

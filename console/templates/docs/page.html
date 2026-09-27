@@ -1,33 +1,24 @@
 {% extends "base.html" %}
+{% from "components/header.html" import crumbs %}
 {% block title %}{{ doc.title }} · Testbed Console{% endblock %}
-
-{% block breadcrumbs %}
-<div class="crumbs">
-  <sl-breadcrumb>
-    <sl-breadcrumb-item href="/docs">Documentation</sl-breadcrumb-item>
-    <sl-breadcrumb-item>{{ doc.title }}</sl-breadcrumb-item>
-  </sl-breadcrumb>
-</div>
-{% endblock %}
+{% block page_title %}{{ doc.title }}{% endblock %}
+{% block page_icon %}file-earmark-text{% endblock %}
+{% block page_tone %}slate{% endblock %}
+{% block crumbs %}{{ crumbs([{'label': 'Documentation', 'href': '/docs'}, {'label': doc.title}]) }}{% endblock %}
 
 {% block content %}
-<div class="two-col">
-  <article style="max-width:80ch">{{ body | safe }}</article>
-  <nav class="sticky panel">
-    <header>Documents</header>
-    <div class="body">
-      {% for other in docs %}
-        <div class="check">
-          <span class="what">
-            {% if other.slug == doc.slug %}
-              <strong>{{ other.title }}</strong>
-            {% else %}
-              <a href="/docs/{{ other.slug }}">{{ other.title }}</a>
-            {% endif %}
-          </span>
-        </div>
-      {% endfor %}
-    </div>
-  </nav>
+<div class="grid cols-12">
+  <article class="card span-8" style="max-width:82ch">{{ body | safe }}</article>
+  <div class="card span-4" style="position:sticky;top:16px">
+    <header><span class="card-title">Documents</span></header>
+    {% for other in docs %}
+      <div class="check">
+        <span class="what">
+          {% if other.slug == doc.slug %}<strong>{{ other.title }}</strong>
+          {% else %}<a href="/docs/{{ other.slug }}">{{ other.title }}</a>{% endif %}
+        </span>
+      </div>
+    {% endfor %}
+  </div>
 </div>
 {% endblock %}
