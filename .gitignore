@@ -15,3 +15,6 @@ console.env.*
 
 # saved plans live outside the repo; this catches a local override
 plans/
+
+# created by `pip install -e .`
+*.egg-info/
