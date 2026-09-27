@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# the real environment file holds the password hash and the session secret
+console.env
+console.env.*
+!console.env.example
+
+# TLS material is generated per host, never committed
+*.crt
+*.key
+*.pem
+
+# saved plans live outside the repo; this catches a local override
+plans/
