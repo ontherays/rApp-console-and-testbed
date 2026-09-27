@@ -1,0 +1,124 @@
+{# Shared rendering. Everything that decides how a number or a state looks lives
+   here, so one rule is written once. #}
+
+{% macro dot(state) %}
+  {# state: ok | warn | bad | unknown #}
+  <span class="dot {{ state }}"></span>
+{% endmacro %}
+
+{% macro chip(text, tone='') %}
+  <span class="chip {{ tone }}">{{ text }}</span>
+{% endmacro %}
+
+{% macro stack_chip(config_id, series) %}
+  {# The stack's colour is ETHOS's figure colour, so a chip and a plotted line
+     agree (GL-05). The label is shown, never the slug. #}
+  <span class="chip stack" style="--chip-colour: {{ series.colour }}"
+        title="{{ config_id or 'unknown configuration' }}">{{ series.label }}</span>
+{% endmacro %}
+
+{% macro cell_chips(cell_config) %}
+  {% if cell_config and cell_config.chips %}
+    <span class="chips">
+      {% for c in cell_config.chips %}<span class="chip">{{ c }}</span>{% endfor %}
+      {% if cell_config.n_prb and not cell_config.source %}{% endif %}
+    </span>
+  {% else %}
+    <span class="muted">no cell config recorded</span>
+  {% endif %}
+{% endmacro %}
+
+{% macro num(value, decimals=2, unit='') %}
+  {# A missing value is an em dash, never 0 (GL-09). #}
+  {%- if value is none -%}
+    <span class="muted" title="not measured">—</span>
+  {%- else -%}
+    {{ '%.*f'|format(decimals, value) }}{% if unit %} {{ unit }}{% endif %}
+  {%- endif -%}
+{% endmacro %}
+
+{% macro utc(iso, tz='Asia/Taipei') %}
+  {%- if iso -%}
+    <time datetime="{{ iso }}" title="{{ iso }} (UTC)">{{ iso | localtime(tz) }}</time>
+  {%- else -%}
+    <span class="muted">—</span>
+  {%- endif -%}
+{% endmacro %}
+
+{% macro ago(iso) %}
+  {%- if iso -%}
+    <time datetime="{{ iso }}" data-ago="1" title="{{ iso }} (UTC)">{{ iso }}</time>
+  {%- else -%}
+    <span class="muted">—</span>
+  {%- endif -%}
+{% endmacro %}
+
+{% macro flags(names) %}
+  {% for name in names %}
+    <span class="chip warn" title="quality flag recorded by ETHOS">{{ name }}</span>
+  {% endfor %}
+{% endmacro %}
+
+{% macro gated(caps, key, extra='') %}
+  {# What a control shows when the ETHOS endpoint behind it does not exist yet.
+     It names the backend change, and the command that does the job today. #}
+  <div class="gated">
+    <p style="margin-top:0">
+      <sl-icon name="lock"></sl-icon>
+      <strong>Not available yet.</strong> {{ caps.why(key) }}
+    </p>
+    {% if extra %}<p>{{ extra }}</p>{% endif %}
+    {% set cli = caps.cli_for(key) %}
+    {% if cli %}
+      <p class="muted" style="margin-bottom:4px">Today this is done from the CLI on the console host:</p>
+      <pre class="cmd">{{ cli }}</pre>
+    {% endif %}
+    <p class="muted" style="margin-bottom:0">
+      See <a href="/docs/ethos-backlog">docs/ethos-backlog.md</a> for what lands when.
+    </p>
+  </div>
+{% endmacro %}
+
+{% macro check_item(check) %}
+  <div class="check">
+    <span class="mark {{ check.status }}">
+      {%- if check.status == 'pass' -%}✔{%- elif check.status == 'fail' -%}✖{%- else -%}?{%- endif -%}
+    </span>
+    <span class="what">
+      {{ check.label }}
+      {% if check.reason %}<div class="reason">{{ check.reason }}</div>{% endif %}
+    </span>
+  </div>
+{% endmacro %}
+
+{% macro metric_rows(rows) %}
+  <table class="metric-table">
+    <tbody>
+    {% for row in rows %}
+      <tr class="{{ '' if row.measured else 'not-measured' }}">
+        <th>
+          {{ row.label }}
+          {% if row.caveat %}
+            <sl-tooltip content="{{ row.caveat }}" hoist>
+              <sl-icon name="info-circle" class="muted"></sl-icon>
+            </sl-tooltip>
+          {% endif %}
+        </th>
+        <td>
+          {% for stat in row.stats %}
+            <span class="stat">
+              {% if stat.label %}<span class="k">{{ stat.label }}</span>{% endif %}{{ stat.text }}
+            </span>
+          {% endfor %}
+          {% if row.note %}<span class="chip">{{ row.note }}</span>{% endif %}
+          {% if row.capped %}
+            <sl-tooltip content="The measured value sits at the stack's configured MCS cap, so the link was not free to choose a higher index." hoist>
+              <span class="chip warn">capped</span>
+            </sl-tooltip>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endmacro %}

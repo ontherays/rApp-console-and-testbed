@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Overview · Testbed Console{% endblock %}
+{% from "components/macros.html" import gated %}
+
+{% block content %}
+<h1>Overview</h1>
+<p class="lede">
+  What the testbed is doing right now. Each tile refreshes on its own, so a slow
+  probe never holds up the page.
+</p>
+
+<div class="bento">
+  <div class="card span-4">
+    <h2>Testbed lock</h2>
+    {{ gated(caps, 'lock', 'Until the lock exists, confirm nothing is running before you deploy: curl -s 127.0.0.1:8081/deploy/status') }}
+  </div>
+
+  <div class="card span-4" hx-get="/partials/tiles/deployed"
+       hx-trigger="load, every 15s" hx-swap="innerHTML">
+    <h2>Deployed now</h2>
+    <p class="muted">reading…</p>
+  </div>
+
+  <div class="card span-4">
+    <h2>Running job</h2>
+    {{ gated(caps, 'jobs') }}
+  </div>
+
+  <div class="card span-4">
+    <h2>UE and iperf server</h2>
+    {{ gated(caps, 'ue', 'The UE state a run recorded is on that run’s page, under Results.') }}
+  </div>
+
+  <div class="card span-8" hx-get="/partials/tiles/runs"
+       hx-trigger="load, every 30s" hx-swap="innerHTML">
+    <h2>Last 5 runs</h2>
+    <p class="muted">reading…</p>
+  </div>
+
+  <div class="card span-6" hx-get="/partials/tiles/agent"
+       hx-trigger="load, every 30s" hx-swap="innerHTML">
+    <h2>O-Cloud telemetry agent</h2>
+    <p class="muted">reading…</p>
+  </div>
+
+  <div class="card span-6">
+    <h2>Links</h2>
+    <ul style="margin:0;padding-left:18px">
+      {% if settings.grafana_url %}
+        <li><a href="{{ settings.grafana_url }}" target="_blank" rel="noreferrer">
+          Grafana <sl-icon name="box-arrow-up-right"></sl-icon></a>
+          — shared with other users; linked, never embedded or changed.</li>
+      {% endif %}
+      <li><a href="/docs">Console documentation</a> — requirements, design, backend
+          changes, build plan, and the running guide.</li>
+      <li>
+        <sl-details summary="How to reach ETHOS Swagger">
+          <p class="muted">ETHOS stays on loopback (SE-07), and the console does not
+          proxy its Swagger — "Try it out" there would bypass every confirmation
+          this console adds. Tunnel to it instead:</p>
+          <pre class="cmd">ssh -L 8081:127.0.0.1:8081 oai-gnb@192.168.8.78
+# then open http://127.0.0.1:8081/docs</pre>
+        </sl-details>
+      </li>
+    </ul>
+  </div>
+
+  <div class="card span-12">
+    <h2>Data freshness</h2>
+    {{ gated(caps, 'status_summary', 'Freshness comes from InfluxDB, which only ETHOS queries — the console holds no database token (SE-06). One gap is already known: O-Cloud energy (ocloud_power) has had no point since 2026-08-27, so the console shows no EE-KPI anywhere.') }}
+  </div>
+</div>
+{% endblock %}

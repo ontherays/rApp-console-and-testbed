@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} · Testbed Console{% endblock %}
+{% from "components/macros.html" import num, stack_chip, ago %}
+
+{% macro mean(row, block, field, decimals=2) %}
+  {{ num(row.field_mean(block, field), decimals) }}
+{% endmacro %}
+
+{% block breadcrumbs %}
+<div class="crumbs">
+  <sl-breadcrumb>
+    <sl-breadcrumb-item href="/results">Results</sl-breadcrumb-item>
+    <sl-breadcrumb-item>{{ title }}</sl-breadcrumb-item>
+  </sl-breadcrumb>
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+<p class="lede">
+  {{ subtitle | capitalize }} · {{ runs | length }} run(s) across {{ rows | length }}
+  offered load(s). Repeats of the same load are one row, with n; every number is a
+  mean of what ETHOS recorded.
+</p>
+
+{% if error %}
+  <div class="banner">{{ error }}</div>
+{% else %}
+
+{% if not consistent %}
+  <div class="banner info" style="background:#fffbeb;border-color:#fde68a;color:#92400e">
+    <sl-icon name="exclamation-triangle"></sl-icon>
+    The runs in this view do not all share one cell configuration:
+    {{ cell_configs | join(' / ') }}. A comparison across them is partly a
+    comparison of two radio configurations.
+  </div>
+{% elif cell_configs %}
+  <div class="chips" style="margin-bottom:16px">
+    {% for chips in cell_configs %}<span class="chip">{{ chips }}</span>{% endfor %}
+  </div>
+{% endif %}
+
+<div class="table-wrap">
+  <table class="data">
+    <thead>
+      <tr>
+        <th class="num">offered</th><th class="num">n</th>
+        <th class="num">achieved</th><th class="num">loss %</th>
+        <th class="num">RTT p95</th><th class="num">PUSCH SNR</th>
+        <th class="num">resid. BLER DL</th><th class="num">resid. BLER UL</th>
+        <th class="num">CQI</th><th class="num">RI DL</th><th class="num">RI UL</th>
+        <th class="num">MCS DL</th><th class="num">MCS UL</th>
+        <th class="num">1st-tx BLER DL</th>
+        <th>cell</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td class="num">{{ num(row.offered_mbps, 0) }}</td>
+        <td class="num">{{ row.n }}</td>
+        <td class="num">{{ mean(row, 'run', 'achieved_over_tx_mbps', 2) }}</td>
+        <td class="num">{{ mean(row, 'run', 'loss_pct', 2) }}</td>
+        <td class="num">{{ mean(row, 'latency', 'rtt_ms_p95', 2) }}</td>
+        <td class="num">{{ mean(row, 'radio_summary', 'pusch_snr_db_mean', 1) }}</td>
+        <td class="num">{{ mean(row, 'radio_summary', 'bler_dl_residual_mean', 4) }}</td>
+        <td class="num">{{ mean(row, 'radio_summary', 'bler_ul_residual_mean', 4) }}</td>
+        <td class="num">{{ mean(row, 'radio_summary', 'cqi_mean', 1) }}</td>
+        <td class="num">{{ mean(row, 'radio_summary', 'ri_dl_mean', 2) }}</td>
+        <td class="num">{{ mean(row, 'radio_summary', 'ri_ul_mean', 2) }}</td>
+        <td class="num">{{ mean(row, 'radio_summary', 'mcs_dl_mean', 1) }}</td>
+        <td class="num">{{ mean(row, 'radio_summary', 'mcs_ul_mean', 1) }}</td>
+        <td class="num" title="OAI only, and NOT comparable with residual BLER">
+          {{ mean(row, 'radio_summary', 'bler_dl_first_tx_mean', 4) }}</td>
+        <td>
+          {% for chips in row.cell_configs %}<span class="chip">{{ chips }}</span>{% endfor %}
+        </td>
+        <td>
+          <sl-details summary="{{ row.n }} run(s)">
+            <table class="data" style="font-size:12px">
+              <tbody>
+              {% for run in row.runs %}
+                <tr>
+                  <td class="nowrap">{{ ago(run.t_created) }}</td>
+                  <td>{{ stack_chip(run.config_id, series_for(run.config_id)) }}</td>
+                  <td class="num">{{ num(run.achieved_over_tx_mbps, 2) }}</td>
+                  <td><a href="/results/runs/{{ run.run_id }}">{{ run.run_id[-14:] }}</a></td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </sl-details>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not rows %}
+      <tr><td colspan="16" class="muted" style="padding:16px">No runs in this view.</td></tr>
+    {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<div class="panel" style="margin-top:16px">
+  <header>Plot these runs</header>
+  <div class="body">
+    {% from "components/macros.html" import gated %}
+    {{ gated(caps, 'plots', 'The plotting CLI takes the run ids directly, so a figure of exactly these runs is one command.') }}
+    <p class="muted" style="margin-bottom:0">
+      MCS columns are means of an index; compare them only with the MCS table and
+      the cap in view — OCUDU clamps at 27 DL / 24 UL and sits on the cap under
+      load, OAI sets no cap. First-transmission BLER is OAI-only and is never
+      compared with residual BLER.
+    </p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

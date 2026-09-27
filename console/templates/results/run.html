@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block title %}{{ run.run_id if run else 'Run' }} · Testbed Console{% endblock %}
+{% from "components/macros.html" import stack_chip, num, ago, utc, flags, cell_chips, metric_rows %}
+
+{% block breadcrumbs %}
+<div class="crumbs">
+  <sl-breadcrumb>
+    <sl-breadcrumb-item href="/results">Results</sl-breadcrumb-item>
+    {% if run and run.campaign_id %}
+      <sl-breadcrumb-item href="/results/campaigns/{{ run.campaign_id }}">{{ run.campaign_id }}</sl-breadcrumb-item>
+    {% endif %}
+    <sl-breadcrumb-item>{{ run.run_id if run else 'unknown run' }}</sl-breadcrumb-item>
+  </sl-breadcrumb>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if error %}
+  <div class="banner">{{ error }}</div>
+{% elif run %}
+
+<h1 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+  <span class="run-id">{{ run.run_id }}</span>
+  <sl-copy-button value="{{ run.run_id }}"></sl-copy-button>
+</h1>
+<div class="chips" style="margin-bottom:16px">
+  {{ stack_chip(run.config_id, series_for(run.config_id)) }}
+  <span class="chip {{ 'ok' if run.status == 'done' else ('warn' if run.status in ('defined','running') else 'bad') }}">
+    {{ run.status or 'unknown' }}
+  </span>
+  {% if run.direction %}<span class="chip">{{ run.direction }}</span>{% endif %}
+  {% if run.condition %}<span class="chip" title="the measurement condition ETHOS verified">{{ run.condition }}</span>{% endif %}
+  {{ cell_chips(run.cell_config) }}
+  {{ flags(run.flag_names) }}
+</div>
+
+<sl-tab-group>
+  <sl-tab slot="nav" panel="summary">Summary</sl-tab>
+  <sl-tab slot="nav" panel="channel">Channel conditions</sl-tab>
+  <sl-tab slot="nav" panel="latency">Latency</sl-tab>
+  <sl-tab slot="nav" panel="cell">Cell config</sl-tab>
+  <sl-tab slot="nav" panel="config">Config</sl-tab>
+  <sl-tab slot="nav" panel="raw">Raw</sl-tab>
+  {% if run.radio_ref %}<sl-tab slot="nav" panel="samples">Samples</sl-tab>{% endif %}
+
+  <sl-tab-panel name="summary">
+    <div class="bento">
+      <div class="card span-6">
+        <h2>Traffic</h2>
+        <dl class="facts">
+          <dt>offered</dt><dd>{{ num(run.offered_mbps, 0, 'Mbit/s') }}
+            <span class="muted">(identity — it is in the run id)</span></dd>
+          <dt>achieved</dt><dd><strong>{{ num(run.achieved_over_tx_mbps, 2, 'Mbit/s') }}</strong>
+            <span class="muted mono">achieved_over_tx_mbps</span></dd>
+          <dt>loss</dt><dd>{{ num(run.loss_pct, 2, '%') }}
+            <span class="muted">(vs offered {{ num(run.loss_pct_vs_offered, 2, '%') }})</span></dd>
+          <dt>delivered</dt><dd>{% if run.delivered_bytes %}{{ '{:,}'.format(run.delivered_bytes) }} bytes{% else %}<span class="muted">—</span>{% endif %}</dd>
+          <dt>tx / rx duration</dt><dd>{{ num(run.tx_duration_s, 3, 's') }} / {{ num(run.rx_duration_s, 3, 's') }}
+            <span class="muted">ratio {{ num(run.rx_tx_ratio, 3) }}</span></dd>
+          <dt>mode</dt><dd>{{ run.traffic_mode or DASH }}
+            {% if run.traffic_receiver_role %}<span class="muted">· receiver read on the {{ run.traffic_receiver_role }}</span>{% endif %}</dd>
+          <dt>iperf server</dt><dd>
+            {{ 'Magic iPerf app (app_binary)' if run.server_owner == 'app_binary' else (run.server_owner or DASH) }}
+            {% if run.server_version %}<span class="muted mono">{{ run.server_version }}</span>{% endif %}</dd>
+        </dl>
+      </div>
+      <div class="card span-6">
+        <h2>Identity and timing</h2>
+        <dl class="facts">
+          <dt>config_id</dt><dd><span class="config-id">{{ run.config_id or DASH }}</span></dd>
+          <dt>config_hash</dt><dd><span class="mono">{{ run.config_hash or DASH }}</span></dd>
+          <dt>campaign</dt><dd>
+            {% if run.campaign_id %}<a href="/results/campaigns/{{ run.campaign_id }}">{{ run.campaign_id }}</a>
+            {% else %}<span class="muted">—</span>{% endif %}</dd>
+          <dt>created</dt><dd>{{ utc(run.t_created, tz) }} <span class="muted">({{ ago(run.t_created) }})</span></dd>
+          <dt>traffic window</dt><dd>{{ utc(run.t_traffic_start, tz) }} → {{ utc(run.t_traffic_end, tz) }}</dd>
+          <dt>state verified</dt><dd>
+            {% if run.state_verified is none %}<span class="muted">—</span>
+            {% elif run.state_verified %}<span class="chip ok">yes</span>
+            {% else %}<span class="chip bad">no</span>{% endif %}
+            {% if run.state_reason %}<div class="muted">{{ run.state_reason }}</div>{% endif %}</dd>
+          <dt>UE</dt><dd>
+            {% if run.ue %}{{ run.ue.get('ue') }} · {{ run.ue.get('detail') or run.ue.get('action') }}
+              {% if run.ue.get('ip') %}<span class="mono">{{ run.ue.get('ip') }}</span>{% endif %}
+            {% else %}<span class="muted">—</span>{% endif %}</dd>
+        </dl>
+      </div>
+      <div class="card span-6">
+        <h2>Energy and EE-KPI</h2>
+        {% if run.pkg1_w or run.pkg0_w %}
+          <dl class="facts">
+            <dt>pkg1 (DU socket)</dt><dd>{{ num(run.pkg1_w, 2, 'W') }}</dd>
+            <dt>pkg0 (control)</dt><dd>{{ num(run.pkg0_w, 2, 'W') }}</dd>
+            <dt>EE-KPI total</dt><dd>{{ num(run.ee_kpi_total_mbit_per_w, 2, 'Mbit/s per W') }}</dd>
+          </dl>
+        {% else %}
+          <p class="muted" style="margin:0">
+            No energy was captured for this run. O-Cloud power
+            (<span class="mono">ocloud_power</span>) has had no point since
+            2026-08-27, so EE-KPI would be null with a reason rather than a
+            number — the console does not show one.
+          </p>
+        {% endif %}
+      </div>
+      <div class="card span-6">
+        <h2>O1 PM</h2>
+        {% if run.o1_pm %}
+          <dl class="facts">
+            {% for key, value in run.o1_pm.items() %}
+              <dt>{{ key }}</dt><dd>{{ value if value is not none else DASH }}</dd>
+            {% endfor %}
+          </dl>
+        {% else %}
+          <p class="muted" style="margin:0">No O1 PM recorded for this run.</p>
+        {% endif %}
+      </div>
+    </div>
+  </sl-tab-panel>
+
+  <sl-tab-panel name="channel">
+    {% if run.radio_summary %}
+      <div class="panel" style="margin-bottom:16px">
+        <header>Comparable across stacks</header>
+        <div class="body">
+          {{ metric_rows(rows.comparable) }}
+          <p class="muted" style="margin:12px 0 0">
+            Source: <span class="mono">{{ run.radio_summary.source or 'not recorded' }}</span> ·
+            window: {{ run.radio_summary.window_kind or '—' }} ·
+            DU vendor: {{ run.radio_summary.du_vendor or '—' }}
+          </p>
+        </div>
+      </div>
+
+      {% if rows.vendor %}
+        <sl-details summary="Vendor-specific — {{ run.radio_summary.du_vendor or 'this stack' }} only ({{ rows.vendor | length }} fields)">
+          <p class="muted">
+            These have no counterpart in the other stack. They are never compared
+            with the fields above, and never charted against them.
+          </p>
+          {{ metric_rows(rows.vendor) }}
+        </sl-details>
+      {% endif %}
+
+      {% if rows.ue_reported %}
+        <sl-details summary="Reported by the handset over adb ({{ rows.ue_reported | length }} fields)">
+          {{ metric_rows(rows.ue_reported) }}
+        </sl-details>
+      {% endif %}
+    {% else %}
+      <p class="muted">
+        No channel conditions were collected for this run.
+        {% if run.status == 'defined' %}It never ran traffic.{% endif %}
+        Collection happens on every run since channel metrics were added, so
+        older runs have none — that is an absence, not a zero.
+      </p>
+    {% endif %}
+  </sl-tab-panel>
+
+  <sl-tab-panel name="latency">
+    {% if run.latency %}
+      <div class="panel"><div class="body">
+        {{ metric_rows(rows.latency) }}
+        <p class="muted" style="margin:12px 0 0">
+          Source: {{ run.latency.source or 'not recorded' }} · window:
+          {{ run.latency.window_kind or '—' }}
+          {% if run.condition == 'C_ue_noTraffic' or run.direction == 'none' %}
+            — this run carried no traffic, so these are an idle baseline.
+          {% endif %}
+        </p>
+      </div></div>
+    {% else %}
+      <p class="muted">No latency probe recorded for this run.</p>
+    {% endif %}
+  </sl-tab-panel>
+
+  <sl-tab-panel name="cell">
+    {% if run.cell_config %}
+      <div class="panel"><div class="body">
+        <dl class="facts">
+          {% for key, value in run.cell_config.model_dump().items() %}
+            <dt class="mono">{{ key }}</dt>
+            <dd>{% if value is none %}<span class="muted">—</span>{% else %}{{ value }}{% endif %}</dd>
+          {% endfor %}
+        </dl>
+        <p class="muted" style="margin:12px 0 0">
+          Read from <span class="mono">{{ run.cell_config.source or 'unknown' }}</span>
+          at {{ utc(run.cell_config.read_at, tz) }}.
+          {% if run.cell_config.confirmed_by_log %}
+            The startup log confirmed these values.
+          {% else %}
+            The startup log did not confirm these values.
+          {% endif %}
+          A field that OCUDU's configuration does not state stays "—"; deriving
+          <span class="mono">n_prb</span> from bandwidth and SCS is backend change B14.
+        </p>
+      </div></div>
+    {% else %}
+      <p class="muted">No cell config was read for this run.</p>
+    {% endif %}
+  </sl-tab-panel>
+
+  <sl-tab-panel name="config">
+    <p class="muted">
+      The rendered gNB configuration is archived beside the run on the ETHOS host:
+      <span class="mono">{{ run.config_ref or 'not archived for this run' }}</span>.
+      ETHOS serves the manifest but not the archived config file, so the console
+      links to the path rather than showing content it cannot read.
+    </p>
+    {% if run.deployment %}
+      <div class="panel"><header>Deployment recorded on this run</header><div class="body">
+        <pre class="cmd">{{ run.deployment | tojson(indent=2) }}</pre>
+      </div></div>
+    {% endif %}
+    {% if run.cm_writes %}
+      <div class="panel" style="margin-top:16px"><header>CM writes attempted</header><div class="body">
+        <pre class="cmd">{{ run.cm_writes | tojson(indent=2) }}</pre>
+      </div></div>
+    {% endif %}
+  </sl-tab-panel>
+
+  <sl-tab-panel name="raw">
+    <div class="row" style="margin-bottom:8px">
+      <sl-copy-button value="{{ raw_json }}"></sl-copy-button>
+      <span class="muted">The whole manifest, exactly as ETHOS returned it.</span>
+    </div>
+    <pre class="cmd" style="max-height:70vh;overflow:auto">{{ raw_json }}</pre>
+  </sl-tab-panel>
+
+  {% if run.radio_ref %}
+  <sl-tab-panel name="samples">
+    <p class="muted">
+      This run was made with per-second radio samples, archived at
+      <span class="mono">{{ run.radio_ref }}</span>.
+      ETHOS has no endpoint that serves them yet
+      (<span class="mono">GET /runs/{id}/radio-samples</span> is backend change
+      B10), so the console names the file rather than inventing its contents.
+    </p>
+  </sl-tab-panel>
+  {% endif %}
+</sl-tab-group>
+{% endif %}
+{% endblock %}

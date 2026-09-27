@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Documentation · Testbed Console{% endblock %}
+
+{% block breadcrumbs %}
+<div class="crumbs"><sl-breadcrumb><sl-breadcrumb-item>Documentation</sl-breadcrumb-item></sl-breadcrumb></div>
+{% endblock %}
+
+{% block content %}
+<h1>Documentation</h1>
+<p class="lede">
+  The documents this console is built against, served from its own
+  <span class="mono">docs/</span> folder.
+</p>
+
+{% if docs %}
+  <div class="panel"><div class="body">
+    {% for doc in docs %}
+      <div class="check">
+        <span class="what">
+          <a href="/docs/{{ doc.slug }}">{{ doc.title }}</a>
+          <div class="reason mono">docs/{{ doc.slug }}.md</div>
+        </span>
+      </div>
+    {% endfor %}
+  </div></div>
+{% else %}
+  <p class="muted">No documents found in docs/.</p>
+{% endif %}
+{% endblock %}

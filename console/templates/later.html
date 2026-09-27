@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ section.title }} · Testbed Console{% endblock %}
+{% from "components/macros.html" import gated %}
+
+{% block breadcrumbs %}
+<div class="crumbs">
+  <sl-breadcrumb><sl-breadcrumb-item>{{ section.title }}</sl-breadcrumb-item></sl-breadcrumb>
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>{{ section.title }} <span class="chip">{{ section.phase }}</span></h1>
+<p class="lede">{{ section.intro }}</p>
+
+<div class="panel" style="margin-bottom:16px">
+  <header>Not built yet</header>
+  <div class="body">{{ gated(caps, section.capability) }}</div>
+</div>
+
+<div class="panel" style="margin-bottom:16px">
+  <header>What this page will show</header>
+  <div class="body">
+    {% for id, text in section.items %}
+      <div class="check">
+        <span class="mark unknown">○</span>
+        <span class="what"><span class="mono">{{ id }}</span> — {{ text }}</span>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if section.today %}
+<div class="panel">
+  <header>Where things stand today</header>
+  <div class="body"><p class="muted" style="margin:0">{{ section.today }}</p></div>
+</div>
+{% endif %}
+{% endblock %}

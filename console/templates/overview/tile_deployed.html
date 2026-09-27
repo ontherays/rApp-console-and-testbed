@@ -1,0 +1,21 @@
+<h2>Deployed now</h2>
+{% if error %}
+  <p class="muted"><sl-icon name="exclamation-triangle"></sl-icon> {{ error }}</p>
+{% elif deployed and deployed.anything_deployed %}
+  <div class="big">{{ deployed.profile or deployed.config_id or deployed.stack or 'unnamed' }}</div>
+  <p class="muted" style="margin:4px 0 8px">
+    namespace {{ deployed.namespace }} ·
+    {{ deployed.running_pods | length }} of {{ deployed.pods | length }} pod(s) running
+  </p>
+  <div class="chips">
+    {% for release in deployed.releases %}<span class="chip">{{ release }}</span>{% endfor %}
+  </div>
+  {% for warning in deployed.warnings %}
+    <p class="muted" style="margin-bottom:0"><sl-icon name="exclamation-triangle"></sl-icon> {{ warning }}</p>
+  {% endfor %}
+{% else %}
+  <div class="big">nothing deployed</div>
+  <p class="muted" style="margin-bottom:0">
+    {{ deployed.node_reason if deployed and deployed.node_reason else 'namespace ravi-ns is empty' }}
+  </p>
+{% endif %}
