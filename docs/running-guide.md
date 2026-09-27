@@ -1,0 +1,384 @@
+# Testbed Console — running guide
+
+How to install, configure, run and use the console on the KVM host
+(`oai-gnb-KVM`, 192.168.8.78). Every command below was run on that host on
+2026-09-27, and the output shown is what it returned.
+
+The console **presents** the testbed. ETHOS is the component that touches it, and
+the console reaches ETHOS over loopback, so no credential — the InfluxDB token,
+the SSH keys, the SDNC password — is ever held here or sent to a browser.
+
+`RUNNING_CAMPAIGNS.md` and `running-guide.md` in the ETHOS documentation remain
+the reference for running a campaign. This guide covers the console only.
+
+---
+
+## 1. Is it already running?
+
+```bash
+systemctl --user is-active testbed-console ethos-rapp
+```
+
+```
+active
+active
+```
+
+Both active: go to §5. Either one inactive: §2 for the console, or start ETHOS
+first — the console works without it but every page reports it unreachable.
+
+---
+
+## 2. Install
+
+Python 3.12 and `openssl` are already on this host.
+
+```bash
+cd ~/testbed-console
+python3 -m venv .venv
+.venv/bin/python -m pip install -q --upgrade pip
+.venv/bin/python -m pip install -q -r requirements.txt
+```
+
+`requirements.txt` holds exact pins; `pyproject.toml` holds the loose ranges they
+satisfy. Install the pins for a reproducible environment.
+
+---
+
+## 3. Configure
+
+### 3.1 The certificate
+
+The console serves HTTPS only. One self-signed certificate, valid for this host's
+LAN address:
+
+```bash
+./deploy/make-cert.sh 192.168.8.78
+```
+
+```
+subject=CN = 192.168.8.78, O = BMW Lab Testbed Console
+notBefore=Sep 27 12:08:20 2026 GMT
+notAfter=Dec 30 12:08:20 2028 GMT
+X509v3 Subject Alternative Name:
+    IP Address:192.168.8.78, IP Address:127.0.0.1, DNS:localhost
+
+Put these in console.env:
+  CONSOLE_TLS_CERT=/home/oai-gnb/.config/testbed-console/tls/console.crt
+  CONSOLE_TLS_KEY=/home/oai-gnb/.config/testbed-console/tls/console.key
+```
+
+The browser warns once on the first visit because nothing signed this
+certificate. To silence the warning, add `console.crt` to your laptop's trust
+store. The key is `chmod 600` and lives outside the repository; `*.crt` and
+`*.key` are git-ignored.
+
+### 3.2 The environment file
+
+```bash
+cp console.env.example console.env
+chmod 600 console.env
+```
+
+Then edit it: the TLS paths from §3.1, and the password hash from §3.3.
+`console.env` is git-ignored because it holds the password hash and the session
+secret. Two rules about its format, both of which have broken this service once:
+
+- **A comment goes on its own line, above the variable.** systemd's
+  `EnvironmentFile=` keeps a trailing `# comment` as part of the value, so
+  `CONSOLE_LOG_LEVEL=info  # the level` makes uvicorn refuse to start with
+  `KeyError: 'info  # the level'`. A test enforces this on the example file.
+- **A blank is `KEY=""`, never bare.** Empty means unset, which means the
+  documented default or the documented refusal.
+
+The real environment always wins over this file, so a systemd `Environment=`
+line or a shell `export` overrides it and an existing deployment keeps behaving
+exactly as it did.
+
+### 3.3 The password
+
+One password, stored only as an argon2id hash. The plain password is never
+written to a file, never logged, and never echoed back to the browser.
+
+```bash
+.venv/bin/python -m console set-password
+```
+
+It prompts twice and prints the line to paste into `console.env`. Restart the
+service afterwards (§4).
+
+### 3.4 Check what the console resolved
+
+```bash
+.venv/bin/python -m console check
+```
+
+```
+console.env: applied 18, kept 0 already in the environment
+bind            0.0.0.0:8443
+ethos           http://127.0.0.1:8081
+tls             ready
+login           configured
+plans           /home/oai-gnb/testbed-console-data/plans
+deploy profiles /home/oai-gnb/ravi-ethos-rApp/deployment/deploy_profiles.yaml
+graph dir       /home/oai-gnb/ravi-ethos-rApp-graph
+time zone       Asia/Taipei
+
+no problems found
+```
+
+"applied 18, kept 0" counts names, never values. Anything missing is listed under
+`problems:` with the command that fixes it.
+
+---
+
+## 4. Run it as a service
+
+```bash
+cp deploy/testbed-console.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now testbed-console
+```
+
+```
+Created symlink /home/oai-gnb/.config/systemd/user/default.target.wants/testbed-console.service → /home/oai-gnb/.config/systemd/user/testbed-console.service.
+```
+
+So the service survives logout, linger must be on. It is now:
+
+```bash
+loginctl show-user oai-gnb -p Linger
+```
+
+```
+Linger=yes
+```
+
+This applies to every user service, so `ethos-rapp` now survives logout too.
+
+Day to day:
+
+```bash
+systemctl --user status testbed-console       # is it up
+systemctl --user restart testbed-console      # after editing console.env
+systemctl --user stop testbed-console         # take it down
+journalctl --user -u testbed-console -n 100   # its log
+journalctl --user -u testbed-console -f       # follow it
+```
+
+```
+● testbed-console.service - Testbed Console & Dashboard
+     Loaded: loaded (/home/oai-gnb/.config/systemd/user/testbed-console.service; enabled; preset: enabled)
+     Active: active (running) since Sun 2026-09-27 20:10:38 CST; 4s ago
+   Main PID: 2985219 (python)
+     Memory: 39.6M (peak: 40.0M)
+```
+
+Restarting the console never disturbs a campaign: it holds no testbed state,
+starts no traffic and runs no job. Restarting `ethos-rapp` does — check that no
+campaign is running first.
+
+---
+
+## 5. Reach it
+
+From your laptop on the lab LAN:
+
+```
+https://192.168.8.78:8443
+```
+
+Accept the certificate warning once, then log in with the password from §3.3.
+
+Checks from a shell on the host:
+
+```bash
+curl -sk -o /dev/null -w 'HTTP %{http_code}\n' https://127.0.0.1:8443/login
+curl -s  -m 5 -o /dev/null -w 'HTTP %{http_code}\n' http://127.0.0.1:8443/login
+```
+
+```
+HTTP 200
+HTTP 000
+```
+
+The second is 000 — nothing answers on plain HTTP, which is the intent: HTTPS
+only. An unauthenticated page redirects rather than serving:
+
+```bash
+curl -sk -o /dev/null -w 'HTTP %{http_code} -> %{redirect_url}\n' https://127.0.0.1:8443/
+```
+
+```
+HTTP 303 -> https://127.0.0.1:8443/login?reason=please+log+in
+```
+
+Five wrong passwords in ten minutes stop login for ten minutes. A session ends 12
+hours after login, or after 2 hours of inactivity, and says which.
+
+### Without opening the LAN
+
+To reach it over a tunnel instead, set `CONSOLE_BIND=127.0.0.1`, restart, and
+from your laptop:
+
+```bash
+ssh -N -L 8443:127.0.0.1:8443 oai-gnb@192.168.8.78
+# then open https://127.0.0.1:8443
+```
+
+The certificate already covers `127.0.0.1`. The login still applies — the tunnel
+replaces the LAN exposure, not the authentication.
+
+### If the LAN address does not answer
+
+The service listens on all addresses:
+
+```bash
+ss -lntp | grep 8443
+```
+
+```
+LISTEN 0 2048 0.0.0.0:8443 0.0.0.0:* users:(("python",pid=2985219,fd=7))
+```
+
+If it listens but your laptop cannot connect, a firewall on this host is
+filtering it. Open the port for the lab subnet only:
+
+```bash
+sudo ufw allow from 192.168.8.0/24 to any port 8443 proto tcp
+```
+
+---
+
+## 6. The pages
+
+ETHOS today has no testbed lock, no job model, no readiness endpoint and no
+figure generation. Every control that needs one of those is **disabled and says
+which backend change adds it** (`needs ETHOS B2 — starting, watching and
+stopping a campaign`), with the command that does the job now. `docs/ethos-backlog.md`
+lists them all.
+
+| Page | What it does today |
+|---|---|
+| **Overview** | The deployed topology with its cell-config chips, the last five runs, the O-Cloud telemetry agent and PMU state, and links. The lock, running job, UE and data-freshness tiles name the change they need. |
+| **Test Plan** | Builds one test. Options come from ETHOS's catalogue and are shown by label; an option that cannot be deployed is disabled with the reason. ETHOS validates the selection and generates the `config_id`. The readiness panel lists all seven checks; the ones ETHOS can answer carry a verdict, the rest say what they wait for. Ends in **Save plan** and the exact `python -m campaign` command. |
+| **Jobs** | The campaigns in the run archive, grouped by `campaign_id`, each linking to its sweep. Starting a campaign from the browser is B2. |
+| **Results** | Every archived run, with chip filters, sortable columns, CSV export of the filtered set, and a detail page per run: Summary, Channel conditions, Latency, Cell config, Config, Raw. Runs that cannot be analysed are hidden behind a switch. |
+| **Sweep / Compare** | One row per offered load with repeats collapsed to a mean and an n, expandable to the individual runs. Amber warning when the runs do not share one cell configuration. |
+| **Graphs** | The gallery of figures ETHOS's plotting package produced, with the PNG, the PDF and each figure's manifest. Requesting a new figure is B9. |
+| **Testbed / O1 / O2** | What each will show, its requirement ids, and where things stand today. |
+| **Documentation** | These documents, served from `docs/`. |
+
+### Reading the numbers
+
+- **Achieved throughput is `achieved_over_tx_mbps`.** It is the only throughput
+  compared across stacks; the gNB's own MAC bitrate (OCUDU) and application
+  goodput (OAI) differ by header overhead.
+- **A value that was not measured shows "—", never 0.** A stack that has no such
+  counter and a counter that was not measured are both absences.
+- **BLER is always qualified.** "Residual BLER" is what survived HARQ and both
+  stacks report it. "First-transmission BLER" is OAI-only, read 0.46 on an idle
+  link whose residual BLER was 0, and never shares a column with it.
+- **Only PUSCH SNR is compared across stacks.** PUCCH SNR is a different channel.
+- **Four things are called RSRP** and are four separate fields. OCUDU's
+  `gnb_ul_rsrp_db` is *relative* dB, not dBm — it reads about −11 where the dBm
+  values read −69.
+- **MCS carries its table and its cap.** OCUDU clamps at 27 DL / 24 UL and sits
+  on the cap under load; OAI sets no cap. A value at the cap is marked "capped".
+- **The TDD pattern is on every result.** OCUDU runs 7D2U over 5 ms and OAI DDDSU
+  over 2.5 ms, so a comparison between them is partly a comparison of two TDD
+  configurations.
+- **No EE-KPI is shown anywhere.** O-Cloud power (`ocloud_power`) has had no
+  point since 2026-08-27, so every value would be null with a reason.
+
+---
+
+## 7. Tests
+
+They run against a fake ETHOS that replays recorded responses, so no testbed is
+touched:
+
+```bash
+cd ~/testbed-console
+.venv/bin/python -m pytest
+```
+
+```
+191 passed, 1 warning in 41.23s
+```
+
+That is 174 server tests plus 17 browser tests. The browser tests start a console
+process of their own, with ETHOS deliberately unreachable, and drive it with
+Chromium — they check what a status code cannot: that the vendored components
+upgrade under the Content-Security-Policy, that no page reaches outside the
+console, and that every action is disabled with its reason when ETHOS is down.
+They need the optional extra, which is already installed here:
+
+```bash
+.venv/bin/python -m pip install -e '.[e2e]'
+.venv/bin/playwright install chromium
+```
+
+Without it they skip themselves and the other 174 still run.
+
+To refresh the fixtures from the real API — read-only endpoints only, and never
+`ee-kpi`, which writes the manifest:
+
+```bash
+.venv/bin/python tests/record.py
+```
+
+```
+  healthz                HTTP 200 recorded
+  compatibility          HTTP 200 recorded
+  deploy_status          HTTP 200 recorded
+  status_health          HTTP 200 recorded
+  cm_params_writable     HTTP 200 recorded
+  testdef_generate       HTTP 200 recorded
+  runs                   HTTP 200 recorded 12 of 528
+```
+
+The run list is trimmed to twelve runs that between them exercise the display
+rules: an OCUDU run and an OAI run with channel metrics, one that was defined and
+never ran, an uplink run, and a few that carry a campaign id.
+
+---
+
+## 8. Troubleshooting
+
+**Every page shows a red "ETHOS API unreachable" banner.**
+ETHOS is down or not listening. `systemctl --user status ethos-rapp`, then
+`curl -s 127.0.0.1:8081/healthz`. The console itself stays up and reports itself
+healthy at `/healthz` — it must not claim to be down because the thing it
+displays is.
+
+**The service will not start.** `journalctl --user -u testbed-console -n 40`.
+The usual cause is `console.env`: a trailing `# comment` after a value (see
+§3.2), or a TLS path that does not exist. `.venv/bin/python -m console check`
+names both.
+
+**"This page's security token was missing or stale."** The session was replaced
+while the page was open. Reload the page.
+
+**Logged out unexpectedly.** 12 hours since login, or 2 hours idle. The login
+page says which. Restarting the service does not log you out, but changing
+`CONSOLE_SESSION_SECRET` does — every existing cookie becomes unreadable.
+
+**Locked out of login.** Five wrong passwords in ten minutes. Wait ten minutes,
+or restart the service — the counter is in memory.
+
+**The certificate warning is back.** The certificate was regenerated, or you are
+reaching the console by a name the certificate does not cover. It covers
+`192.168.8.78`, `127.0.0.1` and `localhost`.
+
+**The Results table is empty.** Unusable runs are hidden by default: a run with
+no delivered bytes, or one whose iperf server ETHOS does not recognise, cannot be
+analysed. Tick "show unusable runs".
+
+**The Graphs gallery is empty.** `CONSOLE_GRAPH_DIR` is unset or points somewhere
+without figures. It should be ETHOS's own `ETHOS_GRAPH_DIR`
+(`/home/oai-gnb/ravi-ethos-rApp-graph`).
+
+**A Test Plan option is disabled and you expect it to work.** Its tooltip gives
+the reason, read from ETHOS's `deploy_profiles.yaml`. A profile whose status is
+`todo` has no chart paths, so ETHOS would refuse the deploy rather than guess.
