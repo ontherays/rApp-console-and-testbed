@@ -1,0 +1,17 @@
+{# RUN. One state, shown here and at the foot of the readiness panel.
+
+   It is disabled until the capability probe finds the lock (B1) and the job
+   endpoints (B2), and until every readiness check passes. Nothing has to be
+   edited when those land: the probe finds them and the button lights up. #}
+{% if can_run %}
+  <button class="btn primary" type="button"
+          hx-post="/plan/run" hx-include="#plan-form" hx-target="#plan-result">
+    <svg class="ic" aria-hidden="true"><use href="#icon-play"/></svg>RUN
+  </button>
+{% else %}
+  <sl-tooltip hoist content="{{ run_reason }}">
+    <button class="btn" type="button" disabled aria-describedby="run-reason">
+      <svg class="ic" aria-hidden="true"><use href="#icon-play"/></svg>RUN
+    </button>
+  </sl-tooltip>
+{% endif %}

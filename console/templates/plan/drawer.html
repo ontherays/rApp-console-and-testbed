@@ -1,0 +1,68 @@
+{# The topology picker. Presets are the profiles ETHOS can actually deploy;
+   Custom is every component, one group of cards each.
+
+   Nothing is decided here. A choice sets the form's own fields and the form
+   asks ETHOS to validate it, exactly as typing into the form always did. #}
+{% from "components/macros.html" import chip %}
+{% from "components/form.html" import pick_group %}
+
+<sl-drawer id="topology-drawer" label="Choose a topology" placement="end" class="topo-drawer">
+  <sl-tab-group>
+    <sl-tab slot="nav" panel="presets">Presets</sl-tab>
+    <sl-tab slot="nav" panel="custom">Custom</sl-tab>
+
+    <sl-tab-panel name="presets">
+      <p class="hint" style="margin-top:0">
+        The topologies ETHOS has a wired deploy profile for. One click selects one.
+      </p>
+      <div class="preset-grid">
+        {% for preset in presets %}
+          {# Single quotes: tojson escapes < > & and the apostrophe, but not the
+             double quote, so a double-quoted attribute would end at the first
+             key. #}
+          <button type="button" class="preset" data-preset='{{ preset.selection | tojson }}'
+                  data-drawer-close="topology-drawer">
+            <span class="preset-art">{{ preset.diagram | safe }}</span>
+            <span class="preset-name">
+              {{ preset.label }}
+              {% if preset.experimental %}{{ chip('experimental', 'warn', 'warning') }}
+              {% else %}{{ chip('supported', 'ok', 'check') }}{% endif %}
+            </span>
+            <span class="preset-meta">
+              {% if preset.last_run %}
+                Last run <time datetime="{{ preset.last_run }}" data-ago="1">{{ preset.last_run }}</time>:
+                {{ preset.last_result }}
+              {% else %}
+                No run in the archive yet
+              {% endif %}
+            </span>
+            <span class="preset-meta faint">
+              {{ preset.run_count }} run(s), profile {{ preset.profile }}
+            </span>
+          </button>
+        {% endfor %}
+        {% if not presets %}
+          <p class="muted">No wired deploy profile was found.</p>
+        {% endif %}
+      </div>
+    </sl-tab-panel>
+
+    <sl-tab-panel name="custom">
+      <p class="hint" style="margin-top:0">
+        Every component. An option ETHOS cannot deploy is greyed out, with the
+        reason on hover.
+      </p>
+      {{ pick_group('gnb_stack', 'gnb', 'gNB stack', cards.gnb_stack, values.gnb_stack) }}
+      {{ pick_group('split_kind', 'swap', 'Split', cards.split, values.split_kind) }}
+      {% with oob=False %}{% include "plan/vendors.html" %}{% endwith %}
+      {{ pick_group('l1_backend', 'l1', 'L1 backend', cards.l1_backend, values.l1_backend) }}
+      {{ pick_group('ru', 'ru', 'Radio unit', cards.ru, values.ru) }}
+      {{ pick_group('ue', 'ue', 'UE', cards.ue, values.ue,
+                    hint='A TM500 UE runs only against the TM500 RU emulation, and the other way round (catalogue RULE-1).') }}
+      {{ pick_group('core', 'core', 'Core network', cards.core, values.core) }}
+      {{ pick_group('server', 'server', 'O-Cloud server', cards.server, values.server) }}
+    </sl-tab-panel>
+  </sl-tab-group>
+
+  <button class="btn primary" slot="footer" data-drawer-close="topology-drawer">Done</button>
+</sl-drawer>
