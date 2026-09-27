@@ -9,6 +9,9 @@ from console.auth import SESSION_COOKIE
 
 PAGES = [
     "/",
+    "/?period=24h",
+    "/?period=7d&kind=DL",
+    "/?kind=flagged",
     "/plan",
     "/jobs",
     "/results",
@@ -17,10 +20,9 @@ PAGES = [
     "/o1",
     "/o2",
     "/docs",
+    "/search",
+    "/search?q=ocudu",
     "/partials/status",
-    "/partials/tiles/deployed",
-    "/partials/tiles/runs",
-    "/partials/tiles/agent",
 ]
 
 
@@ -155,10 +157,12 @@ class TestEthosDown:
         assert response.status_code == 200
         assert "unreachable" in response.text.lower()
 
-    def test_a_tile_fails_on_its_own(self, client, ethos_url):
+    def test_every_page_still_renders(self, client, ethos_url):
+        """A console that cannot read ETHOS still has to draw its own pages, or
+        an outage looks like a crash."""
         ethos_url.go_down()
-        assert client.get("/partials/tiles/runs").status_code == 200
-        assert client.get("/partials/tiles/deployed").status_code == 200
+        for path in ("/", "/plan", "/results", "/jobs", "/graphs", "/search?q=x"):
+            assert client.get(path).status_code == 200, path
 
     def test_the_console_reports_itself_up_while_ethos_is_down(self, client, ethos_url):
         ethos_url.go_down()

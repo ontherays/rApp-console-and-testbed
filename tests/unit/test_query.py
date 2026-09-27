@@ -180,3 +180,51 @@ def test_facets_offer_only_values_that_are_present():
     assert found["direction"]
     assert all(value for value in found["config_id"])
     assert found["rate"] == sorted(found["rate"], key=float)
+
+
+class TestNodeObservation:
+    """``node_free`` is null both when the probe failed and when it was never
+    attempted. Those are different facts and must not read the same."""
+
+    def _status(self, **fields):
+        from console.rapps.ethos.models import DeployStatus
+
+        base = {
+            "namespace": "ravi-ns",
+            "releases": [],
+            "pods": [],
+            "running_pods": [],
+            "node_free": None,
+            "node_reason": "the node was not observed",
+            "node_check": None,
+            "warnings": [],
+        }
+        base.update(fields)
+        return DeployStatus.model_validate(base)
+
+    def test_an_unattempted_probe_says_it_was_never_looked_at(self):
+        status = self._status()
+        assert status.node_observed is False
+        assert "never looked at" in status.node_detail
+        assert "Select a topology" in status.node_detail
+
+    def test_a_failed_probe_shows_its_real_error(self):
+        status = self._status(
+            warnings=["node state unavailable: ssh: connect to host 192.168.206.82 port 22: No route to host"]
+        )
+        assert "No route to host" in status.node_detail
+        assert "never looked at" not in status.node_detail
+
+    def test_a_successful_probe_shows_what_it_verified(self):
+        status = self._status(
+            node_free=True,
+            node_reason="state verified: no gNB and no traffic on the node",
+            node_check={"verified": True},
+        )
+        assert status.node_observed is True
+        assert status.node_detail == "state verified: no gNB and no traffic on the node"
+
+    def test_the_namespace_is_summarised_either_way(self):
+        assert "no Helm release and no pod in ravi-ns" == self._status().namespace_summary
+        busy = self._status(releases=["ocudu-gnb"], running_pods=["ocudu-gnb-0"])
+        assert "1 release(s) and 1 running pod(s) in ravi-ns" == busy.namespace_summary

@@ -48,7 +48,7 @@ def test_the_vendored_components_upgrade(logged_in):
     logged_in.goto("/results")
     logged_in.wait_for_load_state("networkidle")
     upgraded = logged_in.evaluate(
-        "() => !!(customElements.get('sl-breadcrumb') && customElements.get('sl-icon'))"
+        "() => !!(customElements.get('sl-icon') && customElements.get('sl-tooltip'))"
     )
     assert upgraded, "Shoelace did not upgrade — check the CSP and the vendored path"
 
@@ -62,10 +62,10 @@ def test_no_asset_is_requested_from_another_host(logged_in):
     assert outside == [], f"a page reached outside the console: {outside}"
 
 
-def test_the_status_strip_polls_and_reports_ethos_down(logged_in):
-    logged_in.goto("/")
-    logged_in.wait_for_selector("text=ETHOS API unreachable", timeout=10000)
-    assert "Every action is disabled" in logged_in.content()
+def test_the_status_strip_polls_and_reports_ethos_down(offline_page):
+    offline_page.goto("/")
+    offline_page.wait_for_selector("text=ETHOS API unreachable", timeout=15000)
+    assert "Every action is disabled" in offline_page.content()
 
 
 def test_the_plan_page_disables_run_and_gives_the_reason(logged_in):
@@ -73,8 +73,7 @@ def test_the_plan_page_disables_run_and_gives_the_reason(logged_in):
     logged_in.wait_for_load_state("networkidle")
     run = logged_in.locator("button:has-text('RUN')").first
     assert run.is_disabled()
-    body = logged_in.content()
-    assert "needs ETHOS" in body or "unreachable" in body
+    assert "needs ETHOS" in logged_in.content()
 
 
 def test_the_gallery_opens_a_figure_and_shows_its_manifest(logged_in):
@@ -90,3 +89,119 @@ def test_a_figure_png_downloads(logged_in):
     with logged_in.expect_download() as download:
         logged_in.click("a[download][href$='/png']")
     assert download.value.suggested_filename.endswith(".png")
+
+
+class TestTopologyForm:
+    """Task A, in a real browser: the CU and DU vendor groups follow the split."""
+
+    def _open(self, page):
+        page.goto("/plan")
+        page.wait_for_load_state("networkidle")
+        return page
+
+    def _group(self, page, name):
+        return page.locator(f"input[name={name}]")
+
+    def test_monolithic_disables_both_vendor_groups(self, logged_in):
+        page = self._open(logged_in)
+        page.check("input[name=split_kind][value='monolithic']")
+        page.wait_for_timeout(1200)
+        for name in ("cu_vendor", "du_vendor"):
+            inputs = self._group(page, name)
+            for index in range(inputs.count()):
+                assert inputs.nth(index).is_disabled(), f"{name} must be disabled"
+
+    def test_monolithic_shows_the_gnb_stacks_value_and_the_reason(self, logged_in):
+        page = self._open(logged_in)
+        page.check("input[name=gnb_stack][value='OAI']")
+        page.wait_for_timeout(600)
+        page.check("input[name=split_kind][value='monolithic']")
+        page.wait_for_timeout(1200)
+        assert page.locator("input[name=cu_vendor][value='OAI']").is_checked()
+        assert page.locator("input[name=du_vendor][value='OAI']").is_checked()
+        assert "Monolithic runs CU and DU in one process" in page.content()
+
+    def test_cu_du_makes_both_groups_selectable(self, logged_in):
+        """The split changes without a page load, so the groups are re-rendered
+        by the same request and swapped in out of band."""
+        page = self._open(logged_in)
+        page.check("input[name=split_kind][value='CU+DU']")
+        page.wait_for_timeout(1200)
+        for name in ("cu_vendor", "du_vendor"):
+            inputs = self._group(page, name)
+            assert inputs.count() == 2, f"{name} must offer both vendors"
+            for index in range(inputs.count()):
+                assert not inputs.nth(index).is_disabled(), f"{name} must be selectable"
+
+    def test_cu_du_defaults_to_the_gnb_stacks_vendor(self, logged_in):
+        page = self._open(logged_in)
+        page.check("input[name=gnb_stack][value='OAI']")
+        page.wait_for_timeout(600)
+        page.check("input[name=split_kind][value='CU+DU']")
+        page.wait_for_timeout(1200)
+        assert page.locator("input[name=cu_vendor][value='OAI']").is_checked()
+        assert page.locator("input[name=du_vendor][value='OAI']").is_checked()
+
+    def test_two_different_vendors_select_the_cross_vendor_split(self, logged_in):
+        page = self._open(logged_in)
+        page.check("input[name=split_kind][value='CU+DU']")
+        page.wait_for_timeout(1000)
+        page.check("input[name=cu_vendor][value='OAI']")
+        page.wait_for_timeout(600)
+        page.check("input[name=du_vendor][value='OCUDU']")
+        page.wait_for_timeout(1200)
+        assert "experimental" in page.locator("#plan-result").inner_text().lower()
+
+    def test_changing_the_split_updates_the_identity_panel(self, logged_in):
+        page = self._open(logged_in)
+        page.check("input[name=split_kind][value='CU+DU']")
+        page.wait_for_timeout(1200)
+        assert page.locator("#plan-result").inner_text() != ""
+
+
+class TestRedesign:
+    def test_the_sidebar_is_grouped_and_has_a_search_box(self, logged_in):
+        logged_in.goto("/")
+        logged_in.wait_for_load_state("networkidle")
+        body = logged_in.content()
+        for group in ("Essentials", "Measure", "Network", "System"):
+            assert group in body
+        assert logged_in.locator("#console-search").is_visible()
+
+    def test_the_slash_key_focuses_the_search_box(self, logged_in):
+        logged_in.goto("/")
+        logged_in.wait_for_load_state("networkidle")
+        logged_in.keyboard.press("/")
+        focused = logged_in.evaluate("() => document.activeElement.id")
+        assert focused == "console-search"
+
+    def test_the_slash_key_is_ignored_while_typing(self, logged_in):
+        logged_in.goto("/plan")
+        logged_in.wait_for_load_state("networkidle")
+        logged_in.click("#rates")
+        logged_in.keyboard.press("/")
+        assert logged_in.evaluate("() => document.activeElement.id") == "rates"
+
+    def test_the_backend_card_counts_what_is_ready(self, logged_in):
+        logged_in.goto("/")
+        logged_in.wait_for_load_state("networkidle")
+        assert "of 6 ready" in logged_in.content()
+
+    def test_the_overview_draws_both_charts(self, logged_in):
+        logged_in.goto("/")
+        logged_in.wait_for_load_state("networkidle")
+        assert logged_in.locator("svg.hexgrid").count() == 1
+        assert logged_in.locator("svg.dotmatrix").count() == 1
+
+    def test_the_period_and_kind_controls_switch(self, logged_in):
+        logged_in.goto("/?period=30d&kind=all")
+        logged_in.wait_for_load_state("networkidle")
+        logged_in.click("a:has-text('24 hours')")
+        logged_in.wait_for_load_state("networkidle")
+        assert "period=24h" in logged_in.url
+
+    def test_one_primary_action_per_page(self, logged_in):
+        for path in ("/", "/results", "/jobs"):
+            logged_in.goto(path)
+            logged_in.wait_for_load_state("networkidle")
+            assert logged_in.locator(".topbar .btn.primary").count() == 1, path

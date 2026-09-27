@@ -176,3 +176,56 @@ def test_deploy_status_unwraps_the_status_envelope():
     status = run(client_with(handler).deploy_status())
     assert status.namespace == "ravi-ns"
     assert status.anything_deployed is True
+
+
+def test_deploy_status_names_the_stack_so_ethos_probes_the_node():
+    """ETHOS gates the node probe on the request naming a stack. Without a
+    config_id it answers "the node was not observed" having never looked, which
+    reads like a failed probe and is not one."""
+    seen: list[str] = []
+
+    def handler(request):
+        seen.append(str(request.url))
+        named = "config_id=" in str(request.url)
+        return httpx.Response(
+            200,
+            json={
+                "status": {
+                    "namespace": "ravi-ns",
+                    "releases": [],
+                    "pods": [],
+                    "running_pods": [],
+                    "node_free": True if named else None,
+                    "node_reason": (
+                        "state verified: no gNB and no traffic on the node"
+                        if named
+                        else "the node was not observed"
+                    ),
+                    "node_check": {"verified": True} if named else None,
+                }
+            },
+        )
+
+    client = client_with(handler, clock=lambda: 0.0)
+    bare = run(client.deploy_status())
+    named = run(client.deploy_status(config_id="ocudu-mono_swphy_pega_samsung_o5gs_joule"))
+
+    assert bare.node_free is None and bare.node_observed is False
+    assert named.node_free is True and named.node_observed is True
+    assert "config_id=ocudu-mono" in seen[1]
+
+
+def test_the_two_calls_are_cached_separately():
+    calls = {"n": 0}
+
+    def handler(request):
+        calls["n"] += 1
+        return httpx.Response(200, json={"status": {"namespace": "ravi-ns"}})
+
+    client = client_with(handler, clock=lambda: 0.0)
+    run(client.deploy_status())
+    run(client.deploy_status())
+    run(client.deploy_status(config_id="a"))
+    run(client.deploy_status(config_id="a"))
+    run(client.deploy_status(config_id="b"))
+    assert calls["n"] == 3, "one request per distinct config_id, then cached"
