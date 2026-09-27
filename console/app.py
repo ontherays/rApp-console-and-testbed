@@ -121,9 +121,54 @@ class SessionMiddleware(BaseHTTPMiddleware):
 
         request.state.csrf_token = session.csrf_token
         request.state.logged_in = True
+        request.state.badges = await _badges(request)
         response = await call_next(request)
         set_session_cookie(response, self._codec, session.touched(now))
+        _remember_seen(request, response)
         return response
+
+
+SEEN_COOKIE = "console_seen"
+
+
+async def _badges(request: Request):
+    """The sidebar counts, from what the console can actually count.
+
+    "New runs since your last visit" is real and useful today. A running-job
+    count is not: ETHOS has no job model, and a badge showing 0 would read as
+    "nothing is running" on a console that cannot tell. It stays absent.
+    """
+    from console.nav import Badges
+    from console.rapps.ethos.client import EthosError
+
+    badges = Badges()
+    if request.headers.get("HX-Request"):
+        return badges  # a partial does not redraw the sidebar
+    seen = request.cookies.get(SEEN_COOKIE, "")
+    try:
+        listing = await request.app.state.client.runs()
+    except EthosError:
+        return badges
+
+    newest = max((r.t_created or "" for r in listing.runs), default="")
+    request.state.newest_run = newest
+    if seen and newest:
+        badges.new_runs = sum(1 for r in listing.runs if (r.t_created or "") > seen) or None
+    return badges
+
+
+def _remember_seen(request: Request, response: Response) -> None:
+    """Record the newest run this browser has been shown, so the next visit can
+    say what arrived meanwhile. It is a display aid, not state: losing the
+    cookie costs a badge, nothing else."""
+    newest = getattr(request.state, "newest_run", "")
+    if not newest or request.headers.get("HX-Request"):
+        return
+    if request.url.path in ("/", "/results") and request.method == "GET":
+        response.set_cookie(
+            SEEN_COOKIE, newest, httponly=True, secure=True, samesite="strict",
+            path="/", max_age=90 * 24 * 3600,
+        )
 
 
 def set_session_cookie(response: Response, codec: SessionCodec, session) -> None:
@@ -187,9 +232,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     from console.pages import docs as docs_pages
-    from console.pages import graphs, jobs, later, login, overview, plan, results
+    from console.pages import graphs, jobs, later, login, overview, plan, results, search
 
-    for module in (login, overview, plan, jobs, results, graphs, later, docs_pages):
+    for module in (login, overview, plan, jobs, results, graphs, search, later, docs_pages):
         app.include_router(module.router)
 
     @app.get("/healthz", include_in_schema=False)

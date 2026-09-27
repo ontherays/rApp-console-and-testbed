@@ -98,6 +98,24 @@
     return Math.round(hours / 24) + " d ago";
   }
 
+  // "/" jumps to the search box, the way the rest of the industry does it.
+  // Ignored while typing, so it never swallows a character in a form.
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+    const active = document.activeElement;
+    const tag = active ? active.tagName : "";
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" ||
+        (active && active.isContentEditable)) {
+      return;
+    }
+    const box = document.getElementById("console-search");
+    if (box) {
+      event.preventDefault();
+      box.focus();
+      box.select();
+    }
+  });
+
   document.addEventListener("DOMContentLoaded", function () { relabel(); });
   document.addEventListener("htmx:afterSwap", function (event) { relabel(event.target); });
   setInterval(function () { relabel(); }, 30000);

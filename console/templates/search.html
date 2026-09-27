@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import stack_chip, num, ago %}
+{% block title %}Search · Testbed Console{% endblock %}
+{% block page_title %}Search{% endblock %}
+{% block page_icon %}search{% endblock %}
+{% block page_tone %}slate{% endblock %}
+{% block lede %}
+  <p class="lede">
+    {% if q %}{{ total }} match(es) for “{{ q }}” across the run archive.
+    {% else %}Type a run id, a config_id or a campaign name. Press <kbd>/</kbd> anywhere to jump to the box.{% endif %}
+  </p>
+{% endblock %}
+
+{% block content %}
+{% if error %}<div class="banner bad"><sl-icon name="exclamation-octagon"></sl-icon>{{ error }}</div>{% endif %}
+
+{% if q and not total and not error %}
+  <div class="card"><p class="muted" style="margin:0">Nothing in the archive matches “{{ q }}”.</p></div>
+{% endif %}
+
+{% if configs %}
+  <div class="card flush">
+    <header><span class="card-title">Configurations</span></header>
+    <div class="table-wrap"><table class="data"><tbody>
+      {% for config_id, count, series in configs %}
+        <tr>
+          <td>{{ stack_chip(config_id, series) }}</td>
+          <td class="mono faint">{{ config_id }}</td>
+          <td class="num">{{ count }} run(s)</td>
+          <td class="right"><a class="btn btn-sm" href="/results?config_id={{ config_id }}&usable_only=no">Open in Results</a></td>
+        </tr>
+      {% endfor %}
+    </tbody></table></div>
+  </div>
+{% endif %}
+
+{% if campaigns %}
+  <div class="card flush">
+    <header><span class="card-title">Campaigns</span></header>
+    <div class="table-wrap"><table class="data"><tbody>
+      {% for campaign_id, count in campaigns %}
+        <tr>
+          <td class="mono">{{ campaign_id }}</td>
+          <td class="num">{{ count }} run(s)</td>
+          <td class="right"><a class="btn btn-sm" href="/results/campaigns/{{ campaign_id }}">Open sweep</a></td>
+        </tr>
+      {% endfor %}
+    </tbody></table></div>
+  </div>
+{% endif %}
+
+{% if runs %}
+  <div class="card flush">
+    <header>
+      <span class="card-title">Runs</span>
+      {% if run_total > runs | length %}
+        <span class="faint">showing {{ runs | length }} of {{ run_total }}</span>
+      {% endif %}
+    </header>
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>run</th><th>topology</th><th>when</th>
+                 <th class="num">offered</th><th class="num">achieved</th><th></th></tr></thead>
+      <tbody>
+        {% for run in runs %}
+          <tr>
+            <td class="mono">{{ run.run_id }}</td>
+            <td>{{ stack_chip(run.config_id, series_for(run.config_id)) }}</td>
+            <td class="nowrap">{{ ago(run.t_created) }}</td>
+            <td class="num">{{ num(run.offered_mbps, 0) }}</td>
+            <td class="num">{{ num(run.achieved_over_tx_mbps, 2) }}</td>
+            <td class="right"><a href="/results/runs/{{ run.run_id }}">open</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+{% endif %}
+{% endblock %}

@@ -10,8 +10,11 @@ from fastapi import Request
 from fastapi.templating import Jinja2Templates
 from starlette.responses import HTMLResponse
 
+from console.nav import GROUPS, Badges, backend_readiness
 from console.rapps.ethos import series as series_mod
 from console.rapps.ethos.metrics import DASH
+
+SEEN_COOKIE = "console_seen"
 
 _TEMPLATES: Jinja2Templates | None = None
 
@@ -86,14 +89,20 @@ def render(
     headers: dict[str, str] | None = None,
 ) -> HTMLResponse:
     """Render with the context every template expects: the CSRF token, the
-    capability snapshot, and the display time zone."""
+    capability snapshot, the navigation and its badges, and the display zone."""
     state = request.app.state
+    caps = state.probe.result
+    badges = getattr(request.state, "badges", None) or Badges()
     full: dict[str, Any] = {
         "request": request,
         "csrf_token": getattr(request.state, "csrf_token", ""),
-        "caps": state.probe.result,
+        "caps": caps,
         "settings": state.settings,
         "tz": state.settings.tz,
+        "nav_groups": GROUPS,
+        "badges": badges,
+        "backend": backend_readiness(caps),
+        "search_q": request.query_params.get("q", ""),
     }
     full.update(context or {})
     return templates().TemplateResponse(
