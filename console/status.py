@@ -84,6 +84,10 @@ async def build_status(client: EthosClient, caps: Capabilities) -> Status:
     # --- what is deployed ----------------------------------------------------
     if ethos_up:
         try:
+            # No config_id here on purpose: the strip is on every page and must
+            # not assume a topology. That means ETHOS answers the namespace but
+            # never probes the node, so the strip reports the namespace — which
+            # is what it actually knows — and the hover says the rest.
             deployed = await client.deploy_status()
             if deployed.anything_deployed:
                 label = deployed.profile or deployed.config_id or deployed.stack or "something"
@@ -92,12 +96,12 @@ async def build_status(client: EthosClient, caps: Capabilities) -> Status:
                 detail = f"namespace {deployed.namespace}, releases: " + (
                     ", ".join(str(r) for r in deployed.releases) or "none reported"
                 )
-            elif deployed.node_free:
-                value, state, detail = "nothing deployed", OK, deployed.node_reason or ""
+            elif deployed.node_free is False:
+                value, state, detail = "node busy", WARN, deployed.node_reason
             else:
                 value = "nothing deployed"
-                state = UNKNOWN if deployed.node_free is None else OK
-                detail = deployed.node_reason or "the node was not observed"
+                state = OK
+                detail = f"{deployed.namespace_summary}. {deployed.node_detail}"
             items.append(
                 Item(
                     label="Deployed",

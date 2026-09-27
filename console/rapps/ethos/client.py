@@ -258,16 +258,35 @@ class EthosClient:
     async def run(self, run_id: str) -> Run:
         return Run.model_validate(await self.call("GET", f"/runs/{run_id}"))
 
-    async def deploy_status(self) -> DeployStatus:
-        """An SSH round trip to the deploy host, and a 503 when that host is
-        unreachable, so it is cached and every caller tolerates failure."""
+    async def deploy_status(self, config_id: str | None = None) -> DeployStatus:
+        """What is deployed, and whether the node is free.
+
+        **Pass ``config_id`` whenever there is one.** ETHOS only probes the node
+        when the request names a stack: ``deployment/orchestrator.py`` gates the
+        probe on ``if self.prober is not None and stack``, so a bare call leaves
+        ``node_free`` null and ``node_reason`` at its initialiser, "the node was
+        not observed". That reads like a failure and is not one — nothing was
+        asked. With a config_id the same endpoint answers
+        ``node_free: true, "state verified: no gNB and no traffic on the node"``
+        and a full ``node_check``.
+
+        An SSH round trip to the deploy host either way, and a 503 when that host
+        is unreachable, so it is cached per config_id and callers tolerate
+        failure.
+        """
 
         async def fetch() -> DeployStatus:
-            body = await self.call("GET", "/deploy/status", slow=True)
+            body = await self.call(
+                "GET",
+                "/deploy/status",
+                params={"config_id": config_id} if config_id else None,
+                slow=True,
+            )
             inner = body.get("status", body) if isinstance(body, dict) else {}
             return DeployStatus.model_validate(inner)
 
-        return await self._cached("deploy_status", self.status_cache_s, fetch)
+        key = f"deploy_status:{config_id or ''}"
+        return await self._cached(key, self.status_cache_s, fetch)
 
     async def status_health(self) -> dict[str, Any]:
         async def fetch() -> dict[str, Any]:

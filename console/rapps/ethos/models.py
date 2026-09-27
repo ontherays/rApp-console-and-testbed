@@ -336,6 +336,45 @@ class DeployStatus(Loose):
     def anything_deployed(self) -> bool:
         return bool(self.releases or self.running_pods)
 
+    @property
+    def node_observed(self) -> bool:
+        """Whether ETHOS actually looked at the node for this request.
+
+        ``node_free`` is null both when the probe failed and when it was never
+        attempted, and the two are different facts. ETHOS attempts it only when
+        the request names a stack, and records what it found in ``node_check``.
+        """
+        return self.node_check is not None or self.node_free is not None
+
+    @property
+    def node_detail(self) -> str:
+        """The real reason, for the hover text.
+
+        A failed probe puts its error in ``warnings`` ("node state unavailable:
+        …"); an unattempted one leaves the initialiser behind. Neither should be
+        shown as if the node had been looked at and found wanting.
+        """
+        problems = [w for w in self.warnings if "node" in w.lower()]
+        if problems:
+            return "; ".join(problems)
+        if self.node_observed:
+            return self.node_reason or "the node was observed"
+        return (
+            "ETHOS probes the node only when the request names a stack, and this "
+            "one did not, so the node was never looked at. Select a topology to "
+            "have it checked."
+        )
+
+    @property
+    def namespace_summary(self) -> str:
+        """What was observed in the namespace, which is answered either way."""
+        if self.anything_deployed:
+            return (
+                f"{len(self.releases)} release(s) and "
+                f"{len(self.running_pods)} running pod(s) in {self.namespace}"
+            )
+        return f"no Helm release and no pod in {self.namespace}"
+
 
 class EthosHealth(Loose):
     status: str | None = None
