@@ -1,0 +1,446 @@
+# =============================================================================
+# ethos-rApp — deploy profiles (Mechanism A, HLD Section 7.1)
+# =============================================================================
+# THIS FILE IS THE SOURCE OF TRUTH FOR WHAT GETS DEPLOYED AND HOW.
+# The deployer (deployment/deployer.py) is a generic engine over this data:
+#
+#   * chart moved to another folder or repo -> edit `chart_path`
+#   * different values file                 -> edit `values_file`
+#   * different release name or namespace   -> edit them here
+#   * a stack that needs CU before DU       -> list two releases, in order
+#   * a different readiness signal          -> edit `readiness`
+#
+# No Python change is ever required for a new chart, a new path or a new stack.
+# Nothing in the code knows the string "ocudu-gnb", "ravi-ns" or "./charts".
+#
+# -----------------------------------------------------------------------------
+# PATHS ARE RESOLVED ON THE DEPLOY HOST (the KVM host, ETHOS_DEPLOY_HOST)
+# -----------------------------------------------------------------------------
+# ETHOS always runs helm/kubectl over SSH to that host, so `chart_path` and
+# `values_file` are paths THERE, in any folder or repo. A relative path resolves
+# against the SSH login directory (the deploy user's home), an absolute path is
+# used as given. Charts do NOT have to live under one root.
+#
+# -----------------------------------------------------------------------------
+# STATUS
+# -----------------------------------------------------------------------------
+#   wired   the chart path, release name, values and namespace are CONFIRMED
+#           from the real lab commands; ETHOS will deploy it.
+#   todo    a placeholder: the structure is here, the real paths are not.
+#           The resolver REFUSES a todo profile rather than fabricate a chart
+#           path — a wrong `helm upgrade --install` is a testbed change, not a
+#           bad reply. Fill in `releases` and flip `status: wired`.
+# =============================================================================
+
+version: 1
+
+metadata:
+  source: "Ravi's lab deploy commands + docs/infrastructure.md Section 5"
+  maintainer: "Ravi"
+  last_reviewed: "2026-08-13"
+
+# Applied to any release that does not state its own.
+defaults:
+  namespace: ravi-ns              # the gNB cluster's namespace (KVM host)
+  readiness_timeout_s: 300
+  readiness_poll_s: 10
+
+profiles:
+
+  # ---------------------------------------------------------------- WIRED ----
+  - name: ocudu-mono
+    status: wired
+    description: "OCUDU monolithic gNB (software-PHY) on the joule worker"
+    # A profile is selected by the selection fields it names. The most specific
+    # match wins, so `ocudu-mono-tm500` (which also names the UE) beats this one
+    # for a TM500 run without either profile knowing about the other.
+    match:
+      gnb_stack: OCUDU
+      gnb_split: monolithic
+    # Which stack this deploys, for the process check after install: the process
+    # name itself comes from compatibility.yaml (`process_name`), never from here.
+    stack: OCUDU
+    releases:
+      - release_name: ocudu-gnb
+        # CANONICAL OCUDU CHART ROOT (Ravi, 2026-09-19):
+        #   /home/oai-gnb/ocudu-helm-templates-2604/charts
+        # holds ocudu-gnb, ocudu-cu, ocudu-du, ocudu-cu-cp, ocudu-cu-up,
+        # ocudu-cu-oai, ocudu-du-oai. OAI's root is
+        #   /home/oai-gnb/oai-helm-templates/oai-5g-ran
+        # `ravi-helm-charts/ocudu-helm-templates` is a near-copy and is NOT
+        # canonical: its values-pegatron.yaml asks for isolcpus 14 / 12 threads
+        # and EAL lcores without core 9, where the canonical file asks for
+        # isolcpus 15 / 13 threads. Different CPU allocation, same chart version
+        # (3.9.2) — so the version alone does not tell you which you ran.
+        #
+        # ABSOLUTE because helm resolves this on the deploy host, and a relative
+        # path lands in the SSH login dir (/home/oai-gnb) — the same trap as
+        # ETHOS_HELM_BIN, one level up.
+        chart_path: /home/oai-gnb/ocudu-helm-templates-2604/charts/ocudu-gnb
+        # Chart ocudu-gnb-3.9.2 (appVersion 26.04). `values-o1-lb.yaml` named
+        # here before does NOT exist in 3.9.2 — it is a 3.4.0/3.7.4 file.
+        # values-pegatron.yaml is the only single file carrying the REAL radio:
+        #   ru_mac_addr 48:21:0b:4b:dc:41, network_interface 0000:ca:01.3,
+        #   vlan_tag_cp/up 5, dl_arfcn 650000, band 78, 100 MHz, scs 30, pci 0,
+        #   nodeSelector kubernetes.io/hostname: joule, and the fh_cp SR-IOV VF.
+        # values-o1.yaml renders 3 containers but carries NO cell block and
+        # `nodeSelector: {}` — O1 without a radio. Layering both needs a second
+        # `-f`, which `values_file` (one string, deployer.py:198) cannot express.
+        # ABSOLUTE for the same reason as chart_path: helm resolves `-f` against
+        # the SSH login dir (/home/oai-gnb), NOT against the chart directory.
+        # `values-pegatron.yaml` alone failed with
+        #   Error: open values-pegatron.yaml: no such file or directory
+        values_file: /home/oai-gnb/ocudu-helm-templates-2604/charts/ocudu-gnb/values-pegatron.yaml
+        # OCUDU's O1 adapter is a SIDECAR of this same release, not a release of
+        # its own, so --with-o1 swaps the values file rather than adding one.
+        values_file_with_o1: /home/oai-gnb/ocudu-helm-templates-2604/charts/ocudu-gnb/values-o1-lb.yaml
+        namespace: ravi-ns
+        readiness:
+          # 1 container on this values file (`ocudu-gnb`), confirmed by
+          # `helm template ... -f values-pegatron.yaml`. The 3-container shape
+          # belongs to values-o1.yaml (ocudu-gnb + ocudu-o1-adapter +
+          # netconf-server) — see the note above on why it is not used here.
+          containers: 1
+          # Pods are matched by name; the release name is the default prefix.
+          pod_name_contains: ocudu-gnb
+          timeout_s: 300
+          poll_s: 10
+          # log_match: "F1 Setup Response"   # optional; unset = not checked,
+          # never silently "passed". Add it once the exact line is confirmed.
+        readiness_with_o1:
+          containers: 3
+          pod_name_contains: ocudu-gnb
+          timeout_s: 300
+          poll_s: 10
+    o1:
+      # DISABLED, and deliberately not omitted.
+      #
+      # This profile installs values-pegatron.yaml, which renders ONE container
+      # and carries no O1 adapter at all (the 3-container O1 shape belongs to
+      # values-o1.yaml — see the readiness note above). So there is no adapter
+      # polling this gNB, and a run on this profile records
+      # `o1_pm: {"status": "not_deployed"}` rather than going looking for PM
+      # that nothing is producing.
+      #
+      # The measurement and counters are written down anyway, because they are
+      # facts about the OCUDU stack rather than about this one values file:
+      # when an O1-carrying values file is wired, `enabled: true` is the only
+      # edit needed, and nobody has to rediscover the classification.
+      enabled: false
+      stack: ocudu
+      # OCUDU reports the ',NRCellDU=' shape (compatibility.yaml cell_fdn);
+      # OAI reports ',DuFunction=...,CellId='. Two stacks, two FDNs, which is
+      # why this is per-profile data and not a constant in code.
+      measurement: ",NRCellDU=nrcelldu1"
+      counters:
+        # kind: volume == a byte count for the report's own window. These are
+        # the counters D14's `value x 8 / MEASURED elapsed` exists for, and
+        # their behaviour is unchanged by this block — it only names what the
+        # rate math was already doing.
+        DRB.PdcpSduVolumeDL: {kind: volume, unit: bytes, unit_verified: true}
+        DRB.PdcpSduVolumeUL: {kind: volume, unit: bytes, unit_verified: true}
+        # Gauges: averaged over the window, never x8, never differentiated.
+        DRB.PdcpSduDelayDl: {kind: gauge, unit: ms}
+        RRC.ConnMean:       {kind: gauge, unit: ue}
+        GranularityPeriod:  {kind: provenance, unit: s}
+
+  # ----------------------------------------------------------- TODO(Ravi) ----
+  # Everything below has the STRUCTURE but not the facts. The multi-release
+  # ordering machinery is already built and tested, so `ocudu-cudu` becomes real
+  # by filling in two releases (CU first, DU second) — no code change.
+
+  - name: ocudu-mono-tm500
+    status: todo
+    description: "OCUDU monolithic gNB driving the VIAVI TM500 (UE+RU emulator)"
+    match:
+      gnb_stack: OCUDU
+      gnb_split: monolithic
+      ue: TM500
+    stack: OCUDU
+    note: >-
+      TODO(Ravi): the TM500 bring-up uses different values (RU emulation,
+      VLAN/MAC) and possibly a second release for the instrument. The 3.9.2
+      chart root has no values-tm500*.yaml — those live in
+      ~/ocudu-helm-templates/charts/ocudu-gnb (3.7.4). Confirm which chart the
+      TM500 runs on before wiring.
+    releases: []
+
+  # --------------------------------------------------------- SAME-VENDOR ----
+  # CU BEFORE DU in every split: the DU's F1 Setup needs the CU listening.
+
+  - name: ocudu-cudu
+    status: wired
+    description: "OCUDU split gNB: CU then DU, F1 over ocudu-internal-net"
+    match:
+      gnb_stack: OCUDU
+      gnb_split: CU+DU
+    stack: OCUDU
+    # OCUDU monolithic runs `gnb`; its SPLIT runs different binaries, and the
+    # charts' own liveness probes say which: `pgrep ocu` / `pgrep odu`.
+    processes: [ocu, odu]
+    releases:
+      - release_name: ocudu-cu
+        chart_path: /home/oai-gnb/ocudu-helm-templates-2604/charts/ocudu-cu
+        values_file: /home/oai-gnb/ocudu-helm-templates-2604/charts/ocudu-cu/values.yaml
+        namespace: ravi-ns
+        readiness:
+          containers: 1
+          pod_name_contains: ocudu-cu
+          timeout_s: 300
+      - release_name: ocudu-du
+        # isolcpus: DU 14 (eal lcores 0-13), CU 0 -> 14 total.
+        chart_path: /home/oai-gnb/ocudu-helm-templates-2604/charts/ocudu-du
+        values_file: /home/oai-gnb/ocudu-helm-templates-2604/charts/ocudu-du/values.yaml
+        namespace: ravi-ns
+        readiness:
+          containers: 1
+          pod_name_contains: ocudu-du
+          timeout_s: 300
+
+  - name: oai-mono
+    status: wired
+    description: "OAI monolithic gNB (nr-softmodem, FHI 7.2 + Pegatron RU)"
+    match:
+      gnb_stack: OAI
+      gnb_split: monolithic
+    stack: OAI
+    releases:
+      - release_name: oai-gnb-fhi72
+        # values.yaml carries the real radio: ruCPlaneMacAdd/ruUPlaneMacAdd
+        # 48:21:0b:4b:dc:41, VLAN 5, AMF 192.168.8.26, isolcpus 15, BOTH
+        # fh_cp and fh_up SR-IOV claims, nodeSelector joule. values1.yaml does
+        # not — do not substitute it.
+        chart_path: /home/oai-gnb/oai-helm-templates/oai-5g-ran/oai-gnb-fhi-72
+        values_file: /home/oai-gnb/oai-helm-templates/oai-5g-ran/oai-gnb-fhi-72/values.yaml
+        namespace: ravi-ns
+        readiness:
+          # One container, named `gnb`; the PROCESS is nr-softmodem, which is
+          # what compatibility.yaml declares and what the node check looks for.
+          containers: 1
+          pod_name_contains: oai-gnb-fhi72
+          timeout_s: 300
+      # The O1 adapter, SECOND and never first. It is a telnet client: it dials
+      # the gNB once a second for `o1 stats`, turns the answer into 3GPP YANG,
+      # and ships PM as VES notifyFileReady to the SMO collector. Installed
+      # before the gNB it would poll a name with no endpoints; teardown removes
+      # releases in REVERSE order, so listing it here also gets it out of the
+      # way before the gNB goes — which is the order that matters, since the
+      # adapter holds the telnet session open.
+      - release_name: o1-mono
+        # This copy, not oai-o1-adapter-O-cloud/: identical templates, but its
+        # values-mono.yaml carries the real image.repository instead of the
+        # <REGISTRY_HOST> placeholder. It is the copy that was run by hand.
+        chart_path: /home/oai-gnb/ravi-helm-charts/oai-o1-adapter-helm-templates
+        values_file: /home/oai-gnb/ravi-helm-charts/oai-o1-adapter-helm-templates/values-mono.yaml
+        namespace: ravi-ns
+        readiness:
+          containers: 1
+          pod_name_contains: o1-mono
+          timeout_s: 300
+          # Pods-Running is not evidence for this release: the adapter reaches
+          # Running in seconds and would sit there logging heartbeats even with
+          # nothing on the other end of the telnet socket.
+          #
+          # BOTH lines are required, because neither is sufficient alone:
+          #
+          #   notifyFileReady        is the OUTGOING VES body, and the adapter
+          #                          logs it (ves_internal.c:307) BEFORE it has
+          #                          a response. Proven on 2026-09-20: the
+          #                          pnfRegistration body was logged the same
+          #                          way and then rejected with a 400. On its
+          #                          own this matches a payload the collector
+          #                          threw away. What it DOES prove is that the
+          #                          gNB answered `o1 stats` with real stats —
+          #                          no answer, no PM file, no notification.
+          #   Successfully send      is the collector's acceptance
+          #                          (ves_internal.c:131, after response_code).
+          #                          On its own it is satisfied by a heartbeat,
+          #                          which the adapter sends whether or not the
+          #                          telnet session ever connected.
+          #
+          # Together: the gNB is answering AND the collector is accepting.
+          # First observed ~30 s after install, then once per 30 s.
+          #
+          # This stops short of InfluxDB on purpose: what happens after the VES
+          # 202 — DFC, MinIO, the converter, pmlog — is the SMO's chain, not
+          # this release's, and a deploy must not fail for a fault downstream
+          # of the thing it deployed.
+          log_match:
+            - 'notifyFileReady'
+            - 'Successfully send event'
+          # The adapter logs each VES body in full, ~30 lines, plus one
+          # telnet_write per second, so 200 lines is under a minute of history.
+          # 400 keeps a whole report period in view.
+          log_tail: 400
+    o1:
+      # DECLARED, never inferred from the release name above. A release is a
+      # label an operator picked; this block is a statement that PM CAN be
+      # collected for this topology — not that it always is.
+      #
+      # `enabled` is only the DEFAULT for this profile, and it is false on
+      # purpose: the plain throughput sweep
+      #     python -m campaign oai-mono --rates 100-1000:100 --duration 10s
+      # must keep deploying the gNB ALONE, exactly as it did before O1 existed.
+      # A 1 Hz telnet poller is not something to put on a shared testbed during
+      # a measurement unless the measurement wants it.
+      #
+      # Ask for the adapter per deployment instead:
+      #     python -m campaign oai-mono ... --with-o1
+      #     POST /deploy  {"profile": "oai-mono", "with_o1": true}
+      # which installs `o1-mono` below and collects PM. One profile either way —
+      # there is no `oai-mono-noo1`, because the topology is the same topology.
+      enabled: false
+      stack: oai
+      release: o1-mono
+      # The InfluxDB _measurement, which in this pipeline IS the cell FDN.
+      # Observed 2026-09-20. NOT the ',NRCellDU=' shape OCUDU reports — that is
+      # exactly why this lives per profile instead of in code.
+      measurement: "ManagedElement=oai-gnb-mono,DuFunction=3602,CellId=1"
+      counters:
+        # kind: rate == the adapter ALREADY divided. The D14 x8/elapsed math is
+        # skipped for these. Running it anyway would report a 100 Mbit/s run as
+        # about 27 (x8, then / ~30 s).
+        #
+        # unit_verified / semantics_verified stay FALSE until a human confirms
+        # them. Consistent cross-checks are evidence, not confirmation, and
+        # nothing in the code may flip these.
+        DRB.UEThpDl:
+          kind: rate
+          unit: kbit/s
+          unit_verified: false
+          period_semantics: mean_over_period_ending_at_timestamp
+          semantics_verified: false
+        DRB.UEThpUl:
+          kind: rate
+          unit: kbit/s
+          unit_verified: false
+          period_semantics: mean_over_period_ending_at_timestamp
+          semantics_verified: false
+        RRU.PrbTotDl:
+          kind: gauge
+          unit: prb
+          period_semantics: mean_over_period_ending_at_timestamp
+        DRB.MeanActiveUeDl: {kind: gauge, unit: ue}
+        DRB.MaxActiveUeDl:  {kind: gauge, unit: ue}
+        DRB.MeanActiveUeUl: {kind: gauge, unit: ue}
+        DRB.MaxActiveUeUl:  {kind: gauge, unit: ue}
+        # Read and stored, never used in arithmetic: it reports 900 while the
+        # observed cadence is 30 s (D14).
+        GranularityPeriod: {kind: provenance, unit: s}
+    note: >-
+      R4: OAI monopolises the hardware PMU, so an O2 capture for this stack runs
+      with the PMU OFF (pmu: false in compatibility.yaml) and ETHOS refuses a
+      capture while perf/uncore are live.
+      CPU: the chart REQUIRES >= 14 isolcpus (templates/deployment.yaml guards
+      on CPU_COUNT and exits 1 below that) and values.yaml asks for 15, which is
+      exactly joule's allocatable. The core layout is computed at RUNTIME from
+      the allocated cpuset by index - get_cpu 1..3 ingestion, 4 system+ru
+      (shared on purpose), 5 io, 6 worker, 7/8 L1 rx/tx, 9..14 thread pool - so
+      the core numbers written in the chart's config.yaml are INERT: the yq
+      patcher overwrites them. Editing config.yaml cores changes nothing;
+      changing isolcpus changes everything. Measured at isolcpus 14 (commit
+      044c014): ~865 Mbit/s DL ceiling. At 15 (commit 196c038): re-measure.
+
+  - name: oai-cudu
+    status: wired
+    description: "OAI split gNB: CU then DU, F1 split"
+    match:
+      gnb_stack: OAI
+      gnb_split: CU+DU
+    stack: OAI
+    # Both OAI halves run nr-softmodem, so the stack default would work — named
+    # here anyway so every split states its own processes.
+    processes: [nr-softmodem]
+    releases:
+      - release_name: oai-cu
+        chart_path: /home/oai-gnb/oai-helm-templates/oai-5g-ran/oai-cu
+        values_file: /home/oai-gnb/oai-helm-templates/oai-5g-ran/oai-cu/values.yaml
+        namespace: ravi-ns
+        readiness:
+          containers: 1
+          pod_name_contains: oai-cu
+          timeout_s: 300
+      - release_name: oai-du
+        # NOT oai-du-fhi-72: that chart is 2026-03-30 and emits an OpenShift
+        # `kind: SriovNetwork`, which this StarlingX cluster does not use.
+        # isolcpus: DU 15, CU 0 -> 15 total, exactly joule's allocatable.
+        chart_path: /home/oai-gnb/oai-helm-templates/oai-5g-ran/oai-du
+        values_file: /home/oai-gnb/oai-helm-templates/oai-5g-ran/oai-du/values.yaml
+        namespace: ravi-ns
+        readiness:
+          containers: 1
+          pod_name_contains: oai-du
+          timeout_s: 300
+
+  # -------------------------------------------------------- CROSS-VENDOR ----
+  # Both run TWO stacks at once by design, so `stack` is a LIST here: the node
+  # check expects both processes, and "stack mixing" means a process belonging
+  # to neither. See execution/state_verifier.py.
+  #
+  # The F1 parameters that decide whether the link comes up at all (gNB ID, NR
+  # cell identity, F1-C SCTP port) are literals inside each chart's config.yaml,
+  # NOT templated from these values files. Changing a rate here does not
+  # re-derive them. See docs/review/gap-analysis.md GAP-03.
+
+  - name: ocudu-cu-oai-du
+    status: wired
+    description: "Cross-vendor: OCUDU CU + OAI DU (F1 over the ocudu-f1-br bridge)"
+    match:
+      gnb_split: OCUDU-CU+OAI-DU
+    stack: [OCUDU, OAI]
+    # OCUDU CU (`ocu`) + OAI DU (`nr-softmodem`). Both must be up.
+    processes: [ocu, nr-softmodem]
+    releases:
+      - release_name: ocudu-cu-oai
+        chart_path: /home/oai-gnb/ocudu-helm-templates-2604/charts/ocudu-cu-oai
+        values_file: /home/oai-gnb/ocudu-helm-templates-2604/charts/ocudu-cu-oai/values.yaml
+        namespace: ravi-ns
+        readiness:
+          containers: 1
+          pod_name_contains: ocudu-cu
+          timeout_s: 300
+      - release_name: oai-du-ocudu
+        chart_path: /home/oai-gnb/oai-helm-templates/oai-5g-ran/oai-du-ocudu
+        values_file: /home/oai-gnb/oai-helm-templates/oai-5g-ran/oai-du-ocudu/values.yaml
+        namespace: ravi-ns
+        readiness:
+          containers: 1
+          pod_name_contains: oai-du
+          timeout_s: 300
+    note: >-
+      KNOWN UPSTREAM DEFECT: the OCUDU CU-UP drops downlink SDUs when the OAI DU
+      reports Desired Buffer Size = 0, so DL may measure ~0 while UL works. That
+      is a vendor-code bug, not a deployment fault — record the result, do not
+      tune around it. The OAI DU's three source fixes exist only in image tag
+      2026.w35-cgc-ddds-ss (GAP-19).
+
+  - name: oai-cu-ocudu-du
+    status: wired
+    description: "Cross-vendor: OAI CU + OCUDU DU"
+    match:
+      gnb_split: OAI-CU+OCUDU-DU
+    stack: [OAI, OCUDU]
+    # OAI CU (`nr-softmodem`) + OCUDU DU (`odu`). Both must be up.
+    processes: [nr-softmodem, odu]
+    releases:
+      - release_name: oai-cu-ocudu
+        chart_path: /home/oai-gnb/oai-helm-templates/oai-5g-ran/oai-cu-ocudu
+        values_file: /home/oai-gnb/oai-helm-templates/oai-5g-ran/oai-cu-ocudu/values.yaml
+        namespace: ravi-ns
+        readiness:
+          containers: 1
+          pod_name_contains: oai-cu
+          timeout_s: 300
+      - release_name: ocudu-du-oai
+        chart_path: /home/oai-gnb/ocudu-helm-templates-2604/charts/ocudu-du-oai
+        values_file: /home/oai-gnb/ocudu-helm-templates-2604/charts/ocudu-du-oai/values.yaml
+        namespace: ravi-ns
+        readiness:
+          containers: 1
+          pod_name_contains: ocudu-du
+          timeout_s: 300
+    note: >-
+      ocudu-du-oai/values.yaml:352-361 says to add `gnb_id: 3584` only if F1
+      Setup is rejected on cell identity — i.e. the alignment is a debugging
+      step, not configuration. If F1 does not come up, that comment is the first
+      thing to act on.

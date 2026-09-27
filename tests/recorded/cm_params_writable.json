@@ -1,0 +1,418 @@
+{
+  "stacks": {
+    "OCUDU": {
+      "stack": "OCUDU",
+      "key": "ocudu",
+      "label": "OCUDU gNB stack",
+      "status": "wired",
+      "is_todo": false,
+      "defaults": {
+        "container_key": "attributes",
+        "method": "PATCH",
+        "path": "_3gpp-common-managed-element:ManagedElement=ran1/GNBDUFunction=du1/NRCellDU=nrcelldu1"
+      },
+      "writable": [
+        {
+          "name": "ssb_block_power_dbm",
+          "stack": "OCUDU",
+          "attribute": "ssb_block_power_dbm",
+          "concept": "ssb_power",
+          "writable": true,
+          "type": "number",
+          "unit": "dBm",
+          "allowed": "-16..10 dBm",
+          "min": -16.0,
+          "max": 10.0,
+          "enum": [],
+          "known_good": -11,
+          "known_good_by": {
+            "Pegatron": -11,
+            "TM500": 10,
+            "doc_default": -16
+          },
+          "known_good_source": "values-o1-lb.yaml (O1 block), values-tm500.yaml \u2014 NOT gnb-config.yml",
+          "confidence": "provisional",
+          "container_key": "ocudu_nrcelldu_ssb_extensions",
+          "module": "urn:ocudu-nrcelldu-extension:1.0",
+          "note": "THE incident parameter. 3GPP/schema allows [-60, +50] dBm and the node will accept any of it; this range is the ENVIRONMENT-SAFE window \u2014 the span of values this testbed actually runs. It is RU-DEPENDENT: Pegatron runs -11, the TM500 runs +10, the documented default is -16. A value that mismatches the rendered values.yaml is what produced RSRP overflow / high UL BLER. Check the run's RU before pushing. PROVENANCE: this is an O1/YANG **augmentation** leaf (`urn:ocudu-nrcelldu-extension:1.0`), and it is NOT in the Helm-rendered gnb-config.yml \u2014 values-pegatron.yaml does not mention it at all. The known-good values therefore come from the O1 blocks of the values-*.yaml files and the working setup, not from the running config ETHOS archives per run (R2). Seeded, not measured (D19)."
+        },
+        {
+          "name": "iq_scaling",
+          "stack": "OCUDU",
+          "attribute": "iq_scaling",
+          "concept": "iq_scaling",
+          "writable": true,
+          "type": "number",
+          "unit": null,
+          "allowed": "1..20",
+          "min": 1.0,
+          "max": 20.0,
+          "enum": [],
+          "known_good": 10,
+          "known_good_by": {
+            "Pegatron": 10,
+            "TM500": 10,
+            "chart_default": 5.5
+          },
+          "known_good_source": "values-o1-lb.yaml (O1 block), values-tm500.yaml \u2014 NOT gnb-config.yml",
+          "confidence": "provisional",
+          "container_key": "ocudu_nrcelldu_ofh_extensions",
+          "module": "urn:ocudu-nrcelldu-extension:1.0",
+          "note": "The other half of the RSRP-overflow / UL-BLER incident: fronthaul IQ scaling in the OFH extension container. Observed working values are 5.5-10; the window is 1..20 and provisional. Too high clips, too low buries the signal in quantisation noise \u2014 both look like a healthy push and a broken radio. PROVENANCE: like ssb_block_power_dbm, an O1/YANG augmentation leaf absent from the Helm-rendered gnb-config.yml (values-pegatron.yaml does not carry it), so its window is sourced from the values-*.yaml O1 blocks and the working setup \u2014 seeded, not measured (D19)."
+        },
+        {
+          "name": "administrative_state",
+          "stack": "OCUDU",
+          "attribute": "administrativeState",
+          "concept": "administrative_state",
+          "writable": true,
+          "type": "string",
+          "unit": null,
+          "allowed": "one of 'LOCKED', 'UNLOCKED'",
+          "min": null,
+          "max": null,
+          "enum": [
+            "LOCKED",
+            "UNLOCKED"
+          ],
+          "known_good": "UNLOCKED",
+          "known_good_by": {},
+          "known_good_source": null,
+          "confidence": "confirmed",
+          "container_key": null,
+          "module": null,
+          "note": "3GPP-defined enum, and the value read back from the running cell. LOCKING a cell drops its UEs \u2014 legitimate between runs, never during one."
+        },
+        {
+          "name": "pci",
+          "stack": "OCUDU",
+          "attribute": "nRPCI",
+          "concept": "pci",
+          "writable": true,
+          "type": "integer",
+          "unit": null,
+          "allowed": "0..1007",
+          "min": 0.0,
+          "max": 1007.0,
+          "enum": [],
+          "known_good": 0,
+          "known_good_by": {},
+          "known_good_source": null,
+          "confidence": "confirmed",
+          "container_key": null,
+          "module": null,
+          "note": "3GPP NR PCI range 0..1007; the lab's cells run PCI 0."
+        },
+        {
+          "name": "bandwidth_mhz",
+          "stack": "OCUDU",
+          "attribute": "bSChannelBwDL",
+          "concept": "channel_bandwidth",
+          "writable": true,
+          "type": "integer",
+          "unit": "MHz",
+          "allowed": "one of 80, 100",
+          "min": null,
+          "max": null,
+          "enum": [
+            80,
+            100
+          ],
+          "known_good": 100,
+          "known_good_by": {},
+          "known_good_source": null,
+          "confidence": "provisional",
+          "container_key": null,
+          "module": null,
+          "note": "The charts run 100 MHz (Pegatron and TM500 alike); the audit's CM read showed 80. Only those two are listed. A bandwidth the RU's fronthaul cannot carry is a redeploy question (Mechanism A), not a push."
+        },
+        {
+          "name": "bandwidth_ul_mhz",
+          "stack": "OCUDU",
+          "attribute": "bSChannelBwUL",
+          "concept": "channel_bandwidth",
+          "writable": true,
+          "type": "integer",
+          "unit": "MHz",
+          "allowed": "one of 80, 100",
+          "min": null,
+          "max": null,
+          "enum": [
+            80,
+            100
+          ],
+          "known_good": 100,
+          "known_good_by": {},
+          "known_good_source": null,
+          "confidence": "provisional",
+          "container_key": null,
+          "module": null,
+          "note": "As bandwidth_mhz, uplink side. Keep DL and UL consistent."
+        }
+      ],
+      "not_writable": [
+        {
+          "name": "dl_arfcn",
+          "stack": "OCUDU",
+          "attribute": "arfcnDL",
+          "concept": "ssb_frequency",
+          "writable": false,
+          "type": "number",
+          "unit": null,
+          "allowed": "no bound declared",
+          "min": null,
+          "max": null,
+          "enum": [],
+          "known_good": null,
+          "known_good_by": {},
+          "known_good_source": null,
+          "confidence": "provisional",
+          "container_key": null,
+          "module": null,
+          "reason": "Retuning a live cell's carrier is not a parameter tweak: it must match the RU's configured band and the fronthaul (the charts run 650000 for Pegatron, 630048 for the TM500). Change it in the rendered config and redeploy (Mechanism A)."
+        },
+        {
+          "name": "arfcn_ul",
+          "stack": "OCUDU",
+          "attribute": "arfcnUL",
+          "concept": "ssb_frequency",
+          "writable": false,
+          "type": "number",
+          "unit": null,
+          "allowed": "no bound declared",
+          "min": null,
+          "max": null,
+          "enum": [],
+          "known_good": null,
+          "known_good_by": {},
+          "known_good_source": null,
+          "confidence": "provisional",
+          "container_key": null,
+          "module": null,
+          "reason": "As dl_arfcn \u2014 carrier changes are a redeploy, not a CM write."
+        },
+        {
+          "name": "common_scs",
+          "stack": "OCUDU",
+          "attribute": "common_scs",
+          "concept": null,
+          "writable": false,
+          "type": "number",
+          "unit": null,
+          "allowed": "no bound declared",
+          "min": null,
+          "max": null,
+          "enum": [],
+          "known_good": null,
+          "known_good_by": {},
+          "known_good_source": null,
+          "confidence": "provisional",
+          "container_key": "ocudu_nrcelldu_base_extensions",
+          "module": "urn:ocudu-nrcelldu-extension:1.0",
+          "reason": "Numerology is fixed at bring-up: it changes the frame structure the RU and the DU agreed on. Mechanism A."
+        },
+        {
+          "name": "tdd_pattern",
+          "stack": "OCUDU",
+          "attribute": "tdd_ul_dl_cfg",
+          "concept": null,
+          "writable": false,
+          "type": "number",
+          "unit": null,
+          "allowed": "no bound declared",
+          "min": null,
+          "max": null,
+          "enum": [],
+          "known_good": null,
+          "known_good_by": {},
+          "known_good_source": null,
+          "confidence": "provisional",
+          "container_key": "ocudu_nrcelldu_tdd_extensions",
+          "module": "urn:ocudu-nrcelldu-extension:1.0",
+          "reason": "TODO(Ravi): OCUDU expresses TDD as slot counts, not a \"DDDSU\" string (dl_ul_tx_period 10, nof_dl_slots 7, nof_dl_symbols 6, nof_ul_slots 2, nof_ul_symbols 4). A change re-times the fronthaul against the RU and the PTP domain, so no safe combination has been established \u2014 add the individual leaves here once one has."
+        },
+        {
+          "name": "nof_antennas_dl",
+          "stack": "OCUDU",
+          "attribute": "nof_antennas_dl",
+          "concept": null,
+          "writable": false,
+          "type": "number",
+          "unit": null,
+          "allowed": "no bound declared",
+          "min": null,
+          "max": null,
+          "enum": [],
+          "known_good": null,
+          "known_good_by": {},
+          "known_good_source": null,
+          "confidence": "provisional",
+          "container_key": "ocudu_nrcelldu_base_extensions",
+          "module": "urn:ocudu-nrcelldu-extension:1.0",
+          "reason": "TODO(Ravi): antenna count is tied to the RU's port map and the DPDK port lists (Pegatron 4x4, TM500 2x2). Changing it live has not been tried; it is a redeploy today."
+        }
+      ],
+      "note": "Cell tuning lives in the vendor augmentation `urn:ocudu-nrcelldu-extension:1.0`, in per-topic sub-containers (`ocudu_nrcelldu_ssb_extensions`, `..._ofh_extensions`, `..._base_extensions`, `..._tdd_extensions`). The 3GPP leaves (`administrativeState`, `nRPCI`, `arfcnDL/UL`, `bSChannelBwDL/UL`, `ssbFrequency`) sit directly under NRCellDU/attributes."
+    },
+    "OAI": {
+      "stack": "OAI",
+      "key": "oai",
+      "label": "OpenAirInterface gNB stack",
+      "status": "todo",
+      "is_todo": true,
+      "defaults": {
+        "container_key": "attributes",
+        "method": "PATCH",
+        "path": ""
+      },
+      "writable": [],
+      "not_writable": [],
+      "note": "TODO(Ravi): no OAI CM write is wired. OAI's O1 adapter has not been observed on this SMO (it has no confirmed cell FDN either \u2014 see compatibility.yaml), and its parameter names differ from OCUDU's (`absoluteFrequencySSB` rather than `dl_arfcn`, no `urn:ocudu-nrcelldu-extension:1.0` tree at all). Until the names, paths and safe windows are confirmed, every CM write for an OAI run is REFUSED \u2014 which is the point: sending OCUDU's names to an OAI node would either fail obscurely or, worse, hit a leaf that means something else."
+    }
+  },
+  "concepts": {
+    "ssb_frequency": {
+      "description": "SSB / DL carrier frequency",
+      "values_portable": false,
+      "difference": "encoding",
+      "warning": "Both are NR-ARFCNs, but they are not the same number and not the same cell: OCUDU runs 650000, OAI 649920. Never copy one to the other.",
+      "ocudu": "dl_arfcn",
+      "oai": "absoluteFrequencySSB",
+      "units": {
+        "ocudu": "NR-ARFCN",
+        "oai": "NR-ARFCN"
+      },
+      "examples": {
+        "ocudu": 650000,
+        "oai": 649920
+      }
+    },
+    "band": {
+      "description": "NR operating band",
+      "values_portable": false,
+      "difference": "none",
+      "warning": "The value happens to match today (78 on both), which is exactly when a copied value stops being noticed. Still per stack.",
+      "ocudu": "band",
+      "oai": "dl_frequencyBand",
+      "units": {
+        "ocudu": "band number",
+        "oai": "band number"
+      },
+      "examples": {
+        "ocudu": 78,
+        "oai": 78
+      }
+    },
+    "channel_bandwidth": {
+      "description": "Cell channel bandwidth",
+      "values_portable": false,
+      "difference": "unit",
+      "warning": "\u26a0\ufe0f UNITS DIFFER: OCUDU states MHz (100), OAI states PRBs (273). OCUDU's 100 written to OAI's dl_carrierBandwidth would configure a 100-PRB cell and look entirely valid. Define OAI's range in PRBs, from OAI's config.",
+      "ocudu": "channel_bandwidth_MHz",
+      "oai": "dl_carrierBandwidth",
+      "units": {
+        "ocudu": "MHz",
+        "oai": "PRB"
+      },
+      "examples": {
+        "ocudu": 100,
+        "oai": 273
+      }
+    },
+    "scs": {
+      "description": "Subcarrier spacing / numerology",
+      "values_portable": false,
+      "difference": "encoding",
+      "warning": "\u26a0\ufe0f ENCODING DIFFERS: OCUDU states kHz (30), OAI states the SCS *index* (1 = 30 kHz). OCUDU's 30 in OAI's dl_subcarrierSpacing is not 30 kHz \u2014 it is not a valid numerology index at all.",
+      "ocudu": "common_scs",
+      "oai": "dl_subcarrierSpacing",
+      "units": {
+        "ocudu": "kHz",
+        "oai": "SCS index"
+      },
+      "examples": {
+        "ocudu": 30,
+        "oai": 1
+      }
+    },
+    "ssb_power": {
+      "description": "SSB transmit power",
+      "values_portable": false,
+      "difference": "leaf",
+      "warning": "\u26a0\ufe0f DIFFERENT LEAF, DIFFERENT WINDOW: OCUDU's ssb_block_power_dbm is a vendor-extension leaf running -11 (Pegatron) / +10 (TM500); OAI's ssPBCH_BlockPower is a servingCellConfigCommon leaf running -10. When OAI is wired, centre ITS range on ITS value \u2014 never inherit OCUDU's -16..10.",
+      "ocudu": "ssb_block_power_dbm",
+      "oai": "ssPBCH_BlockPower",
+      "units": {
+        "ocudu": "dBm",
+        "oai": "dBm"
+      },
+      "examples": {
+        "ocudu": -11,
+        "oai": -10
+      }
+    },
+    "iq_scaling": {
+      "description": "Fronthaul IQ scaling (OFH)",
+      "values_portable": false,
+      "difference": "leaf",
+      "warning": "An OCUDU OFH vendor-extension leaf. OAI's FHI 7.2 stack does not expose an equivalent in its config; do not assume one.",
+      "ocudu": "iq_scaling",
+      "oai": null,
+      "units": {
+        "ocudu": "scale factor"
+      },
+      "examples": {
+        "ocudu": 10
+      }
+    },
+    "pci": {
+      "description": "Physical cell id",
+      "values_portable": false,
+      "difference": "none",
+      "warning": "Same 3GPP meaning and range; still validated per stack.",
+      "ocudu": "pci",
+      "oai": "physCellId",
+      "units": {
+        "ocudu": "PCI",
+        "oai": "PCI"
+      },
+      "examples": {
+        "ocudu": 0,
+        "oai": 0
+      }
+    },
+    "prach_config_index": {
+      "description": "PRACH configuration index",
+      "values_portable": false,
+      "difference": "none",
+      "warning": "Both index the same 3GPP table and both run 148 today \u2014 which is why a copied value would go unnoticed if the tables ever diverged.",
+      "ocudu": "prach_config_index",
+      "oai": "prach_ConfigurationIndex",
+      "units": {
+        "ocudu": "table index",
+        "oai": "table index"
+      },
+      "examples": {
+        "ocudu": 148,
+        "oai": 148
+      }
+    },
+    "administrative_state": {
+      "description": "Cell administrative state (3GPP ManagedElement leaf)",
+      "values_portable": false,
+      "difference": "none",
+      "warning": "3GPP-common leaf; still resolved and validated per stack.",
+      "ocudu": "administrative_state",
+      "oai": "administrative_state",
+      "units": {
+        "ocudu": "enum",
+        "oai": "enum"
+      },
+      "examples": {
+        "ocudu": "UNLOCKED",
+        "oai": "UNLOCKED"
+      }
+    }
+  },
+  "source": "/home/oai-gnb/ravi-ethos-rApp/o1/cm_writable_params.yaml"
+}

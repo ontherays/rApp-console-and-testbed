@@ -1,0 +1,35 @@
+{
+  "generated_at_taipei": "2026-09-25T18:55:04+08:00",
+  "kind": "line",
+  "width": "single",
+  "metric": "achieved_over_tx_mbps",
+  "selection": {
+    "source": "influx",
+    "rows_in": 60,
+    "rows_out": 60,
+    "dropped_count": 0,
+    "filters": {
+      "config_ids": [
+        "ocudu-mono_swphy_pega_samsung_o5gs_joule",
+        "oai-mono_swphy_pega_samsung_o5gs_joule"
+      ]
+    }
+  },
+  "points": [
+    {
+      "offered_mbps": 100,
+      "n": 5,
+      "durations_s": [
+        30
+      ]
+    },
+    {
+      "offered_mbps": 200,
+      "n": 5,
+      "durations_s": [
+        30
+      ]
+    }
+  ],
+  "n_summary": "n=5 per point"
+}

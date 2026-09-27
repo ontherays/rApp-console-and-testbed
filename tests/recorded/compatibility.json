@@ -1,0 +1,590 @@
+{
+  "version": 1,
+  "metadata": {
+    "source": "HLD Section 6 (TA-rApp_HLD.md) + E2E hardware diagram",
+    "maintainer": "Ravi",
+    "diagram_transcribed": true,
+    "last_reviewed": "2026-08-07"
+  },
+  "policy": {
+    "treat_todo_as": "reject",
+    "unlisted": "reject"
+  },
+  "required_categories": [
+    "ue",
+    "ru",
+    "gnb_stack",
+    "gnb_split",
+    "l1_backend",
+    "core",
+    "server"
+  ],
+  "options": {
+    "ue": [
+      {
+        "category": "ue",
+        "id": "Samsung",
+        "slug": "samsung",
+        "label": "Samsung handset UE",
+        "status": "supported",
+        "aliases": [
+          "samsung-ue",
+          "s24"
+        ]
+      },
+      {
+        "category": "ue",
+        "id": "MTK",
+        "slug": "mtk",
+        "label": "MediaTek UE",
+        "status": "supported",
+        "aliases": [
+          "mediatek"
+        ]
+      },
+      {
+        "category": "ue",
+        "id": "Pegatron-Dongle",
+        "slug": "pegadongle",
+        "label": "Pegatron dongle UE",
+        "status": "supported",
+        "aliases": [
+          "pegatron-dongle",
+          "pega-dongle",
+          "dongle"
+        ]
+      },
+      {
+        "category": "ue",
+        "id": "TM500",
+        "slug": "tm500",
+        "label": "VIAVI TM500 test UE (emulator)",
+        "status": "supported",
+        "aliases": [
+          "tm-500",
+          "viavi-tm500"
+        ],
+        "note": "Couples 1:1 with the TM500 RU \u2014 see couplings/tm500-pairing (RULE-1)."
+      }
+    ],
+    "ru": [
+      {
+        "category": "ru",
+        "id": "Pegatron",
+        "slug": "pega",
+        "label": "Pegatron O-RU (7.2x)",
+        "status": "supported",
+        "aliases": [
+          "pegatron-ru",
+          "pega"
+        ]
+      },
+      {
+        "category": "ru",
+        "id": "Foxconn",
+        "slug": "foxconn",
+        "label": "Foxconn O-RU (7.2x)",
+        "status": "supported",
+        "aliases": [
+          "foxconn-ru"
+        ]
+      },
+      {
+        "category": "ru",
+        "id": "TM500",
+        "slug": "tm500",
+        "label": "VIAVI TM500 RU emulation",
+        "status": "supported",
+        "aliases": [
+          "tm-500",
+          "viavi-tm500"
+        ],
+        "note": "Couples 1:1 with the TM500 UE \u2014 see couplings/tm500-pairing (RULE-1)."
+      }
+    ],
+    "gnb_stack": [
+      {
+        "category": "gnb_stack",
+        "id": "OCUDU",
+        "slug": "ocudu",
+        "label": "OCUDU gNB stack",
+        "status": "supported",
+        "aliases": [
+          "ocudu-gnb",
+          "oc"
+        ],
+        "process_name": "gnb",
+        "pmu": true,
+        "cell_fdn": ",NRCellDU=nrcelldu1"
+      },
+      {
+        "category": "gnb_stack",
+        "id": "OAI",
+        "slug": "oai",
+        "label": "OpenAirInterface gNB stack",
+        "status": "supported",
+        "aliases": [
+          "openairinterface",
+          "oai-gnb"
+        ],
+        "process_name": "nr-softmodem",
+        "pmu": false
+      }
+    ],
+    "gnb_split": [
+      {
+        "category": "gnb_split",
+        "id": "monolithic",
+        "slug": "mono",
+        "label": "Monolithic gNB (CU+DU in one)",
+        "status": "supported",
+        "aliases": [
+          "mono",
+          "monolith"
+        ]
+      },
+      {
+        "category": "gnb_split",
+        "id": "CU+DU",
+        "slug": "cudu",
+        "label": "Split CU + DU, same vendor",
+        "status": "supported",
+        "aliases": [
+          "cu-du",
+          "split",
+          "cudu"
+        ]
+      },
+      {
+        "category": "gnb_split",
+        "id": "OCUDU-CU+OAI-DU",
+        "slug": "mixocuoai",
+        "label": "Mixed split: OCUDU CU + OAI DU",
+        "status": "experimental",
+        "aliases": [
+          "mixed-ocudu-cu-oai-du",
+          "ocudu-cu-oai-du"
+        ],
+        "note": "RULE-3: valid only where a working cross-vendor F1 exists. EXPERIMENTAL.",
+        "cu_vendor": "OCUDU",
+        "du_vendor": "OAI"
+      },
+      {
+        "category": "gnb_split",
+        "id": "OAI-CU+OCUDU-DU",
+        "slug": "mixoaiocu",
+        "label": "Mixed split: OAI CU + OCUDU DU",
+        "status": "experimental",
+        "aliases": [
+          "mixed-oai-cu-ocudu-du",
+          "oai-cu-ocudu-du"
+        ],
+        "note": "RULE-3: valid only where a working cross-vendor F1 exists. EXPERIMENTAL.",
+        "cu_vendor": "OAI",
+        "du_vendor": "OCUDU"
+      }
+    ],
+    "l1_backend": [
+      {
+        "category": "l1_backend",
+        "id": "software-PHY",
+        "slug": "swphy",
+        "label": "Software PHY (the DU's own L1)",
+        "status": "supported",
+        "aliases": [
+          "swphy",
+          "sw-phy",
+          "softwarephy",
+          "software-phy"
+        ]
+      },
+      {
+        "category": "l1_backend",
+        "id": "Aerial-cuBB",
+        "slug": "aerial",
+        "label": "NVIDIA Aerial cuBB (cuphycontroller_scf, SCF FAPI 10.02 over nvIPC)",
+        "status": "experimental",
+        "aliases": [
+          "aerial",
+          "cubb",
+          "aerial-cubb",
+          "nvidia-aerial"
+        ],
+        "note": "RULE-7: requires the DGX-Spark GB10 + ConnectX-7 host. RULE-10: Aerial is a High-PHY (L1) backend for a MONOLITHIC gNB only \u2014 there is no CU+DU split when Aerial is the L1 backend."
+      }
+    ],
+    "core": [
+      {
+        "category": "core",
+        "id": "Open5GS",
+        "slug": "o5gs",
+        "label": "Open5GS 5G core",
+        "status": "supported",
+        "aliases": [
+          "open5gs",
+          "o5gs"
+        ]
+      },
+      {
+        "category": "core",
+        "id": "free5GC",
+        "slug": "f5gc",
+        "label": "free5GC 5G core",
+        "status": "supported",
+        "aliases": [
+          "free5gc",
+          "f5gc"
+        ]
+      }
+    ],
+    "server": [
+      {
+        "category": "server",
+        "id": "joule",
+        "slug": "joule",
+        "label": "joule \u2014 O-Cloud worker (StarlingX RT kernel, SR-IOV)",
+        "status": "supported",
+        "aliases": [
+          "joule-worker"
+        ],
+        "note": "Software-PHY path. DU on socket 1 (pkg1), control on socket 0 (pkg0).",
+        "arch": "x86_64",
+        "telemetry_scope": "full-host",
+        "energy_capture": "rapl",
+        "fronthaul": "SR-IOV VF on enp202s0f0 (vfio-pci/DPDK) via UfiSpace OcNOS FH switch (port xe12), Split 7.2x, VLAN 5 (S-Plane + C/U-Plane)"
+      },
+      {
+        "category": "server",
+        "id": "DGX-Spark",
+        "slug": "dgxspark",
+        "label": "DGX-Spark (spark-d957) \u2014 GB10 ARM + ConnectX-7, Aerial L1 host",
+        "status": "experimental",
+        "aliases": [
+          "dgx-spark",
+          "dgxspark",
+          "spark-d957",
+          "spark"
+        ],
+        "note": "ARM: Intel RAPL does not apply, so O-Cloud energy capture here is phase-2 (needs NVIDIA/Redfish telemetry). Throughput tests are fine. Host-level CPU/memory for the L2/L3 gNB process is still collected; only the Aerial accelerator's own hardware telemetry is out of scope.",
+        "arch": "arm64",
+        "telemetry_scope": "l2l3-stack-only",
+        "energy_capture": "none",
+        "fronthaul": "Ufispace S9500-22XST (OcNOS) FH switch, 7.2x"
+      }
+    ]
+  },
+  "couplings": [
+    {
+      "name": "tm500-pairing",
+      "rule": "RULE-1",
+      "bidirectional": true,
+      "requires": {
+        "ue": "TM500"
+      },
+      "implies": {
+        "ru": "TM500"
+      },
+      "reason": "The TM500 emulates UE and RU as one instrument: a TM500 UE runs only against the TM500 RU emulation, and vice-versa."
+    },
+    {
+      "name": "aerial-requires-dgx-spark",
+      "rule": "RULE-7",
+      "bidirectional": true,
+      "requires": {
+        "l1_backend": "Aerial-cuBB"
+      },
+      "implies": {
+        "server": "DGX-Spark"
+      },
+      "reason": "Aerial cuBB requires the DGX-Spark GB10 + ConnectX-7 hardware; it cannot run on joule, and DGX-Spark is present in this testbed only as the Aerial L1 host."
+    },
+    {
+      "name": "aerial-is-monolithic-only",
+      "rule": "RULE-10",
+      "bidirectional": false,
+      "requires": {
+        "l1_backend": "Aerial-cuBB"
+      },
+      "implies": {
+        "gnb_split": "monolithic"
+      },
+      "reason": "Aerial is a High-PHY (L1) backend that the gNB stack sits on top of, and in this testbed it is wired to a MONOLITHIC gNB only (OCUDU or OAI): there is no CU+DU split \u2014 same-vendor or mixed \u2014 when Aerial is the L1 backend. Selecting Aerial with any non-monolithic split is rejected; selecting Aerial with no split auto-resolves it to monolithic."
+    }
+  ],
+  "allow_lists": {
+    "ue_x_ru": {
+      "rule": "RULE-2",
+      "description": "Which UE can run against which RU (E2E diagram edges).",
+      "categories": [
+        "ue",
+        "ru"
+      ],
+      "unlisted": "reject",
+      "entries": [
+        {
+          "ue": "TM500",
+          "ru": "TM500",
+          "status": "supported",
+          "note": "RULE-1 pairing; used by the existing OAI+TM500 lab runner."
+        },
+        {
+          "ue": "Samsung",
+          "ru": "Pegatron",
+          "status": "supported",
+          "note": "HLD Section 5.1 reference config ocudu-mono_swphy_pega_samsung_o5gs_joule."
+        },
+        {
+          "ue": "Samsung",
+          "ru": "Foxconn",
+          "status": "supported",
+          "note": "E2E diagram edge."
+        },
+        {
+          "ue": "MTK",
+          "ru": "Pegatron",
+          "status": "supported",
+          "note": "E2E diagram edge."
+        },
+        {
+          "ue": "MTK",
+          "ru": "Foxconn",
+          "status": "supported",
+          "note": "E2E diagram edge."
+        },
+        {
+          "ue": "Pegatron-Dongle",
+          "ru": "Pegatron",
+          "status": "supported",
+          "note": "E2E diagram edge."
+        },
+        {
+          "ue": "Pegatron-Dongle",
+          "ru": "Foxconn",
+          "status": "supported",
+          "note": "E2E diagram edge."
+        }
+      ]
+    },
+    "ru_x_gnb_stack": {
+      "rule": "RULE-4",
+      "description": "Which RU each gNB stack drives.",
+      "categories": [
+        "ru",
+        "gnb_stack"
+      ],
+      "unlisted": "reject",
+      "entries": [
+        {
+          "ru": "Pegatron",
+          "gnb_stack": "OCUDU",
+          "status": "supported",
+          "note": "HLD Section 5.1 reference config."
+        },
+        {
+          "ru": "Pegatron",
+          "gnb_stack": "OAI",
+          "status": "supported",
+          "note": "HLD Section 5.1 Aerial example: OAI-mono on Pegatron RU via FH switch."
+        },
+        {
+          "ru": "TM500",
+          "gnb_stack": "OAI",
+          "status": "supported",
+          "note": "Existing lab runner test_type oai_tm500."
+        },
+        {
+          "ru": "TM500",
+          "gnb_stack": "OCUDU",
+          "status": "supported",
+          "note": "E2E diagram edge."
+        },
+        {
+          "ru": "Foxconn",
+          "gnb_stack": "OCUDU",
+          "status": "supported",
+          "note": "E2E diagram edge."
+        },
+        {
+          "ru": "Foxconn",
+          "gnb_stack": "OAI",
+          "status": "supported",
+          "note": "E2E diagram edge."
+        }
+      ]
+    },
+    "gnb_stack_x_core": {
+      "rule": "RULE-5",
+      "description": "Which core each gNB stack registers with.",
+      "categories": [
+        "gnb_stack",
+        "core"
+      ],
+      "unlisted": "reject",
+      "entries": [
+        {
+          "gnb_stack": "OCUDU",
+          "core": "Open5GS",
+          "status": "supported",
+          "note": "HLD Section 5.1 reference config."
+        },
+        {
+          "gnb_stack": "OAI",
+          "core": "Open5GS",
+          "status": "supported",
+          "note": "Lab runner CN deploy command installs open5gs."
+        },
+        {
+          "gnb_stack": "OCUDU",
+          "core": "free5GC",
+          "status": "supported",
+          "note": "E2E diagram edge."
+        },
+        {
+          "gnb_stack": "OAI",
+          "core": "free5GC",
+          "status": "supported",
+          "note": "E2E diagram edge."
+        }
+      ]
+    },
+    "gnb_stack_x_gnb_split": {
+      "rule": "RULE-3",
+      "description": "Which split each stack supports. For mixed splits gnb_stack is the CU vendor, so only the matching mixed split is listed per stack.",
+      "categories": [
+        "gnb_stack",
+        "gnb_split"
+      ],
+      "unlisted": "reject",
+      "entries": [
+        {
+          "gnb_stack": "OCUDU",
+          "gnb_split": "monolithic",
+          "status": "supported",
+          "note": "HLD Section 5.1 reference config."
+        },
+        {
+          "gnb_stack": "OAI",
+          "gnb_split": "monolithic",
+          "status": "supported",
+          "note": "Lab runner (oai-gnb-fhi-72 chart) + HLD Aerial example."
+        },
+        {
+          "gnb_stack": "OCUDU",
+          "gnb_split": "CU+DU",
+          "status": "supported",
+          "note": "Same-vendor split brought up; energy data captured."
+        },
+        {
+          "gnb_stack": "OAI",
+          "gnb_split": "CU+DU",
+          "status": "supported",
+          "note": "Same-vendor split brought up; energy data captured."
+        },
+        {
+          "gnb_stack": "OCUDU",
+          "gnb_split": "OCUDU-CU+OAI-DU",
+          "status": "experimental",
+          "note": "RULE-3 cross-vendor F1: intended but unproven \u2014 not yet brought up."
+        },
+        {
+          "gnb_stack": "OAI",
+          "gnb_split": "OAI-CU+OCUDU-DU",
+          "status": "experimental",
+          "note": "RULE-3 cross-vendor F1: intended but unproven \u2014 not yet brought up."
+        }
+      ]
+    },
+    "gnb_stack_x_l1_backend": {
+      "rule": "RULE-8",
+      "description": "Which (L2/L3 stack, L1 backend) FAPI/nvIPC integrations actually work. Both stacks can sit on either backend in principle; the integration is stack-specific, so Aerial rows stay EXPERIMENTAL until each FAPI bring-up is confirmed.",
+      "categories": [
+        "gnb_stack",
+        "l1_backend"
+      ],
+      "unlisted": "reject",
+      "entries": [
+        {
+          "gnb_stack": "OCUDU",
+          "l1_backend": "software-PHY",
+          "status": "supported",
+          "note": "HLD Section 5.1 reference config."
+        },
+        {
+          "gnb_stack": "OAI",
+          "l1_backend": "software-PHY",
+          "status": "supported",
+          "note": "Lab runner OAI FHI 7.2 on joule."
+        },
+        {
+          "gnb_stack": "OAI",
+          "l1_backend": "Aerial-cuBB",
+          "status": "experimental",
+          "note": "HLD Section 6.1: the figure shows OAI-monolithic-on-Aerial as the drawn path."
+        },
+        {
+          "gnb_stack": "OCUDU",
+          "l1_backend": "Aerial-cuBB",
+          "status": "experimental",
+          "note": "E2E diagram edge: OCUDU-monolithic-on-Aerial. FAPI bring-up unconfirmed."
+        }
+      ]
+    },
+    "server_x_gnb_stack": {
+      "rule": "RULE-6",
+      "description": "Which stack is deployable on which server (RT kernel, SR-IOV, arch).",
+      "categories": [
+        "server",
+        "gnb_stack"
+      ],
+      "unlisted": "reject",
+      "entries": [
+        {
+          "server": "joule",
+          "gnb_stack": "OCUDU",
+          "status": "supported",
+          "note": "StarlingX RT kernel + SR-IOV; DU pinned to socket 1."
+        },
+        {
+          "server": "joule",
+          "gnb_stack": "OAI",
+          "status": "supported",
+          "note": "Existing lab runner deploys oai-gnb-fhi72 here."
+        },
+        {
+          "server": "DGX-Spark",
+          "gnb_stack": "OAI",
+          "status": "experimental",
+          "note": "Aerial L1 host; ARM, so no RAPL energy capture (phase-2)."
+        },
+        {
+          "server": "DGX-Spark",
+          "gnb_stack": "OCUDU",
+          "status": "experimental",
+          "note": "Aerial L1 host; ARM, so no RAPL energy capture (phase-2)."
+        }
+      ]
+    },
+    "server_x_l1_backend": {
+      "rule": "RULE-6",
+      "description": "Which L1 backend each server can host. Redundant with the RULE-7 coupling for Aerial, but it also pins down where software-PHY may run.",
+      "categories": [
+        "server",
+        "l1_backend"
+      ],
+      "unlisted": "reject",
+      "entries": [
+        {
+          "server": "joule",
+          "l1_backend": "software-PHY",
+          "status": "supported"
+        },
+        {
+          "server": "DGX-Spark",
+          "l1_backend": "Aerial-cuBB",
+          "status": "experimental",
+          "note": "RULE-7 coupling."
+        }
+      ]
+    }
+  }
+}

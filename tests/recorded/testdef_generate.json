@@ -1,0 +1,69 @@
+{
+  "test_definition": {
+    "config_id": "ocudu-mono_swphy_pega_samsung_o5gs_joule",
+    "display_name": "OCUDU monolithic, Pegatron, Samsung, Open5GS, joule",
+    "selection": {
+      "ue": "Samsung",
+      "ru": "Pegatron",
+      "gnb_stack": "OCUDU",
+      "gnb_split": "monolithic",
+      "l1_backend": "software-PHY",
+      "core": "Open5GS",
+      "server": "joule"
+    },
+    "parameters": {
+      "tdd_pattern": "DDDSU",
+      "bandwidth_mhz": 80,
+      "scs_khz": 30,
+      "antennas": {
+        "dl": 4,
+        "ul": 4
+      },
+      "ssb_block_power_dbm": -11.0
+    },
+    "test_plan": {
+      "direction": "DL",
+      "offered_load_mbps": [
+        100.0,
+        200.0,
+        300.0,
+        400.0,
+        500.0,
+        600.0,
+        700.0,
+        800.0,
+        900.0,
+        1000.0
+      ],
+      "rates_mbps": [
+        100.0,
+        200.0,
+        300.0,
+        400.0,
+        500.0,
+        600.0,
+        700.0,
+        800.0,
+        900.0,
+        1000.0
+      ],
+      "repetitions": 3,
+      "window_s": 30
+    }
+  },
+  "sample_run_id": "20260927T1159Z-ocudu-mono_swphy_pega_samsung_o5gs_joule-DL100M-001",
+  "validation": {
+    "valid": true,
+    "experimental": false,
+    "resolved_selection": {
+      "ue": "Samsung",
+      "ru": "Pegatron",
+      "gnb_stack": "OCUDU",
+      "gnb_split": "monolithic",
+      "l1_backend": "software-PHY",
+      "core": "Open5GS",
+      "server": "joule"
+    },
+    "reasons": []
+  }
+}

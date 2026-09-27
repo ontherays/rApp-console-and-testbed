@@ -1,0 +1,17 @@
+{
+  "status": {
+    "profile": null,
+    "profile_status": null,
+    "config_id": null,
+    "stack": "",
+    "namespace": "ravi-ns",
+    "releases": [],
+    "pods": [],
+    "running_pods": [],
+    "node_free": null,
+    "node_reason": "the node was not observed",
+    "node_check": null,
+    "deployer": "HelmDeployer(SSHCommandRunner(oai-gnb@192.168.8.78:22))",
+    "warnings": []
+  }
+}

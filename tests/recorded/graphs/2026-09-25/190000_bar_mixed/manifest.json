@@ -1,0 +1,24 @@
+{
+  "kind": "bar",
+  "metric": "achieved_over_tx_mbps",
+  "selection": {
+    "rows_out": 6,
+    "dropped_count": 2,
+    "filters": {
+      "allow_mixed_durations": true,
+      "config_ids": []
+    }
+  },
+  "points": [
+    {
+      "durations_s": [
+        10
+      ]
+    },
+    {
+      "durations_s": [
+        30
+      ]
+    }
+  ]
+}

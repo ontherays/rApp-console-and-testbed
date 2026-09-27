@@ -1,0 +1,36 @@
+{
+  "status": "ok",
+  "agent": "RestAgentClient(192.168.206.82:5010)",
+  "reachable": true,
+  "detail": "",
+  "healthz": {
+    "ok": true,
+    "ts": 1790510353.9329677
+  },
+  "capture": {
+    "active": false,
+    "collectors": [
+      "cpuidle",
+      "procstat",
+      "rapl",
+      "cpufreq",
+      "numa",
+      "perf",
+      "uncore"
+    ],
+    "health": false,
+    "label": null,
+    "n_samples": 0,
+    "offset_s": null,
+    "run_id": null,
+    "skipped": {
+      "threads": "no process matching ('gnb', 'nr-softmodem'); is shareProcessNamespace/hostPID set?"
+    }
+  },
+  "pmu_active": true,
+  "telemetry": {
+    "url": "http://192.168.8.69:30138",
+    "org": "ravi-ric",
+    "bucket": "infra-telemetry"
+  }
+}
