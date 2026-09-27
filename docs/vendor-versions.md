@@ -38,14 +38,18 @@ editor metadata that no browser requests. What is served:
   chunks a component needs is how a dialog stops opening.
 - `cdn/components/` and `cdn/themes/light.css` — the components and the theme.
 - `cdn/translations/` — kept; the autoloader reads them.
-- `cdn/assets/icons/` — **trimmed from 2052 SVGs to the 57 the templates name.**
+- `cdn/assets/icons/` — **trimmed to the icons the console actually names.**
   The icons Shoelace's own components use internally (a select's chevron, an
   alert's close button) come from its "system" library inside `chunks/`, not from
-  this folder, so trimming it does not affect them. Adding an `<sl-icon
-  name="…">` to a template means copying that SVG in — a missing one renders as
-  empty space, not as an error.
+  this folder, so trimming it does not affect them.
+
+  Adding an `<sl-icon name="…">` to a template means copying that SVG in from the
+  upstream package. A missing one renders as empty space and logs a 404 — it
+  looks like a styling slip and is a missing file, which is why
+  `tests/unit/test_vendored_icons.py` checks both directions: every icon the
+  console names is present, and nothing is vendored that nothing names.
 - Removed: `cdn/react/` (wrappers for a framework this console does not use),
   every `*.d.ts` and `*.map`, and `custom-elements.json`, `web-types.json` and
   `vscode.html-custom-data.json` (editor metadata, 1.1 MB).
 
-The result is 3.5 MB and 547 files.
+The result is 34 icons and 526 files, 1.5 MB of content (3.5 MB on disk).

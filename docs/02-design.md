@@ -116,139 +116,209 @@ The `rapps/ethos/` folder is the whole ETHOS integration. A second rApp later me
 
 ## 4. Visual design
 
-White, quiet, dense enough for measurement data.
+A light grey canvas with white cards floating on it. Large numerals for the
+values that matter, small muted labels around them, and enough density that a
+table of measurements still reads as measurement data.
+
+**Colour is never the only signal.** Every coloured chip also carries text or an
+icon, every change chip carries an arrow and a word, and every status dot sits
+beside its label — so a state survives greyscale and colour blindness.
 
 | Token | Value | Use |
 |---|---|---|
-| `--bg` | `#FFFFFF` | page |
-| `--surface` | `#F8FAFC` | page sections, table header |
-| `--card` | `#FFFFFF` + 1 px `#E5E7EB` border, radius 8 px, no shadow | tiles, panels |
-| `--text` | `#111827` | body |
-| `--muted` | `#6B7280` | labels, timestamps |
-| `--accent` | `#2563EB` | primary buttons, links, focus ring |
-| `--ok` | `#16A34A` | pass, done, free |
-| `--warn` | `#D97706` | stale data, mixed configs, disabled-with-reason |
-| `--bad` | `#DC2626` | failed, error, unreachable |
-| `--chip` | `#F3F4F6` | neutral chips |
-| Stack colours | from ETHOS `GET /plots/series` (B9) | chips and table accents match the figures |
+| `--canvas` | `#F2F2F2` | the page behind everything |
+| `--card` | `#FFFFFF`, radius 14 px, `0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06)` | every panel; no borders, a very soft shadow instead |
+| `--line` | `#EAEAEA` | dividers inside a card, table rules |
+| `--text` | `#16181D` | body |
+| `--muted` | `#6B7280` | secondary text |
+| `--faint` | `#9AA1AC` | labels, timestamps, units |
+| `--accent` | `#2563EB` | the one primary button per page, links, focus ring |
+| `--ok` / `--warn` / `--bad` | `#15803D` / `#B45309` / `#DC2626` | pass, caution, failure — always with a word |
+| Stack colours | from `plotting/series.py`, replaced by `GET /plots/series` (B9) | chips, legend swatches, initials tiles |
 
-- Font: the system UI stack; IDs, config_ids and JSON in `ui-monospace`.
-- Spacing: a 4 px scale; page padding 24 px; tile gap 16 px.
-- Tables: 36 px rows, numeric columns right-aligned with fixed decimals (throughput 2, dB 1, BLER 4), sticky header.
-- One primary button per view (RUN, Generate, Confirm). Destructive actions (Stop, Tear down, Detach) use outlined red buttons.
+**Icon tiles.** Every KPI card, every page header and every topology row carries
+a 32 px rounded tile (radius 9 px) in its own muted accent: blue `#2F6FED` on
+`#E8F0FF`, orange `#D9822B` on `#FDF0E2`, teal `#0F9B8E` on `#E3F6F3`, purple
+`#7C5CFC` on `#EFEBFF`, red `#DC2626` on `#FDEAEA`, slate `#55606F` on `#EEF1F5`.
+The tile is what makes a row scannable; the colour carries no meaning on its own.
+
+**Type scale.** Page title 26 px/600, section 16 px/600, card title 15 px/600,
+body 13.5 px, label 13 px/500, eyebrow 11 px/600 uppercase, and the numerals:
+34 px/600 with `-0.03em` tracking for a KPI, 22 px for a smaller one. IDs,
+config_ids and JSON in `ui-monospace`.
+
+**Spacing.** A 4 px scale. 16 px between cards, 20 px inside one, 24 px for a
+page section. Radius 14 px on cards, 10 px on controls and tiles, 999 px on chips.
+
+**Grouping.** Related cards share one rounded container with 1 px dividers
+between them rather than floating separately — the Overview's KPI row is one
+card holding six, which reads as one row of facts instead of six objects.
+
+**Tables.** 13 px, rows about 40 px, numeric columns right-aligned with tabular
+figures and fixed decimals (throughput 2, dB 1, BLER 4), sticky header on
+`#FBFBFC`, no vertical rules. A cell may carry a small muted sub-line under its
+value — a count under a bar, a config_id under a label.
+
+**Buttons.** One blue primary per page. Secondary buttons are white with a
+`#DEDEDE` border; destructive ones are white with a red border and red text.
+A disabled control keeps its shape and gains a tooltip saying why.
 
 ---
 
 ## 5. Navigation and page map
 
-| Nav item | Path | Breadcrumb example | Phase |
-|---|---|---|---|
-| Overview | `/` | — | 1 |
-| Test Plan | `/plan` | Test Plan | 1 |
-| Jobs | `/jobs`, `/jobs/{job_id}` | Jobs / j-0927-1412 | 1 |
-| Results | `/results`, `/results/campaigns/{id}`, `/results/runs/{run_id}` | Results / sweep-0927 / …-DL100M-015 | 1 |
-| Graphs | `/graphs`, `/graphs/{figure_id}` | Graphs / full-sweep | 1 |
-| Testbed | `/testbed`, `/testbed/ue` | Testbed / UEs | 2 |
-| O1 | `/o1/pm`, `/o1/fm`, `/o1/cm` | O1 / CM | 3 |
-| O2 | `/o2/nf`, `/o2/deploy-times`, `/o2/energy`, `/o2/dms` | O2 / NF checks | 4 |
-| Login | `/login` | — | 1 |
+The sidebar groups the four things the console does: plan a test, read what came
+out, look after the testbed, and read the documentation.
+
+| Group | Nav item | Path | Breadcrumb example | Phase |
+|---|---|---|---|---|
+| Essentials | Overview | `/` | — | 1 |
+| Essentials | Test Plan | `/plan` | Test Plan | 1 |
+| Essentials | Jobs | `/jobs`, `/jobs/{job_id}` | Jobs / j-0927-1412 | 1 |
+| Measure | Results | `/results`, `/results/campaigns/{id}`, `/results/runs/{run_id}` | Results / sweep-0927 / …-DL100M-015 | 1 |
+| Measure | Graphs | `/graphs`, `/graphs/view/{date}/{folder}` | Graphs / full-sweep | 1 |
+| Network | Testbed | `/testbed` | Testbed | 2 |
+| Network | O1 | `/o1` | O1 | 3 |
+| Network | O2 | `/o2` | O2 | 4 |
+| System | Docs | `/docs`, `/docs/{slug}` | Documentation / Requirements | 1 |
+| — | Search | `/search?q=` | Search | 1 |
+| — | Login | `/login` | — | 1 |
 
 ---
 
 ## 6. Pages
 
+Every page is built from the same three parts: a **page header** (icon, title,
+breadcrumbs, actions, filters, status strip), one or more **cards**, and tables
+or forms inside them.
+
+### 6.0 The shell
+
+**Sidebar** — a white card on the canvas, sticky, full height. Top to bottom:
+the brand; a search box with a `/` shortcut that finds a run_id, a config_id or
+a campaign; then collapsible groups with small muted headings:
+
+| Group | Items |
+|---|---|
+| Essentials | Overview, Test Plan, Jobs |
+| Measure | Results, Graphs |
+| Network | Testbed *(Phase 2)*, O1 *(Phase 3)*, O2 *(Phase 4)* |
+| System | Docs |
+
+Each item has an icon. A badge appears only where it counts something real:
+"new runs since your last visit" on Results today, running jobs once B2 lands,
+active alarms once B12 does. **A badge is never shown as 0** — a zero beside
+Jobs would read as "nothing is running" on a console that cannot tell.
+
+At the foot, a **backend-readiness card**: "ETHOS backend — n of 6 ready" over
+B1, B2, B4, B5, B6 and B9, with a progress ring, the next change named, and a
+link to `docs/ethos-backlog.md`. It fills in by itself as the capability probe
+finds each endpoint.
+
+**Page header** — the page's icon tile and title on the left, breadcrumbs above
+it where there is a hierarchy. On the right: a notification bell, a secondary
+**Export** where the page has data, and at most **one blue primary button**
+("New test" on Overview, Results, Jobs and Graphs). Filters sit below the title,
+and the status strip (ST-01…04) runs along the bottom of the header on every
+page.
+
 ### 6.1 Overview [OV-01…07]
 
-```
-┌ status strip: ● Lock free │ Deployed: none │ UE Samsung: detached │ iperf: Magic iPerf, 5201 held │ ETHOS ● up ┐
-│ ┌── Testbed lock ──┐ ┌── Deployed now ─────────────┐ ┌── Running job ───────────────────────┐ │
-│ │  FREE            │ │ nothing deployed             │ │ none — [Plan a test]                  │ │
-│ └──────────────────┘ └──────────────────────────────┘ └───────────────────────────────────────┘ │
-│ ┌── UE ─────────────────────────┐ ┌── Last 5 runs ─────────────────────────────────────────────┐ │
-│ │ Samsung · detached · —        │ │ 14:31 OAI CU+OCUDU DU  DL 100→99.99  0.00%  SNR 22.5 dB    │ │
-│ │ 5201: app_binary (Magic iPerf)│ │ …                                                          │ │
-│ └───────────────────────────────┘ └────────────────────────────────────────────────────────────┘ │
-│ ┌── Data freshness ───────────────────────────┐ ┌── Links ───────────────────────────────────┐ │
-│ │ throughput ● 2 h   O1 PM ● 5 d   energy ● 31 d│ │ Grafana · Docs · How to reach ETHOS Swagger│ │
-│ └─────────────────────────────────────────────┘ └────────────────────────────────────────────┘ │
-```
+Two segmented controls: the period (**24 hours / 7 days / 30 days**) and the
+subset (**All runs / DL / UL / Needs attention**, the last with a red dot when
+any run in the archive carries a quality flag).
 
-Tiles span 4/4/4, then 4/8, then 6/6 columns. Each tile is an htmx partial with its own refresh, so one slow probe never blocks the page.
+**KPI row** — six cards in one container, each with its icon tile, a large
+numeral, and a change chip against the *previous period of the same length*:
+testbed lock, deployed now, runs in the period, best DL at 1000 M, median PUSCH
+SNR, and data freshness. A comparison with no previous period says "no previous
+run" rather than showing a change against nothing.
+
+**Runs by topology** — a honeycomb with one hexagon per run in the period,
+coloured by stack in the figure colours, on a grey grid of empty cells; the size
+of the coloured area is itself the count. Below it, one legend row per topology
+with its share and run count. Two config_ids can carry the same label — OCUDU
+monolithic with a Samsung and with an MTK UE — so an ambiguous row shows its
+config_id underneath.
+
+**Throughput over time** — a dot-matrix column chart of the best
+`achieved_over_tx_mbps` of each day, with a chip naming the source
+(`from run.json`). **A day with no run is an empty column, not a zero.**
+
+**Topologies that need you** — least complete first: a coloured initials tile
+per topology (a unique two-letter code per stack head), its config_id, a chip
+for the last state, the run count, a tick-style bar of points delivered against
+planned for its latest sweep, the best DL at 1000 M with a change chip, when it
+last ran, and a **Review** button opening that sweep.
+
+Below: running job and UE tiles naming their backend change, and links.
+
+**Charts are inline SVG rendered on the server, with no chart library.** They
+are operational summaries — counts and trends. Measurement figures still come
+only from ETHOS's plotting package on the Graphs page: a chart library in the
+browser would produce a second, differently-styled rendering of numbers already
+archived with their manifest.
 
 ### 6.2 Test Plan [TP-01…26]
 
-```
-Test Plan
-┌ Topology ─────────────────────────────────────┐ ┌ Readiness ────────────────────────┐
-│ gNB stack   (•) OCUDU  ( ) OAI                │ │ ✔ Topology valid and deployable   │
-│ Split       ( ) Monolithic (•) CU + DU        │ │ ✔ Testbed lock free               │
-│   CU        (•) OCUDU  ( ) OAI                │ │ ✔ Nothing else deployed           │
-│   DU        ( ) OCUDU  (•) OAI                │ │ ✖ UE Samsung unreachable  [again] │
-│ L1          (•) software PHY ( ) Aerial cuBB ⓘ│ │ ✔ iperf: 5201 held by Magic iPerf │
-│ RU          (•) Pegatron ( ) Foxconn ⓘ ( ) TM500ⓘ│ ✔ Traffic plan valid              │
-│ UE          (•) Samsung ( ) MTK ( ) Dongle ( ) TM500ⓘ ✔ Core reachable             │
-│ Core        (•) Open5GS ( ) free5GC ⓘ         │ │                                   │
-│ config_id   ocuducu-oaidu_swphy_pega_samsung_o5gs_joule (read-only) │ [ RUN ] (disabled: │
-└───────────────────────────────────────────────┘ │  UE Samsung unreachable)          │
-┌ Traffic ──────────────────────────────────────┐ └───────────────────────────────────┘
-│ Direction (•) DL ( ) UL                       │
-│ Offered   [100-1000:100]  [range builder ▾]   │   Estimated time: 1 h 12 min
-│ Duration  [30s]     Repeats [1] (n ≥ 5 for papers)
-│ iperf     (•) Magic iPerf ( ) ETHOS server    │
-│ Label     [sweep-0927]   ☐ radio samples (debug)
-└───────────────────────────────────────────────┘
-[Show config ▸]  →  sl-tab-group: JSON | YAML   (editable; validated by ETHOS)
-[Save plan] [Load plan ▾] [Download .json] [Download .yaml] [Upload]
-```
+Two columns: the form on the left, saved plans on the right.
 
-- Disabled options carry an `ⓘ` tooltip with ETHOS's reason, e.g. "No deploy profile yet" for Foxconn.
-- The readiness panel stays visible (sticky) while scrolling.
-- The RUN button sits at the bottom of the readiness panel, so the reason it is disabled is always next to it.
+**Topology** card: gNB stack, split, CU and DU vendor, L1, RU, UE, core, server
+— each a row of selectable chips showing the catalogue's **label**, never its
+slug. An option that cannot be deployed is dimmed with the reason on hover.
 
-### 6.3 Job page [RN-02…08]
+**CU and DU vendor follow the split.** With *Monolithic* selected both groups are
+disabled and show the gNB stack's own value, with the tooltip "Monolithic runs
+CU and DU in one process of the gNB stack". Choosing *CU + DU* makes both
+selectable, defaulting to the stack's vendor — opening a split must not silently
+propose a cross-vendor F1 nobody asked for. Setting them to different vendors
+selects one of the cross-vendor splits. The groups are re-rendered by the same
+request that re-resolves the plan and swapped in out of band, so the gating
+stays on the server.
 
-```
-Jobs / j-0927-1412            ● running   ocudu-mono · DL · 10 points · started 14:12 · 7 min
-Cell: [n78] [100 MHz] [4T4R] [30 kHz] [7D2U]                                   [ Stop ]
-┌ Steps ─────────────────────────┐ ┌ Completed points ───────────────────────────────────────┐
-│ ✔ Preflight        4 s         │ │ offered achieved loss  jitter RTTp95 CQI RI    MCS  SNR BLERres│
-│ ✔ Deploy          52 s         │ │ 100 M   99.99   0.00  0.23   18.9   14 4/1 27/24 30.1 0.0000│
-│ ✔ Attach          11 s         │ │ 200 M  199.99   0.00  …                                   │
-│ ● Point 3 of 10  (300 M, 18 s) │ │                                                           │
-│ ○ Points 4–10                  │ └────────────────────────────────────────────────────────────┘
-│ ○ Detach, Teardown             │  ▸ Log (accordion)
-└────────────────────────────────┘
-```
+**Traffic** card: direction, offered load, duration, repeats, iperf mode, label,
+radio samples. Then **Identity** (the config_id ETHOS generated, read-only),
+**Readiness** (all seven checks, with RUN below naming its first blocker),
+**Run it** (the campaign command for this plan), the config view, and save.
+
+### 6.3 Jobs [RN-01…11]
+
+The gated explanation of B2, then the campaigns the run archive knows about,
+each row with its initials tile, topologies, counts, span and a **Review**
+button. The live job page arrives with B2.
 
 ### 6.4 Results [RS-01…05]
 
-A filter bar of chips above a sortable table, with a row-selection column. Selected rows enable "Compare", "Graph", "Export CSV". The "show unusable runs" switch is on the right of the filter bar.
+A filter card of selects and toggles, then one card holding the run table with a
+selection column, sortable headers, and paging. Selected rows go to **Compare**.
+**Export** in the page header downloads the filtered set as CSV.
 
 ### 6.5 Run detail [RS-06…12]
 
-Header: run id (monospace, copy button), topology chip, cell-config chips, status badge.
-Tabs: **Summary · Channel conditions · Latency · Cell config · Config · Raw** (+ **Samples** when present).
-
-The Channel conditions tab has two parts:
-
-- **Comparable across stacks** (always open): PUSCH SNR (mean / min / max / p95), residual BLER DL / UL (mean / max), CQI, RI DL / RI UL, MCS DL / UL with table and cap, sample count.
-- **Vendor-specific** (`sl-details`, collapsed): first-transmission BLER, PUCCH SNR, UE L1-RSRP (OAI); timing advance, buffer status (OCUDU); UE-reported SS-RSRP / RSRQ / SINR from Android; RRC SS measurements (OAI).
-
-Each metric label follows requirements §7.4 exactly, with a tooltip for its caveat.
+The run id and its chips in the page header, a copy row, then tabs: **Summary ·
+Channel conditions · Latency · Cell config · Config · Raw** (+ **Samples** when
+present). Channel conditions keeps §7.4 exactly: comparable metrics always open,
+vendor-specific and handset-reported collapsed beneath.
 
 ### 6.6 Sweep view [RS-13…16]
 
-The same table layout as the job's completed-points table, one row per offered load (repeats collapsed to mean and n, expandable). The header row of each metric column has a small "Plot" link that opens Graphs with this sweep and that metric preselected.
+One row per offered load with repeats collapsed to a mean and an n, expandable
+to the runs. An amber banner when the runs do not share one cell configuration.
 
 ### 6.7 Graphs [GR-01…09]
 
-Left: the request form (source: runs / sweep / filter; metric; kind; group by; width; label).
-Right: the figure as PNG, a warning bar if the inputs are mixed [GR-09], download buttons (PNG, PDF), and a "Data" accordion with the manifest.
-Below: the gallery as a card grid.
+The gated request form, then the gallery as cards. A figure's own page shows the
+image, PNG and PDF in the header, its warnings as a banner, and its manifest.
 
-### 6.8 Testbed (Phase 2), O1 (Phase 3), O2 (Phase 4)
+### 6.8 Search
 
-These follow the same patterns: status tiles at the top, a table or form below, every action through a confirmation dialog, all read paths through ETHOS. Layout details are fixed when each phase starts, against the ETHOS endpoints as they exist then.
+Reached from the sidebar or by pressing `/`. An exact run_id goes straight to
+that run; anything else lists matching configurations, campaigns and runs.
+
+### 6.9 Testbed (Phase 2), O1 (Phase 3), O2 (Phase 4)
+
+Each says what it will show, with its requirement ids, the backend change it
+waits for, and where things stand today.
 
 ---
 

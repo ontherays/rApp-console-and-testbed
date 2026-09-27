@@ -260,14 +260,23 @@ lists them all.
 
 | Page | What it does today |
 |---|---|
-| **Overview** | The deployed topology with its cell-config chips, the last five runs, the O-Cloud telemetry agent and PMU state, and links. The lock, running job, UE and data-freshness tiles name the change they need. |
-| **Test Plan** | Builds one test. Options come from ETHOS's catalogue and are shown by label; an option that cannot be deployed is disabled with the reason. ETHOS validates the selection and generates the `config_id`. The readiness panel lists all seven checks; the ones ETHOS can answer carry a verdict, the rest say what they wait for. Ends in **Save plan** and the exact `python -m campaign` command. |
+| **Overview** | Pick a period (24 hours / 7 days / 30 days) and a subset (all runs / DL / UL / needs attention). Six KPI cards with their change against the previous period; a honeycomb of one hexagon per run coloured by topology; the best throughput of each day as a dot-matrix chart; and "topologies that need you", least complete first, each with a Review button onto its latest sweep. The lock, running job and UE tiles name the backend change they need. |
+| **Test Plan** | Builds one test. Options come from ETHOS's catalogue and are shown by label; an option that cannot be deployed is dimmed with the reason. **CU and DU vendor follow the split**: monolithic disables both and shows the gNB stack's value; CU + DU makes both selectable, defaulting to the stack's vendor, and two different vendors select a cross-vendor split. ETHOS validates the selection and generates the `config_id`. The readiness panel lists all seven checks. Ends in **Save plan** and the exact `python -m campaign` command. |
 | **Jobs** | The campaigns in the run archive, grouped by `campaign_id`, each linking to its sweep. Starting a campaign from the browser is B2. |
-| **Results** | Every archived run, with chip filters, sortable columns, CSV export of the filtered set, and a detail page per run: Summary, Channel conditions, Latency, Cell config, Config, Raw. Runs that cannot be analysed are hidden behind a switch. |
+| **Results** | Every archived run, with filters, sortable columns, CSV export of the filtered set from **Export** in the header, and a detail page per run: Summary, Channel conditions, Latency, Cell config, Config, Raw. Runs that cannot be analysed are hidden behind a toggle. |
 | **Sweep / Compare** | One row per offered load with repeats collapsed to a mean and an n, expandable to the individual runs. Amber warning when the runs do not share one cell configuration. |
 | **Graphs** | The gallery of figures ETHOS's plotting package produced, with the PNG, the PDF and each figure's manifest. Requesting a new figure is B9. |
+| **Search** | In the sidebar, or press <kbd>/</kbd> anywhere. An exact run id opens that run; anything else lists matching configurations, campaigns and runs. |
 | **Testbed / O1 / O2** | What each will show, its requirement ids, and where things stand today. |
 | **Documentation** | These documents, served from `docs/`. |
+
+The sidebar's foot shows **ETHOS backend: n of 6 ready** — how many of B1, B2,
+B4, B5, B6 and B9 are answering. It fills in by itself as the capability probe
+finds each endpoint; "Details" opens `docs/ethos-backlog.md`.
+
+The charts on the Overview are drawn as SVG by the console itself. They are
+operational summaries — counts and trends. **Paper figures still come only from
+ETHOS's plotting package**, on the Graphs page.
 
 ### Reading the numbers
 
@@ -382,3 +391,13 @@ without figures. It should be ETHOS's own `ETHOS_GRAPH_DIR`
 **A Test Plan option is disabled and you expect it to work.** Its tooltip gives
 the reason, read from ETHOS's `deploy_profiles.yaml`. A profile whose status is
 `todo` has no chart paths, so ETHOS would refuse the deploy rather than guess.
+
+**The CU and DU vendor groups will not change.** They follow the split. With
+*Monolithic* selected there is nothing to choose — CU and DU are one process of
+the gNB stack — so both groups show that stack and are disabled. Choose
+*CU + DU* and they become selectable.
+
+**Readiness says "the node was not checked".** ETHOS probes the node only when
+the request names a stack, so the check needs a valid topology selected. If it
+still says so with a `config_id` on screen, the hover carries the real error
+from ETHOS — usually the SSH path to joule.
