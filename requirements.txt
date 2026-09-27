@@ -1,0 +1,30 @@
+# Exact pins that reproduce a known-good install. pyproject.toml holds the
+# loose ranges (the contract); this file is the reproduction. Each pin names
+# the range it satisfies and the reason the dependency exists.
+#
+#   .venv/bin/python -m pip install -r requirements.txt
+#
+# Do not add a dependency before the code that actually uses it.
+
+# --- runtime ------------------------------------------------------------------
+fastapi==0.141.1           # >=0.115  — console/app.py: the app, routing, form parsing
+uvicorn==0.54.0            # >=0.30   — console/__main__.py serve: the TLS server
+jinja2==3.1.6              # >=3.1    — every page is a server-rendered template
+httpx==0.28.1              # >=0.27   — rapps/ethos/client.py: the only ETHOS transport
+pydantic==2.13.5           # >=2.7    — rapps/ethos/models.py: parse what ETHOS returns
+python-dotenv==1.2.3       # >=1.0    — console/env_file.py: parse console.env only
+                           #            (the environment-wins merge is ours)
+itsdangerous==2.2.0        # >=2.2    — auth.py: signs the session cookie
+argon2-cffi==25.1.0        # >=23.1   — auth.py: argon2id password hash (SE-03)
+python-multipart==0.0.32   # >=0.0.9  — the login and plan forms post as form data
+PyYAML==6.0.3              # >=6.0    — the YAML tab of the config view, and
+                           #            rapps/ethos/profiles.py reading deploy_profiles.yaml
+
+# --- test ---------------------------------------------------------------------
+pytest==9.1.1              # >=8.0    — the suite
+                           # fastapi's TestClient comes from starlette + httpx above,
+                           # so no extra test transport is pinned.
+
+# --- e2e (optional extra, installed only to run tests/e2e) --------------------
+# playwright>=1.44         — browser flows; deliberately NOT pinned here so the
+#                            core suite installs without a browser download.
