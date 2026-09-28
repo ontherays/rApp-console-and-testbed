@@ -17,8 +17,13 @@ def test_every_item_has_an_icon_and_a_destination():
 
 
 def test_the_later_phases_are_labelled_with_their_phase():
+    """O1 and O2 still name their phase. Testbed no longer does: its UE half is
+    live, so a phase label on it would say the page is not there when it is."""
     network = next(g for g in GROUPS if g.name == "Network")
-    assert {item.phase for item in network.items} == {"Phase 2", "Phase 3", "Phase 4"}
+    by_label = {item.label: item.phase for item in network.items}
+    assert by_label["Testbed"] == ""
+    assert by_label["O1"] == "Phase 3"
+    assert by_label["O2"] == "Phase 4"
 
 
 def test_a_badge_that_cannot_be_counted_is_absent_not_zero():

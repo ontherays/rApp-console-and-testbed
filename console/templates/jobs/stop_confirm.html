@@ -1,0 +1,44 @@
+{# Stopping is a state change, so it goes through a confirmation like every other
+   one (GL-07).
+
+   ETHOS has no preview endpoint for a stop, so this text is the console's, and it
+   describes what ETHOS actually does rather than guessing: the flag is set, the
+   point being measured finishes, then the UE is detached and the stack torn down,
+   and the job ends `aborted` keeping every point it measured. Nothing is killed
+   and no measurement is thrown away. #}
+{% from "components/macros.html" import ic %}
+
+{# Deliberately NOT removed on `sl-after-hide`. Shoelace fires that as part of
+   its own open/close animation, which took the dialog away from under the
+   operator about a second after it appeared. A hidden dialog left in the DOM is
+   harmless: the fragment it lives in is replaced by the next swap. #}
+<sl-dialog label="Stop this job?" open style="--width:560px">
+  <ul class="preview-list">
+    <li>The point being measured now finishes. It is not thrown away.</li>
+    <li>No further rate is started.</li>
+    <li>The UE is detached and the stack is torn down, DU before CU.</li>
+    <li>The job ends <strong>aborted</strong>, keeping the points already measured.</li>
+    <li>The testbed lock is released when that is done.</li>
+  </ul>
+
+  {% if job and job.points %}
+    <p class="hint">
+      {{ job.points | length }} point(s) have finished and will be kept.
+    </p>
+  {% endif %}
+
+  <p class="hint">
+    {{ ic('info', 'faint') }}
+    This is cooperative: ETHOS asks the campaign to stop at the next point
+    boundary, so a measurement is never cut in half.
+  </p>
+
+  <sl-button slot="footer" variant="default"
+             onclick="this.closest('sl-dialog').hide()">Keep running</sl-button>
+  <sl-button slot="footer" variant="warning"
+             hx-post="/jobs/{{ job_id }}/stop"
+             hx-on:htmx:after-request="this.closest('sl-dialog').hide()">
+    <svg class="ic" aria-hidden="true"><use href="#icon-stop"/></svg>
+    Stop at the next point
+  </sl-button>
+</sl-dialog>

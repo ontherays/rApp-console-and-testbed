@@ -380,3 +380,328 @@ class EthosHealth(Loose):
     status: str | None = None
     service: str | None = None
     version: str | None = None
+
+
+# --- the lock, readiness, jobs, the summary and the UEs (B1, B2, B5, B6, B11) --
+
+
+class Holder(Loose):
+    """Who holds the testbed. ETHOS names the holder; the console never guesses.
+
+    The holder string carries its own kind: `cli:<pid>` is a campaign run from a
+    shell, `job:<job_id>` is one this console or another client started, and
+    `action:<name>` is a standalone act such as an attach. Rendering is
+    `console.holders.describe`, so one wording is used everywhere a holder
+    appears.
+    """
+
+    held: bool = False
+    holder: str | None = None
+    what: str | None = None
+    since: str | None = None
+
+    @property
+    def is_cli(self) -> bool:
+        return bool(self.holder and self.holder.startswith("cli:"))
+
+    @property
+    def is_job(self) -> bool:
+        return bool(self.holder and self.holder.startswith("job:"))
+
+    @property
+    def job_id(self) -> str | None:
+        return self.holder.split(":", 1)[1] if self.is_job and self.holder else None
+
+
+class ReadinessCheck(Loose):
+    """One of ETHOS's seven checks, as ETHOS judged it.
+
+    `status` is `pass`, `fail` or `unknown`, and the console renders whichever
+    came back. It never upgrades an `unknown` to a pass, and never downgrades one
+    to a failure: those are different answers and only ETHOS is entitled to give
+    them.
+    """
+
+    id: str = ""
+    status: str = "unknown"
+    reason: str = ""
+    checked_at: str | None = None
+
+    @property
+    def passed(self) -> bool:
+        return self.status == "pass"
+
+    @property
+    def failed(self) -> bool:
+        return self.status == "fail"
+
+
+class Readiness(Loose):
+    ready: bool = False
+    first_blocker: str = ""
+    checks: list[ReadinessCheck] = Field(default_factory=list)
+    plan: dict[str, Any] = Field(default_factory=dict)
+
+    def get(self, check_id: str) -> ReadinessCheck | None:
+        return next((c for c in self.checks if c.id == check_id), None)
+
+    @property
+    def failures(self) -> list[ReadinessCheck]:
+        return [c for c in self.checks if c.failed]
+
+
+class Preview(Loose):
+    """ETHOS's own description of what an action would do, plus its token."""
+
+    action: str = ""
+    summary: list[str] = Field(default_factory=list)
+    preview_token: str = ""
+    expires_in_s: int | None = None
+    state: dict[str, Any] = Field(default_factory=dict)
+
+
+class JobStep(Loose):
+    name: str = ""
+    state: str = ""
+    started: str | None = None
+    ended: str | None = None
+    detail: str = ""
+
+
+class JobPoint(Loose):
+    direction: str | None = None
+    offered_mbps: float | None = None
+    run_id: str | None = None
+    achieved_mbps: float | None = None
+    loss_pct: float | None = None
+    jitter_ms: float | None = None
+    status: str | None = None
+    reason: str = ""
+
+
+TERMINAL_JOB_STATES = ("completed", "failed", "aborted", "interrupted")
+
+
+class Job(Loose):
+    job_id: str = ""
+    state: str = ""
+    source: str = "api"
+    plan: dict[str, Any] = Field(default_factory=dict)
+    config_id: str | None = None
+    created: str | None = None
+    started: str | None = None
+    ended: str | None = None
+    steps: list[JobStep] = Field(default_factory=list)
+    points: list[JobPoint] = Field(default_factory=list)
+    run_ids: list[str] = Field(default_factory=list)
+    cell_config: CellConfig | None = None
+    outcome: str = ""
+    error: str = ""
+    stop_requested: bool = False
+    deployed_at_interrupt: dict[str, Any] | None = None
+
+    @property
+    def finished(self) -> bool:
+        return self.state in TERMINAL_JOB_STATES
+
+    @property
+    def label(self) -> str:
+        return str(self.plan.get("label") or "")
+
+    @property
+    def expected_points(self) -> int:
+        """How many points the plan asked for, from the plan itself.
+
+        Parsed the same way `console.rapps.ethos.plan` parses the form, so a
+        progress bar cannot disagree with what the plan said.
+        """
+        from console.rapps.ethos.plan import TrafficPlan
+
+        parsed = TrafficPlan(
+            rates_text=str(self.plan.get("rates") or ""),
+            direction=str(self.plan.get("direction") or "DL"),
+            duration_text=str(self.plan.get("duration") or "0"),
+            repeats=int(self.plan.get("repeats") or 1),
+        ).parse()
+        return parsed.points if parsed.valid else 0
+
+    @property
+    def can_stop(self) -> bool:
+        return not self.finished and not self.stop_requested
+
+
+class JobList(Loose):
+    count: int = 0
+    jobs: list[Job] = Field(default_factory=list)
+
+    @property
+    def running(self) -> list[Job]:
+        return [job for job in self.jobs if not job.finished]
+
+
+class SummaryPart(Loose):
+    """One part of the status summary, with its own timestamp and error.
+
+    ETHOS gathers each part separately so one failing probe never fails the
+    response, and the console renders that same way: a part with an error shows
+    the error against that item and nothing else changes.
+    """
+
+    error: str = ""
+    checked_at: str | None = None
+
+    @property
+    def ok(self) -> bool:
+        return not self.error
+
+
+class LockPart(SummaryPart, Holder):
+    pass
+
+
+class DeployedPart(SummaryPart):
+    profile: str | None = None
+    stack: str | None = None
+    namespace: str | None = None
+    releases: list[Any] = Field(default_factory=list)
+    pods: list[Any] = Field(default_factory=list)
+    running_pods: list[Any] = Field(default_factory=list)
+    node_free: bool | None = None
+    node_reason: str = ""
+
+    @property
+    def anything_deployed(self) -> bool:
+        return bool(self.releases or self.running_pods)
+
+
+class JobPart(SummaryPart):
+    job_id: str | None = None
+    state: str | None = None
+    label: str | None = None
+    config_id: str | None = None
+    points: int = 0
+    expected_points: int = 0
+    started: str | None = None
+    ended: str | None = None
+
+    @property
+    def finished(self) -> bool:
+        return (self.state or "") in TERMINAL_JOB_STATES
+
+    @property
+    def progress(self) -> str:
+        return f"{self.points} of {self.expected_points}" if self.expected_points else ""
+
+
+class UePart(SummaryPart):
+    ue: str | None = None
+    reachable: bool | None = None
+    attached: bool | None = None
+    ip: str | None = None
+    mechanism: str | None = None
+
+
+class IperfPart(SummaryPart):
+    default_mode: str | None = None
+    holder: dict[str, Any] | None = None
+
+    @property
+    def held(self) -> bool:
+        return self.holder is not None
+
+    @property
+    def owner(self) -> str:
+        return str((self.holder or {}).get("owner") or "unknown")
+
+
+class FreshnessSource(Loose):
+    last_point: str | None = None
+    bucket: str | None = None
+    measurement: str | None = None
+    cell_fdn: str | None = None
+    error: str = ""
+
+
+class FreshnessPart(SummaryPart):
+    results: FreshnessSource = Field(default_factory=FreshnessSource)
+    o1_pm: FreshnessSource = Field(default_factory=FreshnessSource)
+    o2_power: FreshnessSource = Field(default_factory=FreshnessSource)
+
+
+class ApiPart(SummaryPart):
+    version: str | None = None
+    started: str | None = None
+    uptime_s: float | None = None
+
+
+class StatusSummary(Loose):
+    lock: LockPart = Field(default_factory=LockPart)
+    deployed: DeployedPart = Field(default_factory=DeployedPart)
+    latest_job: JobPart = Field(default_factory=JobPart)
+    ue: UePart = Field(default_factory=UePart)
+    iperf_server: IperfPart = Field(default_factory=IperfPart)
+    freshness: FreshnessPart = Field(default_factory=FreshnessPart)
+    api: ApiPart = Field(default_factory=ApiPart)
+
+
+class UeEntry(Loose):
+    ue: str = ""
+    driver: str | None = None
+    control_path: str | None = None
+    driven: bool = True
+    reason: str = ""
+    reachable: bool | None = None
+    attached: bool | None = None
+    ip: str | None = None
+    checked_at: str | None = None
+
+    @property
+    def state_word(self) -> str:
+        """What the row says. `unknown` is a state, never rendered as detached.
+
+        An unreachable handset must not read as "not attached": one is a device
+        that did not answer, the other is a device that answered and is idle.
+        """
+        if self.reachable is None:
+            return "unknown"
+        if self.attached:
+            return "attached"
+        if self.attached is None:
+            return "unknown"
+        return "detached"
+
+
+class UeList(Loose):
+    count: int = 0
+    ues: list[UeEntry] = Field(default_factory=list)
+
+    @property
+    def driven(self) -> list[UeEntry]:
+        return [entry for entry in self.ues if entry.driven]
+
+    @property
+    def not_driven(self) -> list[UeEntry]:
+        return [entry for entry in self.ues if not entry.driven]
+
+
+class UeIperf(Loose):
+    ue: str = ""
+    port: int = 5201
+    held: bool = False
+    holder: dict[str, Any] | None = None
+    default_mode: str | None = None
+    checked_at: str | None = None
+
+    @property
+    def owner(self) -> str:
+        return str((self.holder or {}).get("owner") or "unknown")
+
+    @property
+    def describe(self) -> str:
+        if not self.held:
+            return f"port {self.port} is free"
+        holder = self.holder or {}
+        return (
+            f"{self.owner} iperf3 (pid {holder.get('pid') or '?'}, "
+            f"uid {holder.get('uid') or '?'})"
+        )

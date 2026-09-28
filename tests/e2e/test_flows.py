@@ -4,6 +4,8 @@ still renders, and every action is disabled with the reason shown (ST-04)."""
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 PAGES = ["/", "/plan", "/jobs", "/results", "/graphs", "/testbed", "/o1", "/o2", "/docs"]
@@ -68,12 +70,17 @@ def test_the_status_strip_polls_and_reports_ethos_down(offline_page):
     assert "Every action is disabled" in offline_page.content()
 
 
-def test_the_plan_page_disables_run_and_gives_the_reason(logged_in):
+def test_run_is_offered_and_asks_for_a_preview_before_it_acts(logged_in):
+    """RUN is live now, and its click is a preview rather than a start (GL-07)."""
     logged_in.goto("/plan")
     logged_in.wait_for_load_state("networkidle")
-    run = logged_in.locator("#run-button button").first
-    assert run.is_disabled()
-    assert "needs ETHOS" in logged_in.content()
+    logged_in.wait_for_timeout(1500)
+    run = logged_in.locator("#readiness-panel .run-foot button").first
+    assert run.is_enabled()
+    run.click()
+    logged_in.wait_for_selector("#plan-dialog sl-dialog", timeout=30000)
+    dialog = logged_in.query_selector("#plan-dialog sl-dialog")
+    assert "Nothing has been sent to the testbed yet" in dialog.inner_text()
 
 
 def test_the_gallery_opens_a_figure_and_shows_its_manifest(logged_in):
@@ -374,15 +381,13 @@ class TestPlanLayout:
         )
         assert placed and placed["sameColumn"] and placed["below"] and placed["sticky"]
 
-    def test_run_is_the_primary_button_in_the_header_and_is_disabled(self, logged_in):
+    def test_run_is_the_primary_button_in_the_header(self, logged_in):
         logged_in.goto("/plan")
         logged_in.wait_for_load_state("networkidle")
+        logged_in.wait_for_timeout(1500)
         run = logged_in.locator(".topbar #run-button button")
         assert run.count() == 1
-        assert run.is_disabled()
-        assert "needs ETHOS B" in logged_in.locator(
-            ".topbar #run-button sl-tooltip"
-        ).get_attribute("content")
+        assert "primary" in (run.get_attribute("class") or "")
 
     def test_save_plan_is_secondary(self, logged_in):
         logged_in.goto("/plan")
@@ -396,12 +401,13 @@ class TestPlanLayout:
         logged_in.wait_for_load_state("networkidle")
         assert logged_in.locator("#readiness-panel .run-foot button").count() == 1
 
-    def test_the_run_it_panel_does_not_claim_the_cli_takes_a_lock(self, logged_in):
+    def test_the_run_it_panel_says_the_cli_takes_the_same_lock(self, logged_in):
+        """It does now, so the panel says so rather than warning about a collision."""
         logged_in.goto("/plan")
         logged_in.wait_for_load_state("networkidle")
         body = logged_in.content()
-        assert "ETHOS has no testbed lock yet (B1)" in body
-        assert "takes the same lock" not in body
+        assert "takes the same testbed lock as RUN" in body
+        assert "ETHOS has no testbed lock yet" not in body
 
     def test_the_generated_command_uses_seconds_for_the_duration(self, logged_in):
         logged_in.goto("/plan")
@@ -442,3 +448,94 @@ class TestIconsAndText:
         logged_in.wait_for_load_state("networkidle")
         assert logged_in.locator("article symbol#icon-ru").count() >= 1
         assert logged_in.locator("article svg use").count() > 20
+
+
+class TestWiredFlows:
+    """The surfaces B1, B2, B5, B6 and B11 turned on, in a real browser.
+
+    Against the fake ETHOS, so no testbed is touched. What is checked is the
+    thing a unit test cannot: that the dialog opens and survives, that the log
+    renders as lines rather than as ETHOS's JSON, and that a refusal reaches the
+    operator.
+    """
+
+    def test_the_readiness_panel_shows_ethoss_seven_checks(self, logged_in):
+        logged_in.goto("/plan")
+        logged_in.wait_for_load_state("networkidle")
+        logged_in.wait_for_timeout(1500)
+        rows = logged_in.locator("#readiness-panel .check")
+        assert rows.count() == 7
+        assert logged_in.locator("#readiness-panel").count() == 1
+
+    def test_the_confirmation_survives_the_plan_re_resolving(self, logged_in):
+        """It lives outside the form, so a resolve cannot take it away."""
+        logged_in.goto("/plan")
+        logged_in.wait_for_load_state("networkidle")
+        logged_in.wait_for_timeout(1500)
+        logged_in.locator("#readiness-panel .run-foot button").first.click()
+        logged_in.wait_for_selector("#plan-dialog sl-dialog", timeout=30000)
+        logged_in.wait_for_timeout(3000)
+        assert logged_in.locator("#plan-dialog sl-dialog").count() == 1
+
+    def test_a_job_log_renders_lines_not_json(self, logged_in):
+        """The relay passes ETHOS's JSON through; the page turns it into lines.
+
+        It rendered the raw JSON until the renderer moved out of an inline script,
+        which the console's own CSP blocks.
+        """
+        from tests.fake_ethos.server import SEEDED_JOB, SEEDED_LOG
+
+        logged_in.goto(f"/jobs/{SEEDED_JOB}")
+        logged_in.wait_for_selector("#job-log", timeout=30000)
+        logged_in.wait_for_timeout(3000)
+        text = logged_in.locator("#job-log").inner_text()
+        for line in SEEDED_LOG:
+            assert line in text
+        assert '"seq"' not in text
+
+    def test_stopping_a_job_asks_first(self, logged_in):
+        """The Stop button opens a confirmation; it does not stop anything."""
+        from tests.fake_ethos.server import SEEDED_JOB
+
+        logged_in.goto(f"/jobs/{SEEDED_JOB}")
+        logged_in.wait_for_selector("#job-snapshot", timeout=30000)
+        logged_in.locator("button", has_text="Stop").first.click()
+        logged_in.wait_for_selector("#stop-confirm sl-dialog", timeout=30000)
+        dialog = logged_in.query_selector("#stop-confirm sl-dialog")
+        assert "aborted" in dialog.inner_text()
+        assert "current point" in dialog.inner_text().lower() or "point being measured" in dialog.inner_text()
+
+    def test_the_ue_panel_lists_the_handsets_and_previews_an_attach(self, logged_in):
+        logged_in.goto("/testbed")
+        logged_in.wait_for_selector("#ue-panel table.data tbody tr", timeout=30000)
+        body = logged_in.content()
+        assert "Samsung" in body and "MTK" in body
+        logged_in.locator(
+            "#ue-panel tr", has_text="Samsung"
+        ).locator("button", has_text="Attach").first.click()
+        logged_in.wait_for_selector("#ue-confirm sl-dialog", timeout=30000)
+        dialog = logged_in.query_selector("#ue-confirm sl-dialog")
+        assert "Nothing has been sent to the handset yet" in dialog.inner_text()
+
+    def test_a_held_testbed_is_named_on_every_page(self, logged_in, fake_ethos_server):
+        """A CLI holder reads the same everywhere a holder appears."""
+        import urllib.request
+
+        def control(what, body):
+            request = urllib.request.Request(
+                f"{fake_ethos_server}/__control/{what}",
+                data=json.dumps(body).encode(),
+                headers={"content-type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(request, timeout=10).read()
+
+        control("lock", {"holder": "cli:4242",
+                         "what": "campaign ocudu-mono, rates 100, DL"})
+        try:
+            for path in ("/", "/jobs", "/testbed"):
+                logged_in.goto(path)
+                logged_in.wait_for_load_state("networkidle")
+                assert "CLI campaign ocudu-mono, rates 100, DL" in logged_in.content(), path
+        finally:
+            control("reset", {})

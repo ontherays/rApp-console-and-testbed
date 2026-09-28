@@ -4,9 +4,9 @@ The sidebar is grouped because the console does four different jobs, plan a
 test, read what came out, look after the testbed, and read the documentation,
 and a flat list of nine items hides that.
 
-A badge is only shown when it counts something real. "Running jobs" needs a job
-model ETHOS does not have, so that badge stays absent rather than showing 0,
-which would read as "nothing is running" on a console that cannot tell.
+A badge is only shown when it counts something real. A count that could not be
+made stays absent rather than showing 0: "0" reads as "nothing is running", which
+is a claim a console that could not ask has no business making.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ GROUPS: tuple[Group, ...] = (
     Group(
         "Network",
         (
-            Item("Testbed", "/testbed", "testbed", phase="Phase 2"),
+            Item("Testbed", "/testbed", "testbed"),
             Item("O1", "/o1", "o1", phase="Phase 3", badge_key="alarms"),
             Item("O2", "/o2", "o2", phase="Phase 4"),
         ),
@@ -64,7 +64,7 @@ GROUPS: tuple[Group, ...] = (
 
 @dataclass
 class Badges:
-    """Counts for the sidebar. ``None`` means "cannot be counted yet"."""
+    """Counts for the sidebar. ``None`` means "could not be counted"."""
 
     jobs: int | None = None
     new_runs: int | None = None

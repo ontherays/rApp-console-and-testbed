@@ -6,10 +6,15 @@
    One request, one answer, no part of the page left showing a stale plan. #}
 {% from "components/macros.html" import ic %}
 
-{% with oob=True %}{% include "plan/vendors.html" %}{% endwith %}
-{% with oob=True %}{% include "plan/topology_summary.html" %}{% endwith %}
-{% with oob=True %}{% include "plan/readiness.html" %}{% endwith %}
-<span id="run-button" hx-swap-oob="true">{% include "plan/run_button.html" %}</span>
+{# Only on a swap. On the first full page load these same fragments are already
+   rendered where they live, and hx-swap-oob is inert in a plain document, so
+   emitting them here too would draw each one twice. #}
+{% if not initial %}
+  {% with oob=True %}{% include "plan/vendors.html" %}{% endwith %}
+  {% with oob=True %}{% include "plan/topology_summary.html" %}{% endwith %}
+  {% with oob=True %}{% include "plan/readiness.html" %}{% endwith %}
+  <span id="run-button" hx-swap-oob="true">{% include "plan/run_button.html" %}</span>
+{% endif %}
 
 {% if saved_note %}
   <div class="banner info" style="margin-bottom:16px">{{ ic('check') }}{{ saved_note }}</div>
@@ -42,7 +47,7 @@
   <header>
     <span class="tile purple">{{ ic('play') }}</span>
     <span style="min-width:0">
-      <span class="card-title">Run it</span>
+      <span class="card-title">Or run it from a shell</span>
       <span class="card-sub">The campaign command for the plan above</span>
     </span>
   </header>
@@ -62,17 +67,10 @@
     </p>
   {% endif %}
 
-  <div class="banner warn" style="margin-top:14px">
-    {{ ic('warning') }}
-    <span>
-      ETHOS has no testbed lock yet (B1). Do not start this while another
-      campaign is running.
-    </span>
-  </div>
-
   <p class="hint">
     The CLI writes the same run records this console reads, so its results appear
-    under Results as each point finishes.
+    under Results as each point finishes. It takes the same testbed lock as RUN,
+    so the two refuse each other rather than colliding.
   </p>
 </div>
 
@@ -81,7 +79,7 @@
     <span class="tile slate">{{ ic('file') }}</span>
     <span style="min-width:0">
       <span class="card-title">Plan document</span>
-      <span class="card-sub">What POST /jobs will take, once it exists</span>
+      <span class="card-sub">Exactly what RUN sends to POST /jobs</span>
     </span>
   </header>
   <sl-tab-group>

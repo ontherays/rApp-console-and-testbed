@@ -134,9 +134,10 @@ SEEN_COOKIE = "console_seen"
 async def _badges(request: Request):
     """The sidebar counts, from what the console can actually count.
 
-    "New runs since your last visit" is real and useful today. A running-job
-    count is not: ETHOS has no job model, and a badge showing 0 would read as
-    "nothing is running" on a console that cannot tell. It stays absent.
+    A running-job count is real now that ETHOS has a job model: the badge shows
+    how many jobs are not in a terminal state. It stays ABSENT rather than
+    becoming 0 when the count cannot be made at all, because "0" and "I could not
+    ask" are different things and only one of them means nothing is running.
     """
     from console.nav import Badges
     from console.rapps.ethos.client import EthosError
@@ -144,6 +145,13 @@ async def _badges(request: Request):
     badges = Badges()
     if request.headers.get("HX-Request"):
         return badges  # a partial does not redraw the sidebar
+
+    try:
+        running = len((await request.app.state.client.jobs()).running)
+        badges.jobs = running or None
+    except EthosError:
+        badges.jobs = None
+
     seen = request.cookies.get(SEEN_COOKIE, "")
     try:
         listing = await request.app.state.client.runs()
@@ -194,6 +202,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        # One pass before the first request is served. Without it a page can be
+        # rendered against an unprobed snapshot, which disables every control that
+        # depends on a capability and then enables it a moment later: the operator
+        # sees a greyed-out RUN that becomes live under their cursor.
+        try:
+            await app.state.probe.probe_once()
+        except Exception:  # a probe must never stop the console from starting
+            pass
         app.state.probe.start()
         yield
         await app.state.probe.stop()
@@ -211,6 +227,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         resolved.ethos_url,
         timeout_s=resolved.ethos_timeout_s,
         slow_timeout_s=resolved.ethos_slow_timeout_s,
+        act_timeout_s=resolved.ethos_act_timeout_s,
         runs_cache_s=resolved.runs_cache_s,
         status_cache_s=resolved.status_cache_s,
     )
@@ -232,9 +249,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     from console.pages import docs as docs_pages
-    from console.pages import graphs, jobs, later, login, overview, plan, results, search
+    from console.pages import (
+        graphs,
+        jobs,
+        later,
+        login,
+        overview,
+        plan,
+        results,
+        search,
+        testbed,
+    )
 
-    for module in (login, overview, plan, jobs, results, graphs, search, later, docs_pages):
+    for module in (
+        login, overview, plan, jobs, results, graphs, testbed, search, later, docs_pages
+    ):
         app.include_router(module.router)
 
     @app.get("/healthz", include_in_schema=False)

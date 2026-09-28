@@ -1,8 +1,11 @@
-"""The sections that arrive in later phases: Testbed, O1, O2.
+"""The sections that arrive in later phases: O1 and O2.
 
 They are routed, and each page says what it will show, which ETHOS change it
 needs, and what can be done today instead. A disabled navigation entry with no
 page behind it leaves an operator guessing whether the feature exists.
+
+The Testbed page is no longer here: its UE half is live, and it has its own module
+(`console/pages/testbed.py`).
 """
 
 from __future__ import annotations
@@ -26,34 +29,6 @@ class Section:
     items: tuple[tuple[str, str], ...]
     today: str = ""
 
-
-TESTBED = Section(
-    title="Testbed control",
-    phase="Phase 2",
-    capability="ue",
-    icon="testbed",
-    intro=(
-        "Deploy a topology and leave it running without traffic, tear down what is "
-        "deployed, attach and detach a UE, and read the handset's signal, each "
-        "action behind a confirmation that shows ETHOS's preview of what will happen."
-    ),
-    items=(
-        ("TB-01", "Deploy a chosen topology with no traffic, confirmation first."),
-        ("TB-02", "Tear down what is deployed, DU before CU."),
-        ("TB-03", "Releases, pods, restarts, age, and the cell config read at deploy."),
-        ("UE-01", "The testbed's UEs with driver, control path, reachability, attach state and IP."),
-        ("UE-02", "Attach and detach, each confirmed, each refused while the lock is held."),
-        ("UE-03", "Whether an app_binary server holds port 5201, and a confirmed stop."),
-        ("UE-04", "The UE's SS-RSRP / RSRQ / SINR, read on demand."),
-    ),
-    today=(
-        "ETHOS's UE endpoints are scoped to a run today "
-        "(POST /runs/{id}/ue/attach), which is right for the record but means "
-        "there is no standalone UE panel. Deploy and teardown act on the first "
-        "call, with no preview, so they stay out of a web page until backend "
-        "change B3 adds preview-then-confirm."
-    ),
-)
 
 O1 = Section(
     title="O1",
@@ -108,11 +83,6 @@ O2 = Section(
 
 def _page(request: Request, section: Section):
     return render(request, "later.html", {"section": section})
-
-
-@router.get("/testbed")
-async def testbed(request: Request):
-    return _page(request, TESTBED)
 
 
 @router.get("/o1")

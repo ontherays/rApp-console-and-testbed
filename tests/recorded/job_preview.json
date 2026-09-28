@@ -1,0 +1,18 @@
+{
+  "action": "job",
+  "summary": [
+    "run the campaign ocudu-mono as ocudu-mono_swphy_pega_samsung_o5gs_joule",
+    "2 rate(s) DL: 100 M, 200 M",
+    "1 repeat(s), so 2 point(s) of 30 s each",
+    "iperf server: app_binary",
+    "the testbed is deployed first, the UE attached, then every point in turn",
+    "afterwards the UE is detached and the stack is torn down, DU before CU",
+    "the testbed is free, and this job would hold it for its whole life"
+  ],
+  "preview_token": "1790604870.4fb149f1551c957c74a74207bcd10da8.7dc7c83483f70ee34960a667a92f0939",
+  "expires_in_s": 300,
+  "state": {
+    "holder": null,
+    "points": 2
+  }
+}

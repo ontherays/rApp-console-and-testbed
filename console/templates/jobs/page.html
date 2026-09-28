@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import gated, ago, stack_chip, chip, initials_tile, ic %}
+{% from "components/macros.html" import ago, stack_chip, chip, initials_tile, ic %}
 {% from "components/header.html" import bell, primary %}
 
 {% block title %}Jobs · Testbed Console{% endblock %}
@@ -12,38 +12,93 @@
 {% endblock %}
 {% block lede %}
   <p class="lede">
-    A job is one campaign execution, started from the console or the CLI, that can
-    be watched and stopped. ETHOS has no job model yet, so campaigns run from the
-    CLI and the console reports what they left behind.
+    A job is one campaign execution. It runs in ETHOS, under the same testbed lock
+    a CLI campaign takes, so the two refuse each other instead of colliding. The
+    console starts it, watches it and can ask it to stop.
   </p>
 {% endblock %}
 
 {% block content %}
-<div class="card">
+
+{% if lock and lock.held %}
+  <div class="banner {{ 'warn' if lock.is_cli else 'info' }}" style="margin-bottom:16px">
+    {{ ic('lock') }}
+    <span>
+      The testbed is held by <strong>{{ lock_text }}</strong>.
+      {% if lock.is_cli %}
+        A campaign is running from a shell, so a job cannot start until it finishes.
+      {% elif lock.is_job and lock.job_id %}
+        <a href="/jobs/{{ lock.job_id }}">Watch it</a>.
+      {% endif %}
+    </span>
+  </div>
+{% endif %}
+
+{% if jobs_error %}
+  <div class="banner bad" style="margin-bottom:16px">{{ ic('warning') }}{{ jobs_error }}</div>
+{% endif %}
+
+<div class="card flush">
   <header>
     <span class="tile purple">{{ ic('play') }}</span>
     <span style="min-width:0">
-      <span class="card-title">Starting, watching and stopping a campaign</span>
-      <span class="card-sub">One executor, in ETHOS, not a second one here</span>
+      <span class="card-title">Jobs</span>
+      <span class="card-sub">Newest first. A running job has a live page.</span>
     </span>
+    <span class="faint">{{ jobs | length }} job(s)</span>
   </header>
-  {{ gated(caps, 'jobs',
-     'The console deliberately does not run campaigns itself. It has the same API the CLI drives, so it could, and a second campaign executor, with the testbed lock living in the web process instead of in ETHOS, is what the design rules out. One executor, in ETHOS, is backend change B2.') }}
-  <p class="muted" style="margin:12px 0 0">
-    A campaign started from the CLI writes the same run records this console
-    reads, so its results appear under Results as each point finishes.
-  </p>
+  <div class="table-wrap">
+    <table class="data">
+      <thead>
+        <tr><th>job</th><th>state</th><th>topology</th><th>plan</th>
+            <th class="num">points</th><th>started</th><th>ended</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for job in jobs %}
+        <tr>
+          <td class="who">
+            {{ initials_tile(series_for(job.config_id or '').code, series_for(job.config_id or '').colour) }}
+            <span class="mono">{{ job.job_id }}</span>
+          </td>
+          <td>{% include "jobs/state_chip.html" %}</td>
+          <td>
+            {% if job.config_id %}{{ stack_chip(job.config_id, series_for(job.config_id)) }}{% endif %}
+          </td>
+          <td>
+            {{ job.plan.direction or NOT_MEASURED }}
+            {{ job.plan.rates or '' }}
+            {% if job.plan.duration %}· {{ job.plan.duration }}{% endif %}
+            {% if job.label %}<div class="faint">{{ job.label }}</div>{% endif %}
+          </td>
+          <td class="num">
+            {{ job.points | length }}{% if job.expected_points %} of {{ job.expected_points }}{% endif %}
+          </td>
+          <td class="nowrap">{{ ago(job.started) }}</td>
+          <td class="nowrap">{{ ago(job.ended) if job.ended else NOT_MEASURED }}</td>
+          <td class="right"><a class="btn btn-sm" href="/jobs/{{ job.job_id }}">Open</a></td>
+        </tr>
+      {% endfor %}
+      {% if not jobs and not jobs_error %}
+        <tr><td colspan="8" class="muted" style="padding:20px">
+          No job has been started. Build one on the <a href="/plan">Test Plan</a>.
+        </td></tr>
+      {% endif %}
+      </tbody>
+    </table>
+  </div>
 </div>
 
-{% if error %}
-  <div class="banner bad"><svg class="ic" aria-hidden="true"><use href="#icon-warning"/></svg>{{ error }}</div>
+{% if archive_error %}
+  <div class="banner bad" style="margin-top:16px">{{ ic('warning') }}{{ archive_error }}</div>
 {% else %}
-<div class="card flush">
+<div class="card flush" style="margin-top:16px">
   <header>
     <span class="tile slate">{{ ic('sweep') }}</span>
     <span style="min-width:0">
       <span class="card-title">Campaigns in the run archive</span>
-      <span class="card-sub">What the CLI has already run</span>
+      <span class="card-sub">
+        Every campaign that has ever run, including from a shell before jobs existed
+      </span>
     </span>
     <span class="faint">{{ campaigns | length }} campaign(s)</span>
   </header>

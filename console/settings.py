@@ -31,6 +31,7 @@ ENV_SESSION_SECRET = "CONSOLE_SESSION_SECRET"
 ENV_ETHOS_URL = "CONSOLE_ETHOS_URL"
 ENV_ETHOS_TIMEOUT_S = "CONSOLE_ETHOS_TIMEOUT_S"
 ENV_ETHOS_SLOW_TIMEOUT_S = "CONSOLE_ETHOS_SLOW_TIMEOUT_S"
+ENV_ETHOS_ACT_TIMEOUT_S = "CONSOLE_ETHOS_ACT_TIMEOUT_S"
 ENV_RUNS_CACHE_S = "CONSOLE_RUNS_CACHE_S"
 ENV_STATUS_CACHE_S = "CONSOLE_STATUS_CACHE_S"
 
@@ -54,6 +55,10 @@ DEFAULT_LOG_LEVEL = "info"
 DEFAULT_ETHOS_URL = "http://127.0.0.1:8081"
 DEFAULT_ETHOS_TIMEOUT_S = 10.0
 DEFAULT_ETHOS_SLOW_TIMEOUT_S = 60.0
+#: Attaching a handset toggles the radio, waits for it to settle and reads the
+#: address back, which is minutes rather than seconds. A read timeout here
+#: would abandon an action ETHOS is still performing.
+DEFAULT_ETHOS_ACT_TIMEOUT_S = 900.0
 DEFAULT_RUNS_CACHE_S = 20.0
 DEFAULT_STATUS_CACHE_S = 15.0
 DEFAULT_ETHOS_REPO = "/home/oai-gnb/ravi-ethos-rApp"
@@ -70,7 +75,14 @@ LOGIN_FAILURE_WINDOW_S = 10 * 60
 LOGIN_LOCKOUT_S = 10 * 60
 
 
-def _float(name: str, default: float) -> float:
+def _float(name: str, default: float, *, allow_zero: bool = False) -> float:
+    """A positive number, or the default.
+
+    `allow_zero` is for the cache windows, where 0 is a real setting meaning "do
+    not cache". For a timeout it is not: a zero timeout would fail every call, so
+    there the default still wins and the operator is not left with a console that
+    cannot reach anything.
+    """
     raw = os.environ.get(name, "").strip()
     if not raw:
         return default
@@ -78,7 +90,11 @@ def _float(name: str, default: float) -> float:
         value = float(raw)
     except ValueError:
         return default
-    return value if value > 0 else default
+    if value < 0:
+        return default
+    if value == 0:
+        return 0.0 if allow_zero else default
+    return value
 
 
 def _int(name: str, default: int) -> int:
@@ -115,6 +131,7 @@ class Settings:
     ethos_url: str
     ethos_timeout_s: float
     ethos_slow_timeout_s: float
+    ethos_act_timeout_s: float
     runs_cache_s: float
     status_cache_s: float
     deploy_profiles: Path | None
@@ -176,11 +193,16 @@ def load_settings() -> Settings:
         session_secret=_text(ENV_SESSION_SECRET),
         ethos_url=_text(ENV_ETHOS_URL, DEFAULT_ETHOS_URL).rstrip("/"),
         ethos_timeout_s=_float(ENV_ETHOS_TIMEOUT_S, DEFAULT_ETHOS_TIMEOUT_S),
+        ethos_act_timeout_s=_float(
+            ENV_ETHOS_ACT_TIMEOUT_S, DEFAULT_ETHOS_ACT_TIMEOUT_S
+        ),
         ethos_slow_timeout_s=_float(
             ENV_ETHOS_SLOW_TIMEOUT_S, DEFAULT_ETHOS_SLOW_TIMEOUT_S
         ),
-        runs_cache_s=_float(ENV_RUNS_CACHE_S, DEFAULT_RUNS_CACHE_S),
-        status_cache_s=_float(ENV_STATUS_CACHE_S, DEFAULT_STATUS_CACHE_S),
+        runs_cache_s=_float(ENV_RUNS_CACHE_S, DEFAULT_RUNS_CACHE_S, allow_zero=True),
+        status_cache_s=_float(
+            ENV_STATUS_CACHE_S, DEFAULT_STATUS_CACHE_S, allow_zero=True
+        ),
         deploy_profiles=_path(ENV_DEPLOY_PROFILES),
         graph_dir=_path(ENV_GRAPH_DIR),
         ethos_repo=Path(_text(ENV_ETHOS_REPO, DEFAULT_ETHOS_REPO)).expanduser(),

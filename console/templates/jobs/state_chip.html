@@ -1,0 +1,13 @@
+{# A job's state, as ETHOS words it. The console never invents one.
+
+   Tone only: `completed` is good, `failed` is bad, `aborted` and `interrupted`
+   are neither (a stop somebody asked for, and a restart that took the job with
+   it), and anything non-terminal is in progress. #}
+{% from "components/macros.html" import chip %}
+{%- set state = job.state or 'unknown' -%}
+{%- if state == 'completed' -%}{{ chip(state, 'green', 'check') }}
+{%- elif state == 'failed' -%}{{ chip(state, 'red', 'warning') }}
+{%- elif state == 'aborted' -%}{{ chip(state, 'amber', 'stop') }}
+{%- elif state == 'interrupted' -%}{{ chip(state, 'amber', 'warning') }}
+{%- else -%}{{ chip(state, 'blue', 'play') }}
+{%- endif -%}

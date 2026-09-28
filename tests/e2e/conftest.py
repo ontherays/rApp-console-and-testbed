@@ -95,6 +95,10 @@ def _start_console(ethos_url: str | None = None):
             "CONSOLE_DEPLOY_PROFILES": str(RECORDED / "deploy_profiles.yaml"),
             "CONSOLE_PLANS_DIR": "/tmp/testbed-console-e2e-plans",
             "CONSOLE_LOG_LEVEL": "warning",
+            # No status cache in the browser tests. A test that changes the
+            # testbed state and then reads a page would otherwise be reading an
+            # answer from before it made the change.
+            "CONSOLE_STATUS_CACHE_S": "0",
         }
     )
     process = subprocess.Popen(

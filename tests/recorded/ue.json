@@ -1,0 +1,49 @@
+{
+  "count": 4,
+  "ues": [
+    {
+      "ue": "MTK",
+      "driver": "MtkUeDriver",
+      "control_path": "MtkUeDriver(MTK via adb-iapc)",
+      "driven": true,
+      "reason": "no data-plane address (airplane on)",
+      "reachable": true,
+      "attached": false,
+      "ip": null,
+      "checked_at": "2026-09-28T14:14:19Z"
+    },
+    {
+      "ue": "Pegatron-Dongle",
+      "driver": "PegatronUeDriver",
+      "control_path": "PegatronUeDriver(Pegatron-Dongle via ssh)",
+      "driven": true,
+      "reason": "cannot drive the Pegatron dongle at 192.168.1.1: no SSH user configured (set ETHOS_PEGATRON_USER)",
+      "reachable": null,
+      "attached": null,
+      "ip": null,
+      "checked_at": "2026-09-28T14:14:20Z"
+    },
+    {
+      "ue": "Samsung",
+      "driver": "SamsungUeDriver",
+      "control_path": "SamsungUeDriver(Samsung via adb-iapc)",
+      "driven": true,
+      "reason": "no data-plane address (airplane on)",
+      "reachable": true,
+      "attached": false,
+      "ip": null,
+      "checked_at": "2026-09-28T14:14:20Z"
+    },
+    {
+      "ue": "TM500",
+      "driver": null,
+      "control_path": null,
+      "driven": false,
+      "reason": "the VIAVI TM500 is a test instrument attached and detached from its own chassis/GUI, not over ADB or SSH; ETHOS records what it measures but does not drive it",
+      "reachable": null,
+      "attached": null,
+      "ip": null,
+      "checked_at": "2026-09-28T14:14:22Z"
+    }
+  ]
+}

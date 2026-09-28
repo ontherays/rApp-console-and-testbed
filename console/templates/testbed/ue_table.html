@@ -1,0 +1,112 @@
+{# The UEs, as ETHOS reports them.
+
+   `unknown` is a state and is shown as one. An unreachable handset is never drawn
+   as "detached": one is a device that did not answer, the other is a device that
+   answered and is holding no address, and treating them alike is how a dead
+   handset comes to look like a satisfied precondition.
+
+   A UE ETHOS does not drive is listed with its reason rather than hidden, because
+   the answer to "why can't I attach the TM500" belongs where somebody looks for
+   it. #}
+{% from "components/macros.html" import ic, chip %}
+
+{% if ue_error %}
+  <div class="banner bad">{{ ic('warning') }}{{ ue_error }}</div>
+{% else %}
+<div class="card flush">
+  <header>
+    <span class="tile purple">{{ ic('ue') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">UEs</span>
+      <span class="card-sub">Driver, control path, state, and who holds port 5201</span>
+    </span>
+    <button class="btn btn-sm" type="button"
+            hx-get="/testbed/ue" hx-target="#ue-panel" hx-swap="innerHTML">Re-read</button>
+  </header>
+  <div class="table-wrap">
+    {# Fixed widths so the long reason strings wrap instead of widening the table.
+       Without this the actions, which are what this page is for, ended up behind a
+       horizontal scroll. #}
+    <table class="data" style="table-layout:fixed;width:100%">
+      <colgroup>
+        <col style="width:20%"><col style="width:30%"><col style="width:11%">
+        <col style="width:18%"><col style="width:21%">
+      </colgroup>
+      <thead>
+        <tr><th>UE</th><th>state</th><th>address</th><th>iperf 5201</th><th></th></tr>
+      </thead>
+      <tbody>
+      {% for view in views %}
+        {% set entry = view.entry %}
+        <tr class="{{ '' if entry.driven else 'not-measured' }}">
+          {# The control path lives here rather than in a column of its own: the
+             actions are what this page is for, and a fifth column pushed them
+             behind a horizontal scroll. #}
+          <td>
+            <strong>{{ entry.ue }}</strong>
+            {% if entry.control_path %}
+              <div class="faint" style="white-space:normal">{{ entry.control_path }}</div>
+            {% elif entry.driver %}
+              <div class="faint">{{ entry.driver }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if not entry.driven %}
+              {{ chip('not driven', 'slate') }}
+            {% elif entry.state_word == 'attached' %}
+              {{ chip('attached', 'green', 'check') }}
+            {% elif entry.state_word == 'detached' %}
+              {{ chip('detached', 'blue') }}
+            {% else %}
+              {{ chip('unknown', 'amber', 'question') }}
+            {% endif %}
+            {% if entry.reason %}
+              <div class="reason" style="white-space:normal">{{ entry.reason }}</div>
+            {% endif %}
+          </td>
+          <td class="mono">{{ entry.ip or NOT_MEASURED }}</td>
+          <td>
+            {% if view.iperf %}
+              {{ chip(view.iperf.owner, 'amber' if view.iperf.held else 'green') }}
+              <div class="faint" style="white-space:normal">{{ view.iperf.describe }}</div>
+            {% elif view.iperf_error %}
+              <span class="faint">{{ NOT_MEASURED }}</span>
+              <div class="reason" style="white-space:normal">{{ view.iperf_error }}</div>
+            {% else %}
+              <span class="faint">{{ NOT_MEASURED }}</span>
+            {% endif %}
+          </td>
+          <td class="right">
+            {% if entry.driven %}
+              {% set slug = entry.ue | lower %}
+              <button class="btn btn-sm" type="button"
+                      hx-post="/testbed/ue/{{ slug }}/attach/preview"
+                      hx-target="#ue-confirm" hx-swap="innerHTML">Attach</button>
+              <button class="btn btn-sm" type="button"
+                      hx-post="/testbed/ue/{{ slug }}/detach/preview"
+                      hx-target="#ue-confirm" hx-swap="innerHTML">Detach</button>
+              {% if view.iperf and view.iperf.held %}
+                <button class="btn btn-sm" type="button"
+                        hx-post="/testbed/ue/{{ slug }}/iperf/stop/preview"
+                        hx-target="#ue-confirm" hx-swap="innerHTML">Free 5201</button>
+              {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      {% if not views %}
+        <tr><td colspan="5" class="muted" style="padding:20px">
+          ETHOS reported no UE.
+        </td></tr>
+      {% endif %}
+      </tbody>
+    </table>
+  </div>
+  <p class="hint" style="margin:12px 14px">
+    {{ ic('info', 'faint') }}
+    An attach is confirmed by a 10.45.x address, never by an exit code. With no
+    gNB deployed there is no cell to register on, so ETHOS toggles the radio, finds
+    no address and says so rather than reporting an attach that did not happen.
+  </p>
+</div>
+{% endif %}

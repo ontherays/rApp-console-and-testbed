@@ -1,10 +1,14 @@
 """What ETHOS can answer right now, and which backend change adds the rest.
 
-The console is specified against an ETHOS that has a testbed lock, a job model,
-a readiness endpoint and figure generation. None of that exists yet. The
-alternative to this file would be buttons that look live and fail on click, or
-pages quietly missing, both worse than a control that is disabled and says
-exactly what it is waiting for.
+The lock, jobs, readiness, the status summary and standalone UE control have
+landed (B1, B2, B5, B6, B11), and the pages that needed them are live. What is
+still outstanding is the catalogue (B4), figure generation (B9) and server-side
+results queries (B10).
+
+The table stays even for a change that has landed, and that is deliberate. It is
+not only a gate, it is a live check: if an endpoint disappears in a rollback or a
+route breaks, the probe notices within a minute and the control that depends on it
+disables itself with a reason, rather than failing on click.
 
 So every feature is declared here with the endpoint it needs and the backend
 change that delivers it (B1–B15 in ``docs/03-ethos-backend-changes.md``). The
@@ -15,8 +19,8 @@ probe runs at startup and every 60 s, and classifies each feature as:
     unreachable   ETHOS itself is down
 
 Pages ask ``caps.ready("jobs")`` and render the gated state from ``caps.why()``.
-When a backend change lands, the probe finds the endpoint and the same page
-lights up: deleting a feature from this table is the last step, not the first.
+When a backend change lands, the probe finds the endpoint and the same page lights
+up with no edit here.
 """
 
 from __future__ import annotations
@@ -38,6 +42,11 @@ class Feature:
     params: dict[str, str] | None = None
     """Query parameters the probe must supply. Without them a routed endpoint
     answers 422 for a missing field, which would hide a 501 stub behind it."""
+    slow: bool = False
+    """True when the endpoint reaches the testbed, so the probe must allow it the
+    slow timeout. `GET /ue` reads two handsets over adb through the lab's control
+    host; timing it out at the ordinary read timeout would report a working
+    endpoint as unreachable, and disable the controls that depend on it."""
 
 
 FEATURES: tuple[Feature, ...] = (
@@ -64,13 +73,15 @@ FEATURES: tuple[Feature, ...] = (
         key="readiness",
         probe=("POST", "/readiness"),
         change="B5",
-        what="the seven readiness checks, judged the same way for the CLI",
+        what="the seven readiness checks, judged the same way as for the CLI",
+        slow=True,
     ),
     Feature(
         key="status_summary",
         probe=("GET", "/status/summary"),
         change="B6",
         what="the status strip in one call, including data freshness",
+        slow=True,
     ),
     Feature(
         key="plots",
@@ -90,6 +101,7 @@ FEATURES: tuple[Feature, ...] = (
         probe=("GET", "/ue"),
         change="B11",
         what="the UE list, standalone attach and detach, the port-5201 holder",
+        slow=True,
     ),
     Feature(
         key="o1_freshness",
@@ -203,6 +215,7 @@ class CapabilityProbe:
                     path,
                     json={} if method == "POST" else None,
                     params=feature.params,
+                    slow=feature.slow,
                 )
                 states[feature.key] = OK
             except EthosNotImplemented:

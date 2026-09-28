@@ -1,0 +1,56 @@
+{# The confirmation for RUN (GL-07, design 7.2).
+
+   What is shown is ETHOS's OWN preview text, line for line, not a summary the
+   console composed from the form. The point of a confirmation is that the
+   operator sees what the thing that will act says it is about to do; a second
+   rendering of the plan would be the console confirming itself.
+
+   The token travels in the hidden input below, and only there: it is bound to
+   this plan and to the testbed state the preview was computed against.
+
+   This fragment is swapped into #plan-dialog, which sits OUTSIDE the form, so a
+   plan that re-resolves while the dialog is open does not remove it. #}
+{% from "components/macros.html" import ic %}
+
+{# Deliberately NOT removed on `sl-after-hide`. Shoelace fires that as part of
+   its own open/close animation, which took the dialog away from under the
+   operator about a second after it appeared. A hidden dialog left in the DOM is
+   harmless: the fragment it lives in is replaced by the next swap. #}
+<sl-dialog label="Start this job?" class="confirm-dialog" open
+           style="--width:620px">
+  <p class="hint" style="margin-top:0">
+    {{ ic('info', 'faint') }}
+    ETHOS's own description of what it will do. Nothing has been sent to the
+    testbed yet.
+  </p>
+
+  <ul class="preview-list">
+    {% for line in preview.summary %}<li>{{ line }}</li>{% endfor %}
+  </ul>
+
+  {% if preview.expires_in_s %}
+    <p class="hint">
+      This confirmation is good for {{ preview.expires_in_s }} s. After that, or
+      if the testbed changes, ETHOS refuses it and the preview has to be asked
+      for again.
+    </p>
+  {% endif %}
+
+  {% if config_id %}
+    <p class="hint mono">{{ config_id }}</p>
+  {% endif %}
+
+  <sl-button slot="footer" variant="default"
+             onclick="this.closest('sl-dialog').hide()">Cancel</sl-button>
+  <sl-button slot="footer" variant="primary"
+             hx-post="/plan/start"
+             hx-include="#plan-form, #confirm-token"
+             hx-target="#plan-result"
+             hx-on:htmx:after-request="this.closest('sl-dialog').hide()">
+    <svg class="ic" aria-hidden="true"><use href="#icon-play"/></svg>
+    Start the job
+  </sl-button>
+</sl-dialog>
+
+<input type="hidden" id="confirm-token" name="preview_token"
+       value="{{ preview.preview_token }}">

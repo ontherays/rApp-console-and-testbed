@@ -6,9 +6,13 @@ back is displayed read-only (TP-08). A hand-built id once dropped a field and
 put six malformed points into the results bucket; there is one source and this
 page uses it.
 
-RUN needs ``POST /jobs`` (B2), which does not exist. Rather than a button that
-fails, the page ends in **Save plan** and the exact campaign command for the plan
-on screen.
+Readiness is ETHOS's own: ``POST /readiness`` returns seven checks and this page
+renders them in ETHOS's order, adding none of its own (TP-23). The traffic parse
+stays, but only as a form hint beside the fields, so a rate ETHOS would reject is
+caught while typing rather than becoming an eighth opinion about readiness.
+
+RUN is ``POST /jobs/preview``, the preview shown in a dialog, then ``POST /jobs``
+with the token it returned, then the job's page (design section 7.2).
 """
 
 from __future__ import annotations
@@ -20,10 +24,15 @@ import yaml
 from fastapi import APIRouter, Form, Request
 from starlette.responses import RedirectResponse, Response
 
+from console import holders, readiness as readiness_mod
 from console.plans import PlanError, PlanStore
 from console.rapps.ethos.cli import campaign_command
-from console.rapps.ethos.client import EthosError
-from console.rapps.ethos.plan import Check, TrafficPlan
+from console.rapps.ethos.client import (
+    EthosError,
+    EthosRefused,
+    EthosStateChanged,
+)
+from console.rapps.ethos.plan import TrafficPlan
 from console.rapps.ethos.profiles import OPTION_REASONS, load_profiles
 from console.topology import build_presets, diagram
 from console.vendors import mark_for
@@ -262,108 +271,62 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
     deployable, deploy_reason = profiles.deployable(selection)
     profile = profiles.resolve(selection) if profiles.available else None
 
-    # The readiness panel shows all seven checks in ETHOS's order (TP-23). Only
-    # the ones ETHOS can answer today carry a verdict; the rest say what they
-    # are waiting for. The console adds no check of its own, and never marks an
-    # item "pass" on its own authority.
-    checks: list[Check] = []
-
-    if ethos_error:
-        checks.append(Check("topology", "Topology validates", "unknown", ethos_error))
-    elif validation is None:
-        checks.append(Check("topology", "Topology validates", "unknown", "not checked"))
-    elif validation.valid:
-        note = "valid" + (" · experimental combination" if validation.experimental else "")
-        if deployable is True:
-            checks.append(Check("topology", "Topology validates and is deployable",
-                                "pass", f"{note} · {deploy_reason}"))
-        elif deployable is False:
-            checks.append(Check("topology", "Topology validates and is deployable",
-                                "fail", deploy_reason))
-        else:
-            checks.append(Check("topology", "Topology validates and is deployable",
-                                "unknown", f"{note} · deployability: {deploy_reason}"))
-    else:
-        checks.append(
-            Check("topology", "Topology validates", "fail",
-                  validation.first_error or "the selection is not allowed")
-        )
-
-    checks.append(Check("lock", "Testbed lock is free", "unknown", caps.why("lock")))
-
-    # Naming the config_id is what makes ETHOS probe the node at all: it gates
-    # the probe on the request naming a stack, so a bare call comes back
-    # "the node was not observed" having never looked.
-    node_check = Check("node_free", "Nothing else is deployed", "unknown", "not checked")
-    try:
-        deployed = await client.deploy_status(config_id=config_id)
-        if deployed.anything_deployed:
-            node_check = Check(
-                "node_free",
-                "Nothing else is deployed",
-                "fail",
-                f"{deployed.profile or deployed.stack or 'a stack'} is deployed in "
-                f"{deployed.namespace} ({len(deployed.running_pods)} pod(s) running)",
-            )
-        elif deployed.node_free:
-            node_check = Check(
-                "node_free",
-                "Nothing else is deployed",
-                "pass",
-                f"{deployed.namespace_summary}; {deployed.node_reason}",
-            )
-        elif deployed.node_free is False:
-            node_check = Check(
-                "node_free", "Nothing else is deployed", "fail", deployed.node_reason
-            )
-        else:
-            # The namespace was answered either way; only the on-node process
-            # check is missing, and the hover says why.
-            node_check = Check(
-                "node_free",
-                "Nothing else is deployed",
-                "unknown",
-                f"{deployed.namespace_summary}, but the node itself was not "
-                f"checked, {deployed.node_detail}",
-            )
-    except EthosError as exc:
-        node_check = Check("node_free", "Nothing else is deployed", "unknown", exc.message)
-    checks.append(node_check)
-
-    checks.append(Check("ue_reachable", f"UE {values['ue']} is reachable", "unknown",
-                        caps.why("ue")))
-    mode = "an app_binary server holds 5201" if values["iperf_server"] == "app_binary" else "port 5201 is free"
-    checks.append(Check("iperf_server", f"iperf server: {mode}", "unknown", caps.why("ue")))
-
-    if traffic.valid:
-        checks.append(Check(
-            "traffic_plan", "Traffic plan parses", "pass",
-            f"{len(traffic.rates)} rate(s) × {traffic.repeats} repeat(s) = "
-            f"{traffic.points} point(s), {traffic.duration_s:g} s each "
-            "· console pre-check, not ETHOS readiness"))
-    else:
-        checks.append(Check("traffic_plan", "Traffic plan parses", "fail",
-                            "; ".join(traffic.errors.values())))
-
-    checks.append(Check("core", f"Core {values['core']} is reachable", "unknown",
-                        caps.why("readiness")))
-
+    # Readiness is ETHOS's (B5). The console renders the seven checks in the
+    # order they came back and adds none of its own: `POST /readiness` exists so
+    # that the CLI and the console judge readiness identically, and a check
+    # invented here would be a second opinion.
     document = traffic.as_document(config_id, selection)
-    first_blocker = next((c for c in checks if c.status != "pass"), None)
 
-    # RUN needs the lock (B1) and the job endpoints (B2). It is disabled with a
-    # reason until the probe finds both, and lights up on its own when it does:
-    # nothing here has to be edited when they land.
-    run_ready = caps.ready("jobs") and caps.ready("lock")
+    lock = None
+    readiness = None
+    readiness_error = None
+    try:
+        # Uncached and separate: the lock is what decides whether RUN is offered,
+        # and it is also how the holder is worded, consistently with the strip.
+        lock = await client.lock()
+    except EthosError as exc:
+        readiness_error = exc.message
+
+    if config_id:
+        try:
+            readiness = await client.readiness(document)
+        except EthosError as exc:
+            readiness_error = exc.message
+
+    if readiness is not None:
+        checks = readiness_mod.rows(readiness, lock, tz=settings.tz)
+    elif config_id is None:
+        checks = readiness_mod.unavailable(
+            ethos_error or "the selection has no config_id yet, so nothing was judged"
+        )
+    else:
+        checks = readiness_mod.unavailable(
+            readiness_error or "ETHOS did not answer the readiness request"
+        )
+    # A FAILURE blocks; an unknown does not. That is ETHOS's own rule, and the
+    # button follows it: a check that could not be made must not refuse a run
+    # that would have worked.
+    first_blocker = readiness_mod.first_failure(checks)
+    unknowns = [row for row in checks if row.status == "unknown"]
+
+    run_ready = caps.ready("jobs") and caps.ready("readiness")
     if not caps.ready("jobs"):
         run_reason = caps.why("jobs")
-    elif not caps.ready("lock"):
-        run_reason = caps.why("lock")
+    elif not caps.ready("readiness"):
+        run_reason = caps.why("readiness")
+    elif readiness is None:
+        run_reason = readiness_error or "readiness has not been judged for this plan"
     elif first_blocker is not None:
         run_reason = f"{first_blocker.label}: {first_blocker.reason}"
     else:
         run_reason = ""
-    can_run = run_ready and first_blocker is None
+
+    # The console's own parse is a FORM HINT and nothing more. It is deliberately
+    # not allowed to disable RUN: its bounds are the console's, ETHOS's
+    # `traffic_plan` check is the authority, and the two do not agree everywhere
+    # (the console suggests a 5 s minimum; ETHOS accepts shorter). A hint that
+    # blocked would refuse plans ETHOS would have run.
+    can_run = bool(run_ready and readiness is not None and not run_reason)
 
     command = campaign_command(
         ethos_repo=settings.ethos_repo,
@@ -415,6 +378,11 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
         "deployable": deployable,
         "deploy_reason": deploy_reason,
         "checks": checks,
+        "readiness": readiness,
+        "readiness_error": readiness_error,
+        "lock": lock,
+        "lock_text": holders.describe(lock, tz=settings.tz),
+        "unknowns": unknowns,
         "first_blocker": first_blocker,
         "can_run": can_run,
         "run_reason": run_reason,
@@ -542,11 +510,15 @@ async def plan_save(request: Request):
 
 @router.post("/plan/run")
 async def plan_run(request: Request):
-    """RUN. It refuses while the endpoints it needs are missing.
+    """RUN, step one: ask ETHOS what starting this plan would do.
 
-    The button is disabled until the probe finds them, so this is the belt to
-    that brace: a stale page, a keyboard, or a second tab must not be able to
-    post a start that ETHOS has no way to honour.
+    Sends nothing to the testbed. What comes back is ETHOS's own preview text and
+    a token bound to the plan AND to the testbed state it was computed against,
+    which is what makes the 412 on confirm meaningful (design section 7.2).
+
+    The readiness re-check here is the belt to the disabled button's brace: a
+    stale page, a keyboard or a second tab must not be able to post a start that
+    ETHOS has no way to honour.
     """
     values = await _values_from_request(request)
     context = await _build(request, values)
@@ -561,13 +533,122 @@ async def plan_run(request: Request):
                 "X-Console-Toast-Variant": "warning",
             },
         )
-    # Unreachable until B1 and B2 land. When they do, this is where the preview
-    # dialog and POST /jobs go (design section 7.2).
+
+    client = request.app.state.client
+    try:
+        preview = await client.job_preview(context["document"])
+    except EthosRefused as exc:
+        return _refused(request, context, exc)
+    except EthosError as exc:
+        return render(
+            request,
+            "plan/resolved.html",
+            {**context, "run_error": exc.message},
+            status_code=exc.status or 502,
+            headers={
+                "X-Console-Toast": exc.message,
+                "X-Console-Toast-Variant": "danger",
+            },
+        )
+
+    return render(
+        request,
+        "plan/confirm.html",
+        {**context, "preview": preview},
+    )
+
+
+@router.post("/plan/start")
+async def plan_start(request: Request):
+    """RUN, step two: the operator has seen the preview and confirmed it.
+
+    Everything that can go wrong here is ETHOS telling the console something it
+    could not have known when the preview was made, and each has its own answer
+    (design section 7.5):
+
+    409, somebody took the testbed in between. An amber toast naming the holder,
+    and the readiness panel re-rendered so the lock line shows it too.
+
+    412, the testbed changed after the preview. The same, plus the reason: the
+    token was bound to a state that no longer holds, and confirming it anyway
+    would be confirming something other than what was shown.
+
+    On success the job exists and has its own page, so the browser goes there.
+    """
+    form = await request.form()
+    token = str(form.get("preview_token") or "")
+    values = await _values_from_request(request)
+    context = await _build(request, values)
+
+    if not token:
+        return render(
+            request,
+            "plan/resolved.html",
+            {**context, "run_error": "That confirmation had no token; ask for the preview again."},
+            status_code=422,
+        )
+
+    client = request.app.state.client
+    try:
+        job = await client.job_start(context["document"], token)
+    except EthosRefused as exc:
+        return _refused(request, context, exc)
+    except EthosStateChanged as exc:
+        # Readiness is re-run by _build above, so the panel in this response
+        # already shows whatever changed.
+        return render(
+            request,
+            "plan/resolved.html",
+            {**context, "run_error": f"{exc.message} Readiness has been re-checked."},
+            status_code=412,
+            headers={
+                "X-Console-Toast": exc.message,
+                "X-Console-Toast-Variant": "warning",
+            },
+        )
+    except EthosError as exc:
+        return render(
+            request,
+            "plan/resolved.html",
+            {**context, "run_error": exc.message},
+            status_code=exc.status or 502,
+            headers={
+                "X-Console-Toast": exc.message,
+                "X-Console-Toast-Variant": "danger",
+            },
+        )
+
+    # The strip's cached summary would otherwise show "no job" for a few seconds
+    # after starting one.
+    client.invalidate()
+    return Response(
+        status_code=204,
+        headers={
+            "HX-Redirect": f"/jobs/{job.job_id}",
+            "X-Console-Toast": f"Job {job.job_id} started",
+            "X-Console-Toast-Variant": "success",
+        },
+    )
+
+
+def _refused(request: Request, context: dict[str, Any], exc: EthosRefused) -> Response:
+    """409: somebody else holds the testbed. Name them, in the usual wording."""
+    detail = exc.body.get("detail", exc.body) if isinstance(exc.body, dict) else {}
+    who = holders.describe(detail, tz=request.app.state.settings.tz)
+    message = (
+        f"The testbed is held by {who}."
+        if who != holders.FREE
+        else exc.message
+    )
     return render(
         request,
         "plan/resolved.html",
-        {**context, "run_error": "Starting a job is not wired up yet."},
-        status_code=501,
+        {**context, "run_error": message},
+        status_code=409,
+        headers={
+            "X-Console-Toast": message,
+            "X-Console-Toast-Variant": "warning",
+        },
     )
 
 

@@ -171,22 +171,30 @@ class TestEthosDown:
 
 
 class TestGatedFeatures:
-    def test_the_overview_names_the_backend_change_for_the_lock(self, client):
-        body = client.get("/").text
-        assert "needs ETHOS B1" in body
+    """What is still gated, and what no longer is.
 
-    def test_the_jobs_page_names_b2_and_offers_the_cli(self, client):
+    B1, B2, B5, B6, B7 and B11 have landed, so the lock, jobs, readiness, the
+    summary and the UEs are live and must NOT name a backend change any more. B4,
+    B9 and B10 have not, so those still do.
+    """
+
+    def test_the_overview_reads_the_lock_rather_than_naming_b1(self, client):
+        body = client.get("/").text
+        assert "needs ETHOS B1" not in body
+        assert "Testbed lock" in body
+
+    def test_the_jobs_page_lists_jobs_rather_than_naming_b2(self, client):
         body = client.get("/jobs").text
-        assert "needs ETHOS B2" in body
-        assert "python -m campaign" in body
+        assert "needs ETHOS B2" not in body
+        assert "Jobs" in body
+
+    def test_the_testbed_page_lists_ues_rather_than_naming_b11(self, client):
+        body = client.get("/testbed").text
+        assert "needs ETHOS B11" not in body
+        assert "UEs" in body
 
     def test_the_graphs_page_names_b9(self, client):
         assert "needs ETHOS B9" in client.get("/graphs").text
-
-    def test_run_is_disabled_and_names_the_first_blocker(self, client):
-        body = client.post("/plan/resolve", data={}).text
-        assert "RUN" in body
-        assert "disabled" in body
 
 
 class TestPlanPage:

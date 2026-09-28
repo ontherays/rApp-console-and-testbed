@@ -49,6 +49,41 @@ READS: tuple[tuple[str, str, str, dict | None], ...] = (
             }
         },
     ),
+    # B1, B2, B5, B6, B11. Reads only, and the one POST among them is
+    # /jobs/preview, which sends nothing to the testbed: it describes what a job
+    # WOULD do and mints a token nobody uses. Recording POST /jobs would start a
+    # campaign on a shared testbed, so it is deliberately absent.
+    ("lock", "GET", "/lock", None),
+    ("jobs", "GET", "/jobs", None),
+    ("status_summary", "GET", "/status/summary", None),
+    ("ue", "GET", "/ue", None),
+    ("ue_iperf", "GET", "/ue/samsung/iperf", None),
+    (
+        "readiness",
+        "POST",
+        "/readiness",
+        {
+            "config_id": "ocudu-mono_swphy_pega_samsung_o5gs_joule",
+            "direction": "DL",
+            "rates": "100,200",
+            "duration": "30s",
+            "repeats": 1,
+            "iperf_server": "app_binary",
+        },
+    ),
+    (
+        "job_preview",
+        "POST",
+        "/jobs/preview",
+        {
+            "config_id": "ocudu-mono_swphy_pega_samsung_o5gs_joule",
+            "direction": "DL",
+            "rates": "100,200",
+            "duration": "30s",
+            "repeats": 1,
+            "iperf_server": "app_binary",
+        },
+    ),
 )
 
 MAX_RUNS = 12

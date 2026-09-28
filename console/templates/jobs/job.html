@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import ic, stack_chip, chip %}
+{% from "components/header.html" import crumbs %}
+
+{% block title %}{{ job_id }} · Jobs · Testbed Console{% endblock %}
+{% block page_title %}{{ job_id }}{% endblock %}
+{% block page_icon %}play{% endblock %}
+{% block page_tone %}purple{% endblock %}
+{% block crumbs %}{{ crumbs([{'label': 'Jobs', 'href': '/jobs'}, {'label': 'job'}]) }}{% endblock %}
+
+{% block content %}
+
+{% if error %}
+  <div class="banner bad">{{ ic('warning') }}{{ error }}</div>
+{% else %}
+
+{# The snapshot says where the job stands; the stream says what is happening.
+
+   Both are needed, and that is what makes opening this page halfway through a
+   job work: the snapshot fills the steps and points immediately, then events
+   arrive from wherever ETHOS's replay left off.
+
+   `sse-connect` points at the console's own relay, never at ETHOS: the browser is
+   on the LAN and ETHOS is on loopback holding every credential. htmx reconnects
+   on its own and sends `Last-Event-ID`, which the relay forwards, so a refresh
+   loses nothing. #}
+<div hx-ext="sse"
+     sse-connect="/jobs/{{ job_id }}/stream"
+     id="job-live">
+
+  <div id="job-snapshot"
+       hx-get="/jobs/{{ job_id }}/snapshot"
+       hx-trigger="sse:state, sse:finished, every 15s"
+       hx-swap="innerHTML">
+    {% include "jobs/snapshot.html" %}
+  </div>
+
+  <div class="card flush" style="margin-top:16px">
+    <header>
+      <span class="tile slate">{{ ic('file') }}</span>
+      <span style="min-width:0">
+        <span class="card-title">Log</span>
+        <span class="card-sub">
+          Every line the campaign printed, as it printed it. Each event carries a
+          sequence number, so a reconnect resumes without a gap or a duplicate.
+        </span>
+      </span>
+    </header>
+    {# Events land here as they arrive.
+
+       The relay passes ETHOS's bytes through untouched, so each event's data is
+       ETHOS's own JSON. Turning that into a line is the page's job, not the
+       relay's: a relay that reformatted events would have to be taught every new
+       event type before one could be seen at all. #}
+    <pre class="cmd joblog" id="job-log" sse-swap="log"></pre>
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

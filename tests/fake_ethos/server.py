@@ -7,6 +7,12 @@ is wrapped in an ASGI app here and served.
 
 One implementation, two ways of reaching it: a fixture that drifts from what the
 unit tests see would be worse than no fixture at all.
+
+Because it is a separate process, a browser test cannot reach into it the way a
+unit test does. So it seeds a running job with a few events at startup, and
+exposes a small control surface under ``/__control/`` for the states a browser
+test has to set up: the lock being held, and clearing it again. That path is not
+an ETHOS endpoint and nothing in the console knows about it.
 """
 
 from __future__ import annotations
@@ -25,8 +31,48 @@ from tests.fake_ethos import FakeEthos
 RECORDED = Path(__file__).resolve().parent.parent / "recorded"
 
 
+#: The job a browser test watches. Seeded rather than created through the API so
+#: the page has a log to render the moment it opens.
+SEEDED_JOB = "j-seeded"
+
+SEEDED_LOG = (
+    "topology : ocudu-mono",
+    "deploy   : ok",
+    "attach   : ok",
+    "  DL    100M     99.99 Mbit/s  loss 0.0%",
+)
+
+
 def create_app(recorded: Path = RECORDED) -> Starlette:
     fake = FakeEthos(recorded)
+
+    fake.add_job(SEEDED_JOB, state="running", stop_requested=False, ended="",
+                 outcome="", error="")
+    for line in SEEDED_LOG:
+        fake.emit(SEEDED_JOB, "log", line=line)
+
+    async def control(request: Request) -> Response:
+        """Set up a state a browser test needs. Not an ETHOS endpoint."""
+        what = request.path_params["what"]
+        body = await request.json() if await request.body() else {}
+        if what == "lock":
+            if body.get("holder"):
+                fake.hold_lock(
+                    body["holder"], body.get("what", ""),
+                    body.get("since", "2026-09-28T09:32:58Z"),
+                )
+            else:
+                fake.locked_by = None
+                fake.answers.pop("GET /lock", None)
+                fake.answers.pop("GET /status/summary", None)
+            return Response(status_code=204)
+        if what == "reset":
+            fake.answers.clear()
+            fake.locked_by = None
+            fake.refuse_with = None
+            fake.down = False
+            return Response(status_code=204)
+        return Response("unknown control", status_code=404)
 
     async def handle(request: Request) -> Response:
         body = await request.body()
@@ -47,7 +93,10 @@ def create_app(recorded: Path = RECORDED) -> Starlette:
         )
 
     return Starlette(
-        routes=[Route("/{path:path}", handle, methods=["GET", "POST", "PUT", "DELETE"])]
+        routes=[
+            Route("/__control/{what}", control, methods=["POST"]),
+            Route("/{path:path}", handle, methods=["GET", "POST", "PUT", "DELETE"]),
+        ]
     )
 
 

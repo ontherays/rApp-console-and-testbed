@@ -158,11 +158,48 @@
 <div class="grid cols-12">
   <div class="card span-4">
     <header><span class="card-title">Running job</span></header>
-    {{ gated(caps, 'jobs') }}
+    {% set job = summary.latest_job if summary else None %}
+    {% if job and job.job_id %}
+      <p style="margin:0">
+        <a class="mono" href="/jobs/{{ job.job_id }}">{{ job.job_id }}</a>
+        {% include "jobs/state_chip.html" ignore missing with context %}
+      </p>
+      <p class="faint" style="margin:6px 0 0">
+        {{ job.label or job.config_id or '' }}
+        {% if job.progress %}· {{ job.progress }} point(s){% endif %}
+      </p>
+    {% elif summary and summary.latest_job.error %}
+      <p class="muted" style="margin:0">{{ summary.latest_job.error }}</p>
+    {% else %}
+      <p class="muted" style="margin:0">
+        No job has been started. Build one on the <a href="/plan">Test Plan</a>.
+      </p>
+    {% endif %}
   </div>
   <div class="card span-4">
     <header><span class="card-title">UE and iperf server</span></header>
-    {{ gated(caps, 'ue', 'The UE state a run recorded is on that run’s page, under Results.') }}
+    {% if summary %}
+      {% set ue = summary.ue %}
+      {% set ip = summary.iperf_server %}
+      <p style="margin:0">
+        {{ ue.ue or 'UE' }}:
+        {% if ue.error %}<span class="faint">{{ ue.error }}</span>
+        {% elif ue.reachable is none %}<span class="faint">did not answer</span>
+        {% elif ue.attached %}attached{% if ue.ip %} <span class="mono">{{ ue.ip }}</span>{% endif %}
+        {% elif ue.attached is none %}reachable
+        {% else %}detached{% endif %}
+      </p>
+      <p class="faint" style="margin:6px 0 0">
+        port 5201:
+        {% if ip.error %}{{ ip.error }}
+        {% elif ip.held %}{{ ip.owner }}
+        {% else %}free{% endif %}
+        {% if ip.default_mode %}· default {{ ip.default_mode }}{% endif %}
+      </p>
+      <p style="margin:8px 0 0"><a class="btn btn-sm" href="/testbed">Open the Testbed page</a></p>
+    {% else %}
+      <p class="muted" style="margin:0">{{ summary_error or 'not read' }}</p>
+    {% endif %}
   </div>
   <div class="card span-4">
     <header><span class="card-title">Links</span></header>

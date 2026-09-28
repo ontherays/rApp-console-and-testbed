@@ -252,27 +252,33 @@ sudo ufw allow from 192.168.8.0/24 to any port 8443 proto tcp
 
 ## 6. The pages
 
-ETHOS today has no testbed lock, no job model, no readiness endpoint and no
-figure generation. Every control that needs one of those is **disabled and says
-which backend change adds it** (`needs ETHOS B2, starting, watching and
-stopping a campaign`), with the command that does the job now. `docs/ethos-backlog.md`
-lists them all.
+ETHOS has the testbed lock, the job model, readiness, the status summary and
+standalone UE control, and the console uses all of them: a test can be started,
+watched and stopped from the browser. What it still lacks is the catalogue, figure
+generation and server-side results queries, and every control that needs one of
+those is **disabled and says which backend change adds it** (`needs ETHOS B9,
+generating a figure on request`), with the command that does the job now.
+`docs/ethos-backlog.md` lists them all.
 
 | Page | What it does today |
 |---|---|
-| **Overview** | Pick a period (24 hours / 7 days / 30 days) and a subset (all runs / DL / UL / needs attention). Six KPI cards with their change against the previous period; a honeycomb of one hexagon per run coloured by topology; the best throughput of each day as a dot-matrix chart; and "topologies that need you", least complete first, each with a Review button onto its latest sweep. The lock, running job and UE tiles name the backend change they need. |
-| **Test Plan** | Builds one test. The topology is a summary card: the chain drawn left to right (UE, O-RU, O-DU, O-CU, 5GC, O-Cloud), its label, its `config_id` and its status chips, with **Change topology** opening a side panel. That panel has two tabs: **Presets**, one card per wired deploy profile with the date and result of its last run, one click to select; and **Custom**, every component as a group of cards with an icon or vendor mark and one line of what it is, undeployable options greyed out with the reason. **CU and DU vendor follow the split**: monolithic disables both and shows the gNB stack's value; CU + DU makes both selectable, defaulting to that stack's vendor. Readiness is in the right-hand column, sticky, with RUN at its foot; RUN is also the primary button in the page header, disabled with its reason until B1 and B2 land. |
-| **Jobs** | The campaigns in the run archive, grouped by `campaign_id`, each linking to its sweep. Starting a campaign from the browser is B2. |
+| **Overview** | Pick a period (24 hours / 7 days / 30 days) and a subset (all runs / DL / UL / needs attention). Six KPI cards with their change against the previous period; a honeycomb of one hexagon per run coloured by topology; the best throughput of each day as a dot-matrix chart; and "topologies that need you", least complete first, each with a Review button onto its latest sweep. The lock, deployed, latest-job, UE and freshness tiles come from `GET /status/summary`, each with its own timestamp, so a probe that failed inside ETHOS greys out one tile and no more. |
+| **Test Plan** | Builds one test. The topology is a summary card: the chain drawn left to right (UE, O-RU, O-DU, O-CU, 5GC, O-Cloud), its label, its `config_id` and its status chips, with **Change topology** opening a side panel. That panel has two tabs: **Presets**, one card per wired deploy profile with the date and result of its last run, one click to select; and **Custom**, every component as a group of cards with an icon or vendor mark and one line of what it is, undeployable options greyed out with the reason. **CU and DU vendor follow the split**: monolithic disables both and shows the gNB stack's value; CU + DU makes both selectable, defaulting to that stack's vendor. Readiness is in the right-hand column, sticky, with RUN at its foot; RUN is also the primary button in the page header. The seven checks are ETHOS's own, from `POST /readiness`, rendered in its order: a **failure** disables RUN and names itself in the tooltip, while a check ETHOS could not make is surfaced as unknown and does not block. RUN asks ETHOS for a preview, shows it in a dialog, and only confirming it starts the job. |
+| **Jobs** | Every job ETHOS knows about, newest first, and below it the campaigns in the run archive grouped by `campaign_id`. A job's own page shows its steps, its points as each finishes, and its live log; **Stop** asks it to stop at the next point boundary, behind a confirmation. The log survives a refresh: each event carries a sequence number and the browser resumes from the last one it saw. |
 | **Results** | Every archived run, with filters, sortable columns, CSV export of the filtered set from **Export** in the header, and a detail page per run: Summary, Channel conditions, Latency, Cell config, Config, Raw. Runs that cannot be analysed are hidden behind a toggle. |
 | **Sweep / Compare** | One row per offered load with repeats collapsed to a mean and an n, expandable to the individual runs. Amber warning when the runs do not share one cell configuration. |
 | **Graphs** | The gallery of figures ETHOS's plotting package produced, with the PNG, the PDF and each figure's manifest. Requesting a new figure is B9. |
 | **Search** | In the sidebar, or press <kbd>/</kbd> anywhere. An exact run id opens that run; anything else lists matching configurations, campaigns and runs. |
-| **Testbed / O1 / O2** | What each will show, its requirement ids, and where things stand today. |
+| **Testbed** | The testbed's UEs with driver, control path, state, address and who holds port 5201, and **Attach**, **Detach** and **Free 5201** for each one ETHOS drives, every one behind a dialog showing ETHOS's own preview. Below that, what is deployed. Deploying on its own is deliberately not offered: RUN already deploys what its plan needs and tears it down. |
+| **O1 / O2** | What each will show, its requirement ids, and where things stand today. |
 | **Documentation** | These documents, served from `docs/`. |
 
 The sidebar's foot shows **ETHOS backend: n of 6 ready**, how many of B1, B2,
-B4, B5, B6 and B9 are answering. It fills in by itself as the capability probe
-finds each endpoint; "Details" opens `docs/ethos-backlog.md`.
+B4, B5, B6 and B9 are answering. B1, B2, B5 and B6 do; B4 and B9 do not yet. It
+fills in by itself as the capability probe finds each endpoint, and the probe keeps
+running afterwards, so an endpoint that disappears in a rollback disables the
+controls that need it rather than letting them fail on click. "Details" opens
+`docs/ethos-backlog.md`.
 
 The charts on the Overview are drawn as SVG by the console itself. They are
 operational summaries, counts and trends. **Paper figures still come only from
@@ -388,10 +394,17 @@ analysed. Tick "show unusable runs".
 without figures. It should be ETHOS's own `ETHOS_GRAPH_DIR`
 (`/home/oai-gnb/ravi-ethos-rApp-graph`).
 
-**The RUN button will not light up.** It needs the testbed lock (B1) and the job
-endpoints (B2). Its tooltip names whichever is missing. When they land, the
-capability probe finds them within a minute and the button enables itself;
-nothing has to be edited.
+**The RUN button will not light up.** Its tooltip says why. Most often a readiness
+check has failed: the testbed lock is held by somebody else, or something is
+already deployed. A check that merely could not be made does not disable it. If the
+tooltip names a backend change instead, the capability probe finds the endpoint
+within a minute of it appearing and the button enables itself; nothing has to be
+edited.
+
+**The core readiness check says unknown.** It does on this testbed, and that is
+correct rather than broken: ETHOS probes the core from the node, joule has no
+interface on the core's subnet, and the gNB reaches the AMF over the interface its
+pod holds, which does not exist before a deploy. An unknown does not block RUN.
 
 **A Test Plan option is disabled and you expect it to work.** Its tooltip gives
 the reason, read from ETHOS's `deploy_profiles.yaml`. A profile whose status is

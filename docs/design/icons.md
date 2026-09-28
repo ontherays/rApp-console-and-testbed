@@ -117,6 +117,11 @@
 
   
 
+  <symbol id="icon-stop" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="6.5" y="6.5" width="11" height="11" rx="1.6"/>
+  </symbol>
+
   <symbol id="icon-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
     <rect x="4.5" y="10.5" width="15" height="10" rx="2.2"/>
@@ -413,6 +418,7 @@ Readiness, refusals, and things that are waiting on a backend change.
 |---|---|---|
 | <svg width="28" height="28" style="vertical-align:middle;color:#16181d"><use href="#icon-readiness"/></svg> | `readiness` | The readiness checklist |
 | <svg width="28" height="28" style="vertical-align:middle;color:#16181d"><use href="#icon-lock"/></svg> | `lock` | The testbed lock, and anything gated on a backend change |
+| <svg width="28" height="28" style="vertical-align:middle;color:#16181d"><use href="#icon-stop"/></svg> | `stop` | Asking a running job to stop at the next point |
 | <svg width="28" height="28" style="vertical-align:middle;color:#16181d"><use href="#icon-check"/></svg> | `check` | A check that passed |
 | <svg width="28" height="28" style="vertical-align:middle;color:#16181d"><use href="#icon-cross"/></svg> | `cross` | A check that failed |
 | <svg width="28" height="28" style="vertical-align:middle;color:#16181d"><use href="#icon-question"/></svg> | `question` | A check that could not be answered |

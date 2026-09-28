@@ -1,0 +1,166 @@
+{# Where the job stands: ETHOS's snapshot, re-read when an event says something
+   changed. The state word is ETHOS's own, never inferred here. #}
+{% from "components/macros.html" import ic, stack_chip, chip, num, ago %}
+
+{% if error %}
+  <div class="banner bad">{{ ic('warning') }}{{ error }}</div>
+{% elif job %}
+
+<div class="card">
+  <header>
+    <span class="tile {{ 'teal' if job.state == 'completed' else ('red' if job.state == 'failed' else 'purple') }}">
+      {{ ic('play') }}
+    </span>
+    <span style="min-width:0">
+      <span class="card-title">
+        {% include "jobs/state_chip.html" %}
+        {% if job.label %}<span class="faint">{{ job.label }}</span>{% endif %}
+      </span>
+      <span class="card-sub">
+        {% if job.config_id %}{{ job.config_id }}{% endif %}
+      </span>
+    </span>
+    {% if job.can_stop %}
+      <button class="btn" type="button"
+              hx-post="/jobs/{{ job.job_id }}/stop/preview"
+              hx-target="#stop-confirm" hx-swap="innerHTML">
+        <svg class="ic" aria-hidden="true"><use href="#icon-stop"/></svg>Stop
+      </button>
+    {% endif %}
+  </header>
+
+  <div id="stop-confirm"></div>
+
+  {% if job.stop_requested and not job.finished %}
+    <div class="banner warn">
+      {{ ic('stop') }}
+      <span>
+        A stop has been requested. The point being measured finishes, then the UE
+        is detached and the stack torn down.
+      </span>
+    </div>
+  {% endif %}
+  {% if job.outcome %}
+    <div class="banner info">{{ ic('info') }}<span>{{ job.outcome }}</span></div>
+  {% endif %}
+  {% if job.error %}
+    <div class="banner bad">{{ ic('warning') }}<span>{{ job.error }}</span></div>
+  {% endif %}
+  {% if job.deployed_at_interrupt %}
+    <div class="banner warn">
+      {{ ic('warning') }}
+      <span>
+        The service restarted while this job was running, and what it left on the
+        testbed is recorded here:
+        <span class="mono">{{ job.deployed_at_interrupt }}</span>
+      </span>
+    </div>
+  {% endif %}
+
+  <div class="row" style="gap:18px;flex-wrap:wrap;margin-top:4px">
+    <span>{{ ic('dl' if job.plan.direction == 'DL' else 'ul', 'faint') }}
+      {{ job.plan.direction or NOT_MEASURED }}</span>
+    <span>{{ ic('rate', 'faint') }} {{ job.plan.rates or NOT_MEASURED }}</span>
+    <span>{{ ic('duration', 'faint') }} {{ job.plan.duration or NOT_MEASURED }}</span>
+    <span>{{ ic('repeats', 'faint') }} {{ job.plan.repeats or 1 }}</span>
+    <span>{{ ic('iperf', 'faint') }}
+      {{ job.plan.iperf_server or 'the service default' }}</span>
+    <span class="faint">started {{ ago(job.started) }}</span>
+    {% if job.ended %}<span class="faint">ended {{ ago(job.ended) }}</span>{% endif %}
+  </div>
+
+  {% if job.expected_points %}
+    <p class="hint" style="margin:10px 0 0">
+      {{ job.points | length }} of {{ job.expected_points }} point(s) measured.
+    </p>
+  {% endif %}
+</div>
+
+<div class="card flush" style="margin-top:16px">
+  <header>
+    <span class="tile slate">{{ ic('readiness') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">Steps</span>
+      <span class="card-sub">What the campaign did, and how long each part took</span>
+    </span>
+  </header>
+  <div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>step</th><th>state</th><th>detail</th><th>started</th><th>ended</th></tr></thead>
+      <tbody>
+      {% for step in job.steps %}
+        <tr>
+          <td>{{ step.name }}</td>
+          <td>{{ chip(step.state, 'green' if step.state == 'done' else 'blue') }}</td>
+          <td>{{ step.detail or '' }}</td>
+          <td class="nowrap">{{ step.started | clocktime if step.started else NOT_MEASURED }}</td>
+          <td class="nowrap">{{ step.ended | clocktime if step.ended else NOT_MEASURED }}</td>
+        </tr>
+      {% endfor %}
+      {% if not job.steps %}
+        <tr><td colspan="5" class="muted" style="padding:16px">Nothing has started yet.</td></tr>
+      {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card flush" style="margin-top:16px">
+  <header>
+    <span class="tile blue">{{ ic('rate') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">Points</span>
+      <span class="card-sub">
+        Achieved, never offered. A point ETHOS refused keeps its reason.
+      </span>
+    </span>
+  </header>
+  <div class="table-wrap">
+    <table class="data">
+      <thead>
+        <tr><th>direction</th><th class="num">offered</th><th class="num">achieved</th>
+            <th class="num">loss</th><th>status</th><th>run</th></tr>
+      </thead>
+      <tbody>
+      {% for point in job.points %}
+        <tr class="{{ '' if point.status == 'ok' else 'not-measured' }}">
+          <td>{{ point.direction or NOT_MEASURED }}</td>
+          <td class="num">{{ num(point.offered_mbps, 0, 'M') }}</td>
+          <td class="num">{{ num(point.achieved_mbps, 2, 'Mbit/s') }}</td>
+          <td class="num">{{ num(point.loss_pct, 2, '%') }}</td>
+          <td>
+            {{ chip(point.status or 'unknown', 'green' if point.status == 'ok' else 'red') }}
+            {% if point.reason %}<div class="reason">{{ point.reason }}</div>{% endif %}
+          </td>
+          <td>
+            {% if point.run_id %}
+              <a class="mono" href="/results/runs/{{ point.run_id }}">{{ point.run_id[-18:] }}</a>
+            {% else %}{{ NOT_MEASURED }}{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      {% if not job.points %}
+        <tr><td colspan="6" class="muted" style="padding:16px">
+          No point has finished yet.
+        </td></tr>
+      {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if job.cell_config %}
+  <div class="card" style="margin-top:16px">
+    <header>
+      <span class="tile slate">{{ ic('gnb') }}</span>
+      <span style="min-width:0">
+        <span class="card-title">Cell, as read at deploy</span>
+        <span class="card-sub">What actually ran, from the rendered configuration</span>
+      </span>
+    </header>
+    {% from "components/macros.html" import cell_chips %}
+    {{ cell_chips(job.cell_config) }}
+  </div>
+{% endif %}
+
+{% endif %}

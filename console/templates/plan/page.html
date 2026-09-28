@@ -106,14 +106,14 @@
       <div class="field" style="margin-bottom:0">
         <span class="label">
           {{ ic('iperf', 'faint') }} iperf server
-          <sl-tooltip hoist content="The mode is service-wide in ETHOS today (ETHOS_IPERF_SERVER); choosing it per test is backend change B7, so this value is recorded in the plan and used by the command below.">
+          <sl-tooltip hoist content="This choice belongs to this job alone (B7). The plan carries it, ETHOS applies it to this job's runs, and each run records which binary served it. A plan that leaves it unset uses the service default, ETHOS_IPERF_SERVER.">
             {{ ic('info', 'faint') }}
           </sl-tooltip>
         </span>
         {{ radio('iperf_server', [('app_binary','Magic iPerf app on the UE','', 'ue'),
                                   ('ethos','ETHOS server','', 'server')],
                  values.iperf_server) }}
-        <p class="hint">Which end holds port 5201.</p>
+        <p class="hint">Which end holds port 5201, for this job only. The readiness check above judges the mode chosen here.</p>
       </div>
     </div>
 
@@ -148,7 +148,9 @@
       </div>
     </div>
 
-    <div id="plan-result">{% include "plan/resolved.html" %}</div>
+    <div id="plan-result">
+      {% with initial=True %}{% include "plan/resolved.html" %}{% endwith %}
+    </div>
   </div>
 
   <div class="span-4" style="min-width:0">
@@ -188,4 +190,9 @@
    not found when a preset sets the fields. #}
 {% include "plan/drawer.html" %}
 </form>
+
+{# Confirmations live here, outside the form. Anything inside #plan-result is
+   replaced whenever the plan re-resolves, and a dialog that vanishes under the
+   operator is worse than no dialog. #}
+<div id="plan-dialog"></div>
 {% endblock %}

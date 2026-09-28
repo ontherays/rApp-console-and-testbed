@@ -1,17 +1,34 @@
-{# The seven checks, in ETHOS's order, with RUN under them so the reason it is
-   disabled is next to it. Re-rendered with the plan and swapped in out of band,
-   because it lives in a column the form does not target. #}
+{# ETHOS's seven checks, in ETHOS's order, with RUN under them so the reason it
+   is disabled is next to it. Re-rendered with the plan and swapped in out of
+   band, because it lives in a column the form does not target.
+
+   Every row is ETHOS's verdict. The console supplies the label and nothing else,
+   and an `unknown` stays an unknown: it is surfaced without blocking, exactly as
+   ETHOS treats it. #}
 {% from "components/macros.html" import check_item, ic %}
 <div class="card" {% if oob %}hx-swap-oob="true" id="readiness-panel"{% endif %}>
   <header>
     <span class="tile {{ 'teal' if can_run else 'slate' }}">{{ ic('readiness') }}</span>
     <span style="min-width:0">
       <span class="card-title">Readiness</span>
-      <span class="card-sub">What must be true before this test can start</span>
+      <span class="card-sub">
+        {% if readiness %}ETHOS judged this plan{% else %}What must be true before this test can start{% endif %}
+      </span>
     </span>
   </header>
 
   {% for check in checks %}{{ check_item(check) }}{% endfor %}
+
+  {% if readiness and unknowns %}
+    <p class="hint" style="margin:10px 0 0">
+      {{ ic('info', 'faint') }}
+      {{ unknowns | length }} check(s) could not be made. ETHOS surfaces those
+      without blocking: not knowing and being broken are different answers.
+    </p>
+  {% endif %}
+  {% if readiness_error and not readiness %}
+    <p class="hint" style="margin:10px 0 0">{{ ic('warning') }} {{ readiness_error }}</p>
+  {% endif %}
 
   <div class="run-foot">
     {% include "plan/run_button.html" %}
@@ -22,6 +39,15 @@
       <p class="hint" style="margin:8px 0 0">
         {{ traffic.points }} point(s), about {{ traffic.estimated_seconds() | duration }}
         including deploy and teardown.
+      </p>
+    {% else %}
+      {# A form hint, not a check. ETHOS's `traffic_plan` above is the authority
+         on whether the plan can run, and this does not disable RUN: the console's
+         bounds are its own suggestions and the two do not agree everywhere. #}
+      <p class="hint" style="margin:8px 0 0">
+        {{ ic('info', 'faint') }}
+        Console hint, not a readiness check:
+        {{ traffic.errors.values() | join('; ') }}
       </p>
     {% endif %}
   </div>

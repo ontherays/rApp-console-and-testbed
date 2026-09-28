@@ -28,6 +28,7 @@ from console.overview import (
     slice_runs,
     topologies_needing_you,
 )
+from console import holders
 from console.rapps.ethos.client import EthosError
 from console.rapps.ethos.series import series_for
 from console.status import build_status
@@ -51,6 +52,111 @@ def _age(iso: str | None, now: datetime) -> tuple[str, str, str]:
     return f"{days:.0f}", "d ago", "orange" if days < 7 else "red"
 
 
+def _lock_tile(summary, error: str | None, tz: str) -> dict:
+    """Who holds the testbed (B1).
+
+    A lock that was read and found free is a fact, so the tile says "free" rather
+    than hedging. A holder is named the same way it is named everywhere else: a
+    shell campaign reads "CLI campaign ...", because `cli:3340113` means nothing
+    to somebody who did not start it.
+    """
+    if summary is None:
+        return {"icon": "lock", "tone": "slate", "label": "Testbed lock",
+                "value": "unknown", "small": True,
+                "note": error or "not read", "note_icon": "info"}
+    part = summary.lock
+    if part.error:
+        return {"icon": "lock", "tone": "slate", "label": "Testbed lock",
+                "value": "unknown", "small": True, "note": part.error, "note_icon": "info"}
+    if not part.held:
+        return {"icon": "lock", "tone": "teal", "label": "Testbed lock",
+                "value": holders.FREE, "small": True, "note": "nothing holds it"}
+    return {
+        "icon": "lock", "tone": "orange", "label": "Testbed lock",
+        "value": holders.short(part), "small": True,
+        "note": holders.describe(part, tz=tz),
+        "href": f"/jobs/{part.job_id}" if part.is_job and part.job_id else None,
+    }
+
+
+def _deployed_tile(summary, error: str | None) -> dict:
+    if summary is None:
+        return {"icon": "testbed", "tone": "blue", "label": "Deployed now",
+                "value": "unknown", "small": True, "note": error or "not read"}
+    part = summary.deployed
+    if part.error:
+        return {"icon": "testbed", "tone": "blue", "label": "Deployed now",
+                "value": "unknown", "small": True, "note": part.error}
+    if part.anything_deployed:
+        return {
+            "icon": "testbed", "tone": "blue", "label": "Deployed now",
+            "value": part.profile or part.stack or (
+                ", ".join(str(r) for r in part.releases) or "something"
+            ), "small": True,
+            "note": f"{len(part.running_pods)} pod(s) running in {part.namespace}",
+            "href": "/testbed",
+        }
+    return {"icon": "testbed", "tone": "blue", "label": "Deployed now",
+            "value": "nothing", "small": True,
+            "note": f"no release and no pod in {part.namespace}", "href": "/testbed"}
+
+
+def _job_tile(summary, error: str | None) -> dict:
+    """The latest job (B2). Its state is ETHOS's word, never inferred here."""
+    if summary is None:
+        return {"icon": "play", "tone": "purple", "label": "Latest job",
+                "value": "unknown", "small": True, "note": error or "not read"}
+    part = summary.latest_job
+    if part.error:
+        return {"icon": "play", "tone": "purple", "label": "Latest job",
+                "value": "unknown", "small": True, "note": part.error}
+    if not part.job_id:
+        return {"icon": "play", "tone": "slate", "label": "Latest job",
+                "value": "none", "small": True,
+                "note": "no job has been started", "href": "/plan"}
+    note = ", ".join(bit for bit in (part.label, part.progress and f"{part.progress} points") if bit)
+    return {
+        "icon": "play", "tone": "teal" if part.finished else "purple",
+        "label": "Latest job", "value": part.state or "unknown", "small": True,
+        "note": note or part.job_id, "href": f"/jobs/{part.job_id}",
+    }
+
+
+def _freshness_tile(summary, error: str | None) -> dict:
+    """When each data source last said anything (B6).
+
+    Three sources in one tile because they answer one question, and each is named
+    in the note. A source that has never landed a point says so rather than
+    reading as stale: never and old are different.
+    """
+    if summary is None:
+        return {"icon": "clock", "tone": "slate", "label": "Data freshness",
+                "value": ",", "note": error or "not read", "note_icon": "info"}
+    part = summary.freshness
+    if part.error:
+        return {"icon": "clock", "tone": "slate", "label": "Data freshness",
+                "value": ",", "note": part.error, "note_icon": "info"}
+
+    landed: list[str] = []
+    missing: list[str] = []
+    newest_point: str | None = None
+    for name, source in (("results", part.results), ("O1 PM", part.o1_pm),
+                         ("O2 power", part.o2_power)):
+        if source.last_point:
+            landed.append(name)
+            newest_point = max(newest_point or "", source.last_point)
+        else:
+            missing.append(name)
+
+    now = datetime.now(timezone.utc)
+    value, unit, tone = _age(newest_point, now)
+    note = f"newest: {', '.join(landed)}" if landed else "nothing has landed"
+    if missing:
+        note += f" · nothing yet from {', '.join(missing)}"
+    return {"icon": "clock", "tone": tone, "label": "Data freshness",
+            "value": value, "unit": unit, "note": note, "note_icon": "info"}
+
+
 @router.get("/")
 async def overview(request: Request, period: str = DEFAULT_PERIOD, kind: str = DEFAULT_KIND):
     client = request.app.state.client
@@ -69,21 +175,21 @@ async def overview(request: Request, period: str = DEFAULT_PERIOD, kind: str = D
     now = datetime.now(timezone.utc)
     window = slice_runs(runs, period, kind, now=now)
 
-    deployed = None
-    deploy_error = None
+    # One call for the lock, what is deployed, the latest job, the UE and data
+    # freshness (B6). Each part carries its own error, so a probe that failed in
+    # ETHOS greys out one tile instead of the row.
+    summary = None
+    summary_error = None
     try:
-        deployed = await client.deploy_status()
+        summary = await client.status_summary()
     except EthosError as exc:
-        deploy_error = exc.message
+        summary_error = exc.message
 
     # --- the KPI row ---------------------------------------------------------
-    if deployed is None:
-        deployed_value, deployed_note = "unknown", deploy_error or "not read"
-    elif deployed.anything_deployed:
-        deployed_value = deployed.profile or deployed.stack or "something"
-        deployed_note = f"{len(deployed.running_pods)} pod(s) running in {deployed.namespace}"
-    else:
-        deployed_value, deployed_note = "nothing", deployed.namespace_summary
+    lock_tile = _lock_tile(summary, summary_error, request.app.state.settings.tz)
+    deployed_tile = _deployed_tile(summary, summary_error)
+    job_tile = _job_tile(summary, summary_error)
+    freshness_tile = _freshness_tile(summary, summary_error)
 
     best_now = best_at(window.current, 1000.0)
     best_before = best_at(window.previous, 1000.0)
@@ -93,15 +199,9 @@ async def overview(request: Request, period: str = DEFAULT_PERIOD, kind: str = D
     age_value, age_unit, age_tone = _age(latest.t_created if latest else None, now)
 
     kpis = [
-        {
-            "icon": "lock", "tone": "slate", "label": "Testbed lock",
-            "value": "unknown", "small": True,
-            "note": caps.why("lock"), "note_icon": "info",
-        },
-        {
-            "icon": "testbed", "tone": "blue", "label": "Deployed now",
-            "value": deployed_value, "small": True, "note": deployed_note,
-        },
+        lock_tile,
+        deployed_tile,
+        job_tile,
         {
             "icon": "jobs", "tone": "purple", "label": f"Runs, {window.label.lower()}",
             "value": f"{len(window.current)}",
@@ -125,12 +225,7 @@ async def overview(request: Request, period: str = DEFAULT_PERIOD, kind: str = D
             "vs": f"vs {snr_before:.1f} dB" if snr_before is not None else "no previous run",
             "note": None if snr_now is not None else "no run in this period recorded channel metrics",
         },
-        {
-            "icon": "clock", "tone": age_tone, "label": "Data freshness",
-            "value": age_value, "unit": age_unit,
-            "note": "newest run in the archive · O1 and energy freshness need B6",
-            "note_icon": "info",
-        },
+        freshness_tile,
     ]
 
     # --- runs by topology ----------------------------------------------------
@@ -186,6 +281,8 @@ async def overview(request: Request, period: str = DEFAULT_PERIOD, kind: str = D
         "overview/page.html",
         {
             "error": error,
+            "summary": summary,
+            "summary_error": summary_error,
             "window": window,
             "period": period,
             "kind": kind,

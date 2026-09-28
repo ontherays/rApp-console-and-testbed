@@ -1,0 +1,82 @@
+{
+  "lock": {
+    "held": false,
+    "holder": null,
+    "what": null,
+    "since": null,
+    "error": "",
+    "checked_at": "2026-09-28T14:14:16Z"
+  },
+  "deployed": {
+    "profile": null,
+    "stack": null,
+    "namespace": "ravi-ns",
+    "releases": [],
+    "pods": [],
+    "running_pods": [],
+    "node_free": null,
+    "node_reason": "the node was not observed",
+    "error": "",
+    "checked_at": "2026-09-28T14:14:16Z"
+  },
+  "latest_job": {
+    "job_id": "j-20260928T100336Z",
+    "state": "interrupted",
+    "label": "restart-test-2",
+    "config_id": "ocudu-mono_swphy_pega_samsung_o5gs_joule",
+    "points": 0,
+    "expected_points": 3,
+    "started": "2026-09-28T10:03:36Z",
+    "ended": "2026-09-28T10:07:01Z",
+    "error": "",
+    "checked_at": "2026-09-28T14:14:16Z"
+  },
+  "ue": {
+    "ue": "samsung",
+    "reachable": true,
+    "attached": null,
+    "ip": null,
+    "error": "",
+    "checked_at": "2026-09-28T14:14:17Z"
+  },
+  "iperf_server": {
+    "default_mode": "app_binary",
+    "holder": {
+      "pid": "31749",
+      "uid": "u0_a336",
+      "cmdline": "iperf3 -s",
+      "exe": "",
+      "version": "",
+      "version_detail": "/proc/<pid>/exe is not readable by shell for a process owned by u0_a336, so the binary could not be identified",
+      "owner": "foreign"
+    },
+    "error": "",
+    "checked_at": "2026-09-28T14:14:19Z"
+  },
+  "freshness": {
+    "results": {
+      "last_point": "2026-09-28T12:14:01.329437952Z",
+      "bucket": "ethos-results",
+      "measurement": "ethos_iperf_v2"
+    },
+    "o1_pm": {
+      "last_point": null,
+      "bucket": "ran-pm-metrics",
+      "cell_fdn": ",NRCellDU=nrcelldu1"
+    },
+    "o2_power": {
+      "last_point": null,
+      "bucket": "infra-telemetry",
+      "measurement": "ocloud_power"
+    },
+    "error": "",
+    "checked_at": "2026-09-28T14:14:19Z"
+  },
+  "api": {
+    "version": "0.1.0",
+    "started": "2026-09-28T11:37:39Z",
+    "uptime_s": 9400.4,
+    "error": "",
+    "checked_at": "2026-09-28T14:14:19Z"
+  }
+}

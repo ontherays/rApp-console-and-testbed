@@ -179,4 +179,48 @@
   document.addEventListener("DOMContentLoaded", function () { relabel(); });
   document.addEventListener("htmx:afterSwap", function (event) { relabel(event.target); });
   setInterval(function () { relabel(); }, 30000);
+
+  // --- a job's live log ----------------------------------------------------
+  //
+  // `sse-swap="log"` on the log element is what subscribes it to ETHOS's log
+  // events. The extension's default is to insert the event data as content, and
+  // that data is ETHOS's own JSON, so the swap is cancelled here and the line
+  // appended instead.
+  //
+  // The relay in console/sse.py stays a pass-through on purpose: reformatting
+  // events there would mean teaching it every new event type before one could be
+  // seen at all. Rendering is the page's job, and this is the page's script.
+  //
+  // It lives here rather than in a <script> on the job page because the console
+  // serves a strict CSP (script-src 'self'), which blocks inline script.
+  let pinnedToBottom = true;
+
+  document.addEventListener("scroll", function (event) {
+    const log = event.target;
+    if (!log || log.id !== "job-log") return;
+    pinnedToBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 24;
+  }, true);
+
+  document.addEventListener("htmx:sseBeforeMessage", function (event) {
+    const log = event.target;
+    if (!log || log.id !== "job-log") return;
+    event.preventDefault();
+
+    const message = event.detail || {};
+    let line = message.data;
+    try {
+      const payload = JSON.parse(message.data);
+      if (payload && payload.line !== undefined) line = payload.line;
+    } catch (err) {
+      // Not JSON. Show it as it came rather than dropping it.
+    }
+    if (line === undefined || line === null || line === "") return;
+    // textContent, never innerHTML: these lines are a campaign's output.
+    log.appendChild(document.createTextNode(line + "\n"));
+    if (pinnedToBottom) log.scrollTop = log.scrollHeight;
+  });
+
+  document.addEventListener("htmx:sseError", function () {
+    window.toast("The job event stream dropped; it is reconnecting.", "warning", "info");
+  });
 })();

@@ -1,14 +1,16 @@
 # What the console is waiting for from ETHOS
 
-The console is specified against an ETHOS that has a testbed lock, a job model, a
-readiness endpoint and figure generation. None of that exists yet, and this
-console was built without changing ETHOS at all.
+The testbed lock, the job model, preview-then-confirm, readiness, the status
+summary, the per-job iperf mode and standalone UE control have landed (B1, B2, B3,
+B5, B6, B7, B11), and the console uses all of them. What is left is the catalogue
+(B4), figure generation (B9) and server-side results queries (B10), plus the O1
+and O2 phases.
 
-Rather than buttons that look live and fail on click, every such control is
-disabled and names the backend change that delivers it. This is the list, and it
-is also the order of work in `04-build-plan.md`.
+Rather than buttons that look live and fail on click, a control that still needs a
+backend change is disabled and names it. This is the list, and it is also the
+order of work in `04-build-plan.md`.
 
-Checked against the live API on 127.0.0.1:8081 on 2026-09-27.
+Checked against the live API on 127.0.0.1:8081 on 2026-09-28.
 
 ---
 
@@ -24,7 +26,12 @@ each as:
 
 A page asks `caps.ready("jobs")` and renders the gated state from `caps.why()`.
 **When a backend change lands, the probe finds the endpoint and the page lights up
-on its own.** Removing the entry from the table is the last step, not the first.
+on its own**, with no edit to the page.
+
+An entry stays in the table after its change lands, and that is deliberate: it is
+then a live check rather than a gate. If an endpoint disappears in a rollback or a
+route breaks, the probe notices within a minute and the control that depends on it
+disables itself with a reason instead of failing on click.
 
 ---
 
@@ -47,14 +54,14 @@ on its own.** Removing the entry from the table is the last step, not the first.
 | `GET /results/ladder` | 501 | the energy ladder |
 | `POST /testdef/validate` | 501 | an editable config view |
 | `POST /campaigns`, `POST /campaigns/{id}/run`, `GET /campaigns/{id}/status` | 501 | running a campaign |
-| `GET /lock` | not routed | B1 |
-| `GET /jobs`, `POST /jobs`, `POST /jobs/preview`, `GET /jobs/{id}/events` | not routed | B2 |
+| `GET /lock` | **works** | the status strip, the Overview tile, the readiness line |
+| `GET /jobs`, `POST /jobs`, `POST /jobs/preview`, `POST /jobs/{id}/stop`, `GET /jobs/{id}/events` | **works** | RUN, the Jobs page, the live job page |
+| `POST /readiness` | **works** | the readiness panel, and whether RUN is offered |
+| `GET /status/summary` | **works** | the status strip and the Overview tiles |
+| `GET /ue`, `GET /ue/{ue}/iperf`, `GET /ue/{ue}/signal`, the attach, detach and iperf-stop pairs | **works** | the Testbed page's UE panel |
 | `GET /catalogue` | not routed | B4 |
-| `POST /readiness` | not routed | B5 |
-| `GET /status/summary` | not routed | B6 |
 | `POST /plots`, `GET /plots`, `GET /plots/series` | not routed | B9 |
 | `GET /runs.csv`, `GET /campaigns/{id}/summary`, `GET /runs/{id}/radio-samples` | not routed | B10 |
-| `GET /ue`, `POST /ue/{ue}/attach`, `GET /ue/{ue}/iperf` | not routed | B11 |
 | `GET /o1/freshness`, `GET /o1/alarms` | not routed | B12 |
 | `GET /o2/nf`, `GET /o2/deploy-times`, `GET /o2/dms/*` | not routed | B13 |
 
@@ -62,36 +69,42 @@ on its own.** Removing the entry from the table is the last step, not the first.
 
 ## What each change unlocks, and what to delete when it lands
 
-### B1, testbed lock
+### B1, testbed lock, done
 
-Gated: the Overview's lock tile, the readiness panel's `lock` line, and the
-status strip's `Lock` item. All three read `unknown` today, which is the honest
-answer, an item that said "free" because nothing answered would be worse than no
-item at all.
+`GET /lock` is read in three places and worded the same in all of them by
+`console/holders.py`: the status strip, the Overview's lock tile and the readiness
+panel's `lock` line. A holder is named rather than reduced to "busy", and a shell
+campaign reads **CLI campaign `<what>` since `<time>`**, because `cli:3340113`
+means nothing to somebody who did not start it.
 
-When it lands: add `lock()` to `client.py`; the tile and the strip read it. Remove
-the `lock` entry from `FEATURES`.
+The lock is the one read that is never cached. Everything else on a page can be a
+few seconds stale; this decides whether an action is offered at all.
 
-### B2, jobs
+### B2, jobs, done
 
-Gated: the RUN button, the whole Jobs page, and the Overview's running-job tile.
+RUN is `POST /jobs/preview`, then ETHOS's preview shown in a dialog, then
+`POST /jobs` with the token, then `/jobs/{job_id}` (design 7.2). 409 names the
+holder in a toast and 412 says the state changed and re-runs readiness (7.5).
 
-The console deliberately does **not** run campaigns itself. It has the same API
-the CLI drives, so it could, and that is the reason not to: a second campaign
-executor, with the lock living in the LAN-facing web process instead of in ETHOS,
-is what the design rules out. One executor, in ETHOS.
+The job page is a snapshot plus an SSE relay. Both are needed: the snapshot is
+what makes opening the page halfway through a job useful, and the stream carries on
+from wherever ETHOS's replay left off. `console/sse.py` adds nothing to the events
+except forwarding `Last-Event-ID`, which is the whole of the resume mechanism, so a
+refresh loses nothing.
 
-When it lands: `POST /jobs/preview` fills the confirmation dialog the plan page
-already has a place for, `POST /jobs` replaces the "Save plan" primary action, and
-the Jobs page gains the SSE relay (`console/sse.py`, not yet written: there is
-nothing to relay).
+Stopping goes through its own confirmation. ETHOS has no preview endpoint for a
+stop, so that text is the console's, and it describes what ETHOS does rather than
+guessing: the point being measured finishes, the stack is torn down, and the job
+ends `aborted` keeping every point it measured.
 
-### B3, preview, then act with a token
+The console still runs no campaign itself. It has the same API the CLI drives, and
+that is exactly why it must not: one executor, in ETHOS.
 
-Nothing in the console acts on the testbed today, so nothing is gated on this
-directly. It is the prerequisite for Phase 2: deploy, teardown and UE attach act
-on the first call in ETHOS today, with no preview, which is why the Testbed page
-is a description rather than a control panel.
+### B3, preview, then act with a token, done
+
+Every state-changing call the console makes carries a token from a preview the
+operator saw: starting a job, attaching a UE, detaching one, and stopping the iperf
+app. Nothing acts on one click (GL-07).
 
 ### B4, catalogue with deployability
 
@@ -110,33 +123,46 @@ When it lands: delete `profiles.py`, delete `OPTION_REASONS`, drop
 `CONSOLE_DEPLOY_PROFILES`, and read `deployable` and `reason` per option from
 `/catalogue`.
 
-### B5, readiness
+### B5, readiness, done
 
-Gated: four of the seven readiness lines (`lock`, `ue_reachable`, `iperf_server`,
-`core`). `topology` and `node_free` are answered today from `/validate` and
-`/deploy/status`, and `traffic_plan` is a **console pre-check**, labelled as such:
-it parses rates and duration with the CLI's own grammar so a plan that cannot be
-expressed as a campaign is caught before it is saved.
+`POST /readiness` replaces the list the console used to assemble. All seven checks
+are ETHOS's, rendered in ETHOS's order by `console/readiness.py`, and the console
+adds none of its own: the point of the endpoint is that the CLI and the console
+judge readiness identically.
 
-The console adds no readiness check of its own beyond that, because the point of
-`POST /readiness` is that the CLI and the console judge readiness identically.
+Two rules the panel follows because ETHOS does:
 
-When it lands: replace the whole list with ETHOS's, rendered in its order. Delete
-the pre-check's "console pre-check" label, or keep the parse as a form hint only.
+- an `unknown` stays an unknown. It is never upgraded to a pass, never downgraded
+  to a failure, and it is surfaced with a count rather than hidden;
+- only a **failure** disables RUN. A check that could not be made must not refuse
+  a run that would have worked.
 
-### B6, status summary
+The traffic parse survives as a **form hint** beside the fields, which is all it
+ever was useful for: catching a rate that cannot be expressed while it is being
+typed. It is not a readiness check and no longer appears in the panel.
 
-Gated: the `Lock`, `Job`, `UE` and `iperf 5201` items in the status strip, and the
-Overview's data-freshness tile. Freshness needs InfluxDB, and the console holds no
-database token, this one cannot be worked around, only waited for.
+The `lock` line is reworded from `/lock` so a holder reads the same there as in the
+strip. Everything else is ETHOS's own sentence.
 
-When it lands: `build_status()` in `console/status.py` becomes one call.
+### B6, status summary, done
 
-### B7, iperf server mode per job
+`build_status()` in `console/status.py` is one call. Each part carries its own
+`checked_at` and `error`, so a probe that failed inside ETHOS greys out one item
+and the rest of the strip still draws, and a part ETHOS served from its own cache
+reports the age of the read it came from rather than of the request.
 
-Not gated, but recorded: the plan carries `iperf_server`, and the mode is
-service-wide in ETHOS today (`ETHOS_IPERF_SERVER` in a systemd drop-in, currently
-`app_binary`). The plan page says so.
+The Overview's lock, deployed, latest-job, UE and freshness tiles come from the
+same object. Freshness names all three sources, and a source that has never landed
+a point says so rather than reading as stale: never and old are different.
+
+### B7, iperf server mode per job, done
+
+The plan carries `iperf_server`, and it is now this job's choice rather than a note
+about a service-wide setting. ETHOS applies it to that job's runs and each run
+records which binary served it. The readiness panel's `iperf_server` check judges
+the mode chosen on the form, which matters because the two modes want opposite
+things of port 5201: `app_binary` needs a server already listening, `ethos` needs
+the port free.
 
 ### B8, direction and repeats
 
@@ -170,13 +196,24 @@ is not an option.
 When it lands: delete `query.py`, pass the filters through, use `GET /runs.csv`
 and `GET /campaigns/{id}/summary`.
 
-### B11, standalone UE control
+### B11, standalone UE control, done
 
-Gated: the whole Testbed page's UE half, the Overview's UE tile, the
-`ue_reachable` and `iperf_server` readiness lines. ETHOS's UE endpoints are
-scoped to a run today, which is right for the record but means there is no
-standalone panel, and the console will not create a run just to read a UE's
-state.
+The Testbed page has a live UE panel: every UE ETHOS knows about with its driver,
+control path, reachability, attach state and address, the port-5201 holder beside
+it, and attach, detach and "free 5201" each behind a dialog showing ETHOS's own
+preview.
+
+What the panel is careful about is the same thing ETHOS is careful about.
+`unknown` is a state and is drawn as one: an unreachable handset is never shown as
+"detached", because one is a device that did not answer and the other is a device
+that answered and is idle. A UE ETHOS does not drive is listed with its reason
+rather than hidden.
+
+Deploy and teardown are still not offered here, and that is a choice rather than a
+gap. A deploy occupies a shared testbed for minutes, and RUN already deploys
+exactly what the plan it is running needs and tears it down afterwards. A
+standalone button would be a second way to occupy the testbed with no run to
+attribute it to.
 
 ### B12, O1 freshness, alarms, CM-driven tests
 ### B13, O2 NF checks, deploy timing, energy, DMS

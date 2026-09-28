@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import ic, chip %}
+{% from "components/header.html" import primary %}
+
+{% block title %}Testbed · Testbed Console{% endblock %}
+{% block page_title %}Testbed{% endblock %}
+{% block page_icon %}testbed{% endblock %}
+{% block page_tone %}teal{% endblock %}
+{% block actions %}{{ primary('/plan', 'New test') }}{% endblock %}
+{% block lede %}
+  <p class="lede">
+    The testbed's UEs, and what is deployed on it. Every action here shows ETHOS's
+    own preview first and is refused while somebody else holds the testbed.
+  </p>
+{% endblock %}
+
+{% block content %}
+
+{% if lock and lock.held %}
+  <div class="banner {{ 'warn' if lock.is_cli else 'info' }}" style="margin-bottom:16px">
+    {{ ic('lock') }}
+    <span>
+      The testbed is held by <strong>{{ lock_text }}</strong>, so an attach or a
+      detach will be refused until it finishes.
+      {% if lock.is_job and lock.job_id %}<a href="/jobs/{{ lock.job_id }}">Watch it</a>.{% endif %}
+    </span>
+  </div>
+{% elif lock_error %}
+  <div class="banner bad" style="margin-bottom:16px">{{ ic('warning') }}{{ lock_error }}</div>
+{% endif %}
+
+<div id="ue-panel">{% include "testbed/ue_table.html" %}</div>
+
+<div id="ue-confirm"></div>
+
+<div class="card" style="margin-top:16px">
+  <header>
+    <span class="tile blue">{{ ic('gnb') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">Deployed now</span>
+      <span class="card-sub">What is installed in the gNB namespace</span>
+    </span>
+  </header>
+  {% if deploy_error %}
+    <p class="muted" style="margin:0">{{ deploy_error }}</p>
+  {% elif deployed and deployed.anything_deployed %}
+    <div class="row" style="gap:18px;flex-wrap:wrap">
+      <span>{{ chip(deployed.profile or deployed.stack or 'a stack', 'blue') }}</span>
+      <span class="faint">namespace {{ deployed.namespace }}</span>
+      <span class="faint">{{ deployed.releases | length }} release(s)</span>
+      <span class="faint">{{ deployed.running_pods | length }} pod(s) running</span>
+    </div>
+  {% else %}
+    <p class="muted" style="margin:0">
+      Nothing is deployed in {{ deployed.namespace if deployed else 'the namespace' }}.
+      A job deploys what its plan needs and tears it down afterwards.
+    </p>
+  {% endif %}
+  <p class="hint">
+    {{ ic('info', 'faint') }}
+    Deploying on its own is deliberately not offered here. A deploy occupies a
+    shared testbed for minutes, and RUN already deploys exactly what the plan it
+    is running needs, then tears it down. A standalone button would be a second
+    way to occupy it with no run to attribute it to.
+  </p>
+</div>
+
+{% endblock %}

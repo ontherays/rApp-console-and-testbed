@@ -1,0 +1,16 @@
+{
+  "ue": "samsung",
+  "port": 5201,
+  "held": true,
+  "holder": {
+    "pid": "31749",
+    "uid": "u0_a336",
+    "cmdline": "iperf3 -s",
+    "exe": "",
+    "version": "",
+    "version_detail": "/proc/<pid>/exe is not readable by shell for a process owned by u0_a336, so the binary could not be identified",
+    "owner": "foreign"
+  },
+  "default_mode": "app_binary",
+  "checked_at": "2026-09-28T14:14:23Z"
+}

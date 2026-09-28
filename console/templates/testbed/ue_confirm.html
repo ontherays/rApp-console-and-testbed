@@ -1,0 +1,49 @@
+{# A UE action, confirmed against ETHOS's own preview (GL-07).
+
+   The lines are ETHOS's, unedited. It has already read the handset to compose
+   them, so what is on screen is the state the token is bound to: if the UE
+   changes before this is confirmed, ETHOS refuses it rather than acting on the
+   picture shown here. #}
+{% from "components/macros.html" import ic %}
+
+{# Deliberately NOT removed on `sl-after-hide`. Shoelace fires that as part of
+   its own open/close animation, which took the dialog away from under the
+   operator about a second after it appeared. A hidden dialog left in the DOM is
+   harmless: the fragment it lives in is replaced by the next swap. #}
+<sl-dialog label="{{ action_label }} {{ ue }}?" open style="--width:600px">
+  <p class="hint" style="margin-top:0">
+    {{ ic('info', 'faint') }}
+    ETHOS's own description. Nothing has been sent to the handset yet.
+  </p>
+
+  <ul class="preview-list">
+    {% for line in preview.summary %}<li>{{ line }}</li>{% endfor %}
+  </ul>
+
+  {% if preview.expires_in_s %}
+    <p class="hint">
+      Good for {{ preview.expires_in_s }} s, and only while the UE stays as
+      described above.
+    </p>
+  {% endif %}
+
+  {% if action == 'attach' %}
+    <p class="hint">
+      This can take a few minutes: the radio is toggled, the handset is given time
+      to settle, and the address is read back.
+    </p>
+  {% endif %}
+
+  <sl-button slot="footer" variant="default"
+             onclick="this.closest('sl-dialog').hide()">Cancel</sl-button>
+  <sl-button slot="footer"
+             variant="{{ 'warning' if action == 'iperf/stop' else 'primary' }}"
+             hx-post="/testbed/ue/{{ ue }}/{{ action }}"
+             hx-include="#ue-token"
+             hx-on:htmx:after-request="this.closest('sl-dialog').hide()">
+    {{ action_label }}
+  </sl-button>
+</sl-dialog>
+
+<input type="hidden" id="ue-token" name="preview_token"
+       value="{{ preview.preview_token }}">

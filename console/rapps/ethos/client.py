@@ -28,9 +28,17 @@ from console.rapps.ethos.models import (
     Catalogue,
     DeployStatus,
     EthosHealth,
+    Holder,
+    Job,
+    JobList,
+    Preview,
+    Readiness,
     Run,
     RunList,
+    StatusSummary,
     TestDefGenerated,
+    UeIperf,
+    UeList,
     ValidationResult,
 )
 
@@ -119,6 +127,7 @@ class EthosClient:
         *,
         timeout_s: float = 10.0,
         slow_timeout_s: float = 60.0,
+        act_timeout_s: float = 900.0,
         runs_cache_s: float = 20.0,
         status_cache_s: float = 15.0,
         transport: httpx.AsyncBaseTransport | None = None,
@@ -127,6 +136,7 @@ class EthosClient:
         self.base_url = base_url.rstrip("/")
         self.timeout_s = timeout_s
         self.slow_timeout_s = slow_timeout_s
+        self.act_timeout_s = act_timeout_s
         self.runs_cache_s = runs_cache_s
         self.status_cache_s = status_cache_s
         self._clock = clock
@@ -151,8 +161,9 @@ class EthosClient:
         json: Any = None,
         params: dict[str, Any] | None = None,
         slow: bool = False,
+        timeout_s: float | None = None,
     ) -> Any:
-        timeout = self.slow_timeout_s if slow else self.timeout_s
+        timeout = timeout_s if timeout_s else (self.slow_timeout_s if slow else self.timeout_s)
         try:
             response = await self._client.request(
                 method, path, json=json, params=params, timeout=timeout
@@ -308,4 +319,145 @@ class EthosClient:
         default, and a console read must not modify a run record."""
         return await self.call(
             "GET", f"/runs/{run_id}/ee-kpi", params={"persist": "false"}, slow=True
+        )
+
+    # --- the testbed lock (B1) -----------------------------------------------
+
+    async def lock(self) -> Holder:
+        """Who holds the testbed. Never cached.
+
+        Everything else on a page can be a few seconds stale; this cannot. It is
+        what decides whether an action is offered at all, and offering one that
+        ETHOS will refuse is the failure this endpoint exists to prevent.
+        """
+        return Holder.model_validate(await self.call("GET", "/lock"))
+
+    # --- readiness (B5) ------------------------------------------------------
+
+    async def readiness(self, plan: dict[str, Any]) -> Readiness:
+        """ETHOS's seven checks for this plan, in ETHOS's order.
+
+        The console renders what comes back and judges nothing itself. Two
+        opinions about whether the testbed is ready is worse than one, and the
+        whole point of the endpoint is that the CLI and the console agree.
+
+        Slow on purpose: it reaches the deploy host, the handset and the node.
+        """
+        return Readiness.model_validate(
+            await self.call("POST", "/readiness", json=plan, slow=True)
+        )
+
+    # --- the status summary (B6) ---------------------------------------------
+
+    async def status_summary(self, config_id: str | None = None) -> StatusSummary:
+        """The whole status strip in one call.
+
+        Cached briefly because the strip polls every 5 s from every open tab, and
+        ETHOS's own slow parts (the handset, the port-5201 holder) are cached
+        behind it too. Each part carries its own `checked_at`, so a cached answer
+        still reports the age of the read it came from rather than of this
+        request.
+        """
+
+        async def fetch() -> StatusSummary:
+            body = await self.call(
+                "GET",
+                "/status/summary",
+                params={"config_id": config_id} if config_id else None,
+                slow=True,
+            )
+            return StatusSummary.model_validate(body)
+
+        return await self._cached(f"summary:{config_id or ''}", self.status_cache_s, fetch)
+
+    # --- jobs (B2) -----------------------------------------------------------
+
+    async def jobs(self) -> JobList:
+        return JobList.model_validate(await self.call("GET", "/jobs"))
+
+    async def job(self, job_id: str) -> Job:
+        return Job.model_validate(await self.call("GET", f"/jobs/{job_id}"))
+
+    async def job_preview(self, plan: dict[str, Any]) -> Preview:
+        """What starting this plan would do, and the token that allows it.
+
+        Sends nothing to the testbed. The token is bound to the plan AND to the
+        testbed state it was computed against, which is what makes the 412 on
+        confirm meaningful.
+        """
+        return Preview.model_validate(
+            await self.call("POST", "/jobs/preview", json=plan, slow=True)
+        )
+
+    async def job_start(self, plan: dict[str, Any], preview_token: str) -> Job:
+        """Start the job the operator has just seen the preview of.
+
+        409 and 412 are raised as `EthosRefused` and `EthosStateChanged` by
+        `call`, which is what the dialog turns into a toast and a readiness
+        re-run (design section 7.5).
+        """
+        body = {**plan, "confirm": True, "preview_token": preview_token}
+        return Job.model_validate(await self.call("POST", "/jobs", json=body, slow=True))
+
+    async def job_stop(self, job_id: str) -> Job:
+        """Ask the job to stop at the next point boundary.
+
+        Cooperative in ETHOS: the campaign finishes the point it is measuring,
+        then detaches and tears down. Nothing is killed, and the points already
+        measured are kept.
+        """
+        return Job.model_validate(
+            await self.call("POST", f"/jobs/{job_id}/stop", slow=True)
+        )
+
+    def job_events_url(self, job_id: str) -> str:
+        return f"{self.base_url}/jobs/{job_id}/events"
+
+    def stream(
+        self, method: str, path: str, *, headers: dict[str, str] | None = None
+    ) -> Any:
+        """An open response, for the SSE relay in `console/sse.py`.
+
+        Deliberately not wrapped in the error mapping: a stream that has started
+        cannot be turned into a toast, so the relay reports a broken stream to the
+        browser as an event and lets htmx reconnect.
+        """
+        return self._client.stream(
+            method, path, headers=headers or {}, timeout=None
+        )
+
+    # --- UE control (B11) ----------------------------------------------------
+
+    async def ues(self) -> UeList:
+        """Every UE ETHOS knows about, including the ones it does not drive.
+
+        Slow: it reads each driven UE's state over adb through the lab's control
+        host.
+        """
+        return UeList.model_validate(await self.call("GET", "/ue", slow=True))
+
+    async def ue_iperf(self, ue: str) -> UeIperf:
+        return UeIperf.model_validate(await self.call("GET", f"/ue/{ue}/iperf", slow=True))
+
+    async def ue_signal(self, ue: str) -> dict[str, Any]:
+        return await self.call("GET", f"/ue/{ue}/signal", slow=True)
+
+    async def ue_preview(self, ue: str, action: str) -> Preview:
+        """The preview for `attach`, `detach` or `iperf/stop` on one UE."""
+        return Preview.model_validate(
+            await self.call("POST", f"/ue/{ue}/{action}/preview", slow=True)
+        )
+
+    async def ue_act(self, ue: str, action: str, preview_token: str) -> dict[str, Any]:
+        """Do it, with the token from the preview the operator just saw.
+
+        An attach can take minutes: the driver toggles the radio, waits for the
+        handset to settle and reads the address back, and ETHOS refuses rather
+        than claim an attach it could not confirm. So this is a slow call.
+        """
+        return await self.call(
+            "POST",
+            f"/ue/{ue}/{action}",
+            json={"confirm": True, "preview_token": preview_token},
+            timeout_s=self.act_timeout_s,
         )
