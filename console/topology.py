@@ -1,9 +1,14 @@
 """The topology as a picture, and the presets the picker offers.
 
 A config_id says what a topology is, once you have learned to read it. A row of
-boxes left to right says it at a glance: UE, RU, O-DU, O-CU, 5GC, and the server
-underneath. Monolithic stacks draw CU and DU as one gNB box, because that is
-what they are.
+boxes left to right says it at a glance: UE, RU, the gNB, 5GC. Monolithic stacks
+draw CU and DU as one gNB box, because that is what they are.
+
+**The gNB is drawn INSIDE the O-Cloud.** joule is not a sixth element in the
+chain that the gNB talks to, it is the worker the gNB runs on: the Helm release
+lands there, its process is what the node check looks for, and pkg1 is the socket
+whose energy the run measures. Drawing it as a peer at the end of the row said
+the gNB connects to the O-Cloud, which is the one thing it does not do.
 
 Nothing here decides anything. The selection is still validated by ETHOS and the
 config_id still comes from `POST /testdef/generate`; this only draws what was
@@ -31,8 +36,33 @@ class Node:
     tone: str = "slate"
 
 
-def nodes_for(selection: dict[str, Any], *, split: str = "") -> list[Node]:
-    """The chain, left to right, for one selection."""
+@dataclass(frozen=True)
+class Chain:
+    """One topology, drawn as a row with the gNB held inside the O-Cloud."""
+
+    before: list[Node]           # UE, O-RU
+    hosted: list[Node]           # the gNB: one box, or O-DU and O-CU
+    after: list[Node]            # 5GC
+    server: str = ""             # the O-Cloud that holds `hosted`, if named
+
+    def all_nodes(self) -> list[Node]:
+        return [*self.before, *self.hosted, *self.after]
+
+    def describe(self) -> str:
+        """What a screen reader is told, containment and all."""
+        outside = ", ".join(f"{n.label} {n.sub}".strip() for n in self.before)
+        inside = ", ".join(f"{n.label} {n.sub}".strip() for n in self.hosted)
+        tail = ", ".join(f"{n.label} {n.sub}".strip() for n in self.after)
+        if self.server:
+            middle = f"O-Cloud {self.server}, running {inside}"
+        else:
+            middle = inside
+        return ", ".join(part for part in (outside, middle, tail) if part)
+
+
+def nodes_for(selection: dict[str, Any], *, split: str = "") -> Chain:
+    """The chain for one selection, split into what the O-Cloud holds and what
+    it does not."""
     split = split or str(selection.get("gnb_split", "monolithic"))
     stack = str(selection.get("gnb_stack", ""))
     ue = str(selection.get("ue", ""))
@@ -40,26 +70,22 @@ def nodes_for(selection: dict[str, Any], *, split: str = "") -> list[Node]:
     core = str(selection.get("core", ""))
     server = str(selection.get("server", ""))
 
-    chain = [
-        Node("ue", "UE", ue, "blue"),
-        Node("ru", "O-RU", ru, "teal"),
-    ]
-
     if split == "monolithic":
-        chain.append(Node("gnb", "gNB", f"{stack}, CU and DU in one", "orange"))
+        hosted = [Node("gnb", "gNB", f"{stack}, CU and DU in one", "orange")]
     else:
         cu, du = stack, stack
         if split == "OCUDU-CU+OAI-DU":
             cu, du = "OCUDU", "OAI"
         elif split == "OAI-CU+OCUDU-DU":
             cu, du = "OAI", "OCUDU"
-        chain.append(Node("du", "O-DU", du, "orange"))
-        chain.append(Node("cu", "O-CU", cu, "purple"))
+        hosted = [Node("du", "O-DU", du, "orange"), Node("cu", "O-CU", cu, "purple")]
 
-    chain.append(Node("core", "5GC", core, "purple"))
-    if server:
-        chain.append(Node("server", "O-Cloud", server, "slate"))
-    return chain
+    return Chain(
+        before=[Node("ue", "UE", ue, "blue"), Node("ru", "O-RU", ru, "teal")],
+        hosted=hosted,
+        after=[Node("core", "5GC", core, "purple")],
+        server=server,
+    )
 
 
 TONE_COLOURS = {
@@ -74,7 +100,7 @@ def diagram(
     split: str = "",
     size: str = "full",
 ) -> str:
-    """The chain as inline SVG.
+    """The chain as inline SVG, with the gNB inside the O-Cloud that runs it.
 
     ``mini`` is the version that fits on a preset card: boxes and links, no
     captions. ``full`` labels every element.
@@ -83,46 +109,107 @@ def diagram(
     mini = size == "mini"
 
     box_w, box_h = (54, 46) if mini else (94, 70)
-    gap = 14 if mini else 30
+    gap = 12 if mini else 26
     pad_top = 4 if mini else 6
-    caption = 0 if mini else 26
-    width = len(chain) * box_w + (len(chain) - 1) * gap
-    height = pad_top + box_h + caption
+    caption = 0 if mini else 18
+    # The O-Cloud's own frame: a header for its name, and room around the boxes
+    # it holds. Its title sits ABOVE them, so containment reads as containment
+    # rather than as one more box in the row.
+    head_h = 15 if mini else 22
+    hug = 8 if mini else 12
 
+    hosted_w = len(chain.hosted) * box_w + (len(chain.hosted) - 1) * gap
+    # A caption can be wider than the box it sits under ("OCUDU, CU and DU in
+    # one" against a 94-wide gNB box), and a caption spilling past the dashed
+    # edge would undo the containment the frame is there to show. So the frame
+    # is widened to hold its own text, at ~5.3px per character for the 10px
+    # label font, and the boxes are centred in whatever width that gives.
+    caption_w = 0.0
+    if not mini:
+        for node in chain.hosted:
+            caption_w = max(caption_w, len(node.sub) * 5.3)
+    host_w = max(hosted_w + 2 * hug, caption_w + 2 * hug)
+    host_h = head_h + box_h + caption + hug
+
+    columns = len(chain.before) + len(chain.after)
+    width = columns * (box_w + gap) + host_w
+    height = pad_top + host_h
+
+    row_y = pad_top + head_h                     # every box sits on this line
     parts = [
         f'<svg viewBox="0 0 {width} {height}" width="100%" height="{height}" '
         f'class="topo {"mini" if mini else ""}" role="img" '
-        f'aria-label="{_esc(", ".join(n.label + " " + n.sub for n in chain))}" '
+        f'aria-label="{_esc(chain.describe())}" '
         'preserveAspectRatio="xMidYMid meet">'
     ]
 
-    for index, node in enumerate(chain):
-        x = index * (box_w + gap)
+    def box(x: float, node: Node) -> str:
         colour = TONE_COLOURS.get(node.tone, "#55606F")
-        parts.append(
-            f'<g transform="translate({x},{pad_top})" color="{colour}">'
+        icon = 24 if mini else 30
+        out = (
+            f'<g transform="translate({x},{row_y})" color="{colour}">'
             f'<rect x="0.75" y="0.75" width="{box_w - 1.5}" height="{box_h - 1.5}" rx="9" '
             f'fill="#fff" stroke="currentColor" stroke-opacity=".35" stroke-width="1.5"/>'
-            f'<svg x="{(box_w - (24 if mini else 30)) / 2}" y="{6 if mini else 11}" '
-            f'width="{24 if mini else 30}" height="{24 if mini else 30}">'
-            f'<use href="#icon-{node.icon}"/></svg>'
+            f'<svg x="{(box_w - icon) / 2}" y="{6 if mini else 11}" '
+            f'width="{icon}" height="{icon}"><use href="#icon-{node.icon}"/></svg>'
             f'<text x="{box_w / 2}" y="{box_h - (6 if mini else 13)}" text-anchor="middle" '
             f'font-size="{8.5 if mini else 11}" font-weight="600" fill="currentColor" '
             f'font-family="system-ui, sans-serif">{_esc(node.label)}</text>'
             "</g>"
         )
         if not mini and node.sub:
-            parts.append(
-                f'<text x="{x + box_w / 2}" y="{pad_top + box_h + 16}" text-anchor="middle" '
-                f'font-size="10" fill="#9AA1AC" font-family="system-ui, sans-serif">'
+            out += (
+                f'<text x="{x + box_w / 2}" y="{row_y + box_h + 13}" text-anchor="middle" '
+                'font-size="10" fill="#9AA1AC" font-family="system-ui, sans-serif">'
                 f"{_esc(node.sub)}</text>"
             )
-        if index < len(chain) - 1:
-            line_y = pad_top + box_h / 2
-            parts.append(
-                f'<path d="M{x + box_w + 3} {line_y} H{x + box_w + gap - 3}" '
-                'stroke="#C9CDD4" stroke-width="1.5" stroke-linecap="round"/>'
-            )
+        return out
+
+    def link(x_from: float, x_to: float) -> str:
+        return (
+            f'<path d="M{x_from + 3} {row_y + box_h / 2} H{x_to - 3}" '
+            'stroke="#C9CDD4" stroke-width="1.5" stroke-linecap="round"/>'
+        )
+
+    x = 0.0
+    for node in chain.before:
+        parts.append(box(x, node))
+        parts.append(link(x + box_w, x + box_w + gap))
+        x += box_w + gap
+
+    # The O-Cloud. Dashed, tinted and behind its contents: it is the place the
+    # releases land, not a network element the gNB talks to.
+    host_x = x
+    parts.append(
+        f'<g color="{TONE_COLOURS["slate"]}">'
+        f'<rect x="{host_x + 0.75}" y="{pad_top + 0.75}" width="{host_w - 1.5}" '
+        f'height="{host_h - 1.5}" rx="12" fill="#F7F8FA" stroke="currentColor" '
+        'stroke-opacity=".38" stroke-width="1.5" stroke-dasharray="5 3"/>'
+        "</g>"
+    )
+    label = "O-Cloud" + (f" · {chain.server}" if chain.server else "")
+    parts.append(
+        f'<svg x="{host_x + hug}" y="{pad_top + (3 if mini else 5)}" '
+        f'width="{11 if mini else 13}" height="{11 if mini else 13}" '
+        f'color="{TONE_COLOURS["slate"]}"><use href="#icon-server"/></svg>'
+        f'<text x="{host_x + hug + (14 if mini else 17)}" '
+        f'y="{pad_top + (12 if mini else 15)}" font-size="{8 if mini else 10.5}" '
+        'font-weight="600" fill="#55606F" font-family="system-ui, sans-serif">'
+        f"{_esc(label)}</text>"
+    )
+
+    x = host_x + (host_w - hosted_w) / 2
+    for index, node in enumerate(chain.hosted):
+        parts.append(box(x, node))
+        if index < len(chain.hosted) - 1:
+            parts.append(link(x + box_w, x + box_w + gap))
+        x += box_w + gap
+    x = host_x + host_w
+
+    for node in chain.after:
+        parts.append(link(x, x + gap))
+        parts.append(box(x + gap, node))
+        x += gap + box_w
 
     parts.append("</svg>")
     return "".join(parts)
