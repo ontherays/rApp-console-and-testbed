@@ -143,7 +143,7 @@ class Preset:
     label: str
     selection: dict[str, str]
     split: str
-    status: str                  # supported | experimental
+    status: str                  # supported, for every profile that is wired
     colour: str
     releases: tuple[str, ...] = ()
     last_run: str | None = None
@@ -153,6 +153,19 @@ class Preset:
 
     @property
     def experimental(self) -> bool:
+        """Whether the card carries a caveat chip.
+
+        A preset is one of ETHOS's own wired deploy profiles, and a profile is
+        wired when its charts and values exist and have been run. This used to
+        read "experimental" off the profile NAME, which was the console making
+        a judgement of its own from a string: both cross-vendor splits have
+        since been swept end to end, and the chip was telling the operator they
+        were unproven while the cards underneath showed their runs.
+
+        The caveat that remains is ETHOS's, on the topology summary, where
+        `POST /validate` returns `experimental` with the rule and the reason
+        that raised it. One source for that judgement, and it is not this one.
+        """
         return self.status == "experimental"
 
 
@@ -235,7 +248,7 @@ def build_presets(profiles, defaults: dict[str, str], runs: list) -> list[Preset
                 label=LABELS[name],
                 selection=selection,
                 split=PRESET_SELECTIONS[name]["gnb_split"],
-                status="experimental" if "cu-oai-du" in name or "cu-ocudu-du" in name else "supported",
+                status="supported",
                 colour=series_for(f"{head}_x").colour,
                 releases=profile.releases if profile else (),
                 last_run=run.t_created if run else None,
