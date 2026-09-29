@@ -129,6 +129,17 @@
   </div>
 {% endmacro %}
 
+{# One readiness check. ETHOS's verdict, its label, and its reason on hover.
+
+   The reasons are long, and seven of them stacked turned the panel into a wall
+   of text that had to be read through to find the one line that mattered. The
+   verdict is what is scanned; the reason is what is consulted. So the row shows
+   the verdict and the reason arrives on hover or focus, which keeps it reachable
+   from the keyboard rather than the mouse alone.
+
+   Nothing is lost by hiding it: a failure's own words are printed under RUN as
+   the reason it is disabled, and a check that could not be made is counted
+   under the list. #}
 {% macro check_item(check) %}
   <div class="check">
     <span class="mark {{ check.status }}" title="{{ check.status }}">
@@ -137,8 +148,13 @@
       {%- else -%}{{ ic('question') }}{%- endif -%}
     </span>
     <span class="what">
-      {{ check.label }}
-      {% if check.reason %}<div class="reason">{{ check.reason }}</div>{% endif %}
+      {% if check.reason %}
+        <sl-tooltip class="check-why" hoist content="{{ check.reason }}">
+          <span class="has-why" tabindex="0">{{ check.label }}</span>
+        </sl-tooltip>
+      {% else %}
+        {{ check.label }}
+      {% endif %}
     </span>
   </div>
 {% endmacro %}

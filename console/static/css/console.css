@@ -385,7 +385,13 @@ select { padding-right: 26px; }
 .check .mark.fail { background: #fdeaea; color: #991b1b; }
 .check .mark.unknown { background: #f0f1f3; color: var(--muted); }
 .check .what { min-width: 0; font-size: 13px; }
-.check .reason { color: var(--muted); font-size: 12px; margin-top: 2px; line-height: 1.45; }
+/* A check's reason is on hover. Dotted underline so it reads as consultable
+   rather than as a plain label, and a roomy tooltip because ETHOS's sentences
+   are whole explanations, not a few words. */
+.check .has-why { border-bottom: 1px dotted var(--line-strong); cursor: help; }
+.check .has-why:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check-why { --max-width: 420px; }
+.check-why::part(body) { font-size: 12px; line-height: 1.5; text-align: left; }
 
 .cmd { background: #15181e; color: #e6e9ef; border-radius: var(--radius-sm);
        padding: var(--s3) var(--s4); overflow-x: auto; margin: 0;
