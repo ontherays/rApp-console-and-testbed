@@ -1,16 +1,16 @@
 # What the console is waiting for from ETHOS
 
 The testbed lock, the job model, preview-then-confirm, readiness, the status
-summary, the per-job iperf mode and standalone UE control have landed (B1, B2, B3,
-B5, B6, B7, B11), and the console uses all of them. What is left is the catalogue
-(B4), figure generation (B9) and server-side results queries (B10), plus the O1
-and O2 phases.
+summary, the per-job iperf mode, standalone UE control and figures on request have
+landed (B1, B2, B3, B5, B6, B7, B9, B11), and the console uses all of them. What is
+left is the catalogue (B4) and server-side results queries (B10), plus the O1 and
+O2 phases.
 
 Rather than buttons that look live and fail on click, a control that still needs a
 backend change is disabled and names it. This is the list, and it is also the
 order of work in `04-build-plan.md`.
 
-Checked against the live API on 127.0.0.1:8081 on 2026-09-28.
+Checked against the live API on 127.0.0.1:8081 on 2026-09-29.
 
 ---
 
@@ -60,7 +60,7 @@ disables itself with a reason instead of failing on click.
 | `GET /status/summary` | **works** | the status strip and the Overview tiles |
 | `GET /ue`, `GET /ue/{ue}/iperf`, `GET /ue/{ue}/signal`, the attach, detach and iperf-stop pairs | **works** | the Testbed page's UE panel |
 | `GET /catalogue` | not routed | B4 |
-| `POST /plots`, `GET /plots`, `GET /plots/series` | not routed | B9 |
+| `GET /plots/options`, `GET /plots/series`, `GET /plots`, `POST /plots`, `GET /plots/{id}`, its four files, `POST /plots/{id}/regenerate` | **works** | the Graphs page, and the palette on every page that draws a chip |
 | `GET /runs.csv`, `GET /campaigns/{id}/summary`, `GET /runs/{id}/radio-samples` | not routed | B10 |
 | `GET /o1/freshness`, `GET /o1/alarms` | not routed | B12 |
 | `GET /o2/nf`, `GET /o2/deploy-times`, `GET /o2/dms/*` | not routed | B13 |
@@ -170,17 +170,44 @@ the port free.
 than one repeat says so, and the copy-able command explains that repeats mean
 running it that many times.
 
-### B9, figures on request
+### B9, figures on request, done
 
-**Standing in today:** the Graphs page is a read-only gallery over
-`ETHOS_GRAPH_DIR`, listing each figure with its manifest, PNG and PDF. The
-console does not draw its own chart from the same numbers, that would be a
-second, differently-styled rendering of one figure, and the archive exists to
-stop exactly that.
+The Graphs page asks for figures now, and the console still draws none of its own:
+the image on the page is the file ETHOS's plotting package wrote, served from the
+archive beside its manifest, `points.csv` and `raw.csv`. A figure the CLI made and
+one the page asked for are the same kind of thing in the same list, so the gallery
+chips which asked for it rather than splitting them apart.
 
-When it lands: `POST /plots` behind the form the page already has disabled, and
-`GET /plots/series` replaces the copied palette in
-`console/rapps/ethos/series.py`. Drop `CONSOLE_GRAPH_DIR`.
+The form is built from `GET /plots/options`, every control of it: the metrics with
+their units, the kinds, the groupings, the widths, the y scales, the default
+metric, and the note ETHOS attaches to a metric that is not comparable across
+stacks. Nothing in it is a list kept here, so a metric ETHOS adds appears on the
+next probe and one it drops disappears. If that call fails the form is not built at
+all, because a form assembled from a remembered table would offer something ETHOS
+may no longer plot.
+
+A 422 is shown in ETHOS's own words. It says precisely what is wrong with the
+selection, and a reworded version would be a vaguer second explanation in front of
+an accurate one. Where the refusal is about run lengths the buckets are listed as
+chips, and the retry button appears **only** where the flag actually helps:
+
+- lengths differing **between** points are one flag away, so "Retry allowing mixed
+  durations" is offered and sets `allow_mixed_durations` explicitly;
+- two lengths **inside** one point are refused whatever the flag says, and ETHOS
+  says so in the same sentence. A button there would fail the same way, so the
+  panel lists the buckets and points at a minimum duration instead.
+
+**What this replaced.** `console/rapps/ethos/figures.py` read the graph folder
+directly and is deleted, along with `CONSOLE_GRAPH_DIR` in settings,
+`console.env.example` and the guide. `console/rapps/ethos/series.py` no longer
+holds a copy of ETHOS's palette: it is fetched from `GET /plots/series` by the
+capability probe, so a chip beside a run and a line in the figure next to it cannot
+drift apart. What stays local is the two-letter tile, which ETHOS has no concept
+of, and the two legacy head spellings, whose runs would otherwise fall to grey.
+
+An unfetched palette renders grey and says "unknown stack". That is deliberate: a
+remembered palette would be the second table again, and the status strip already
+explains an unreachable ETHOS.
 
 ### B10, results queries
 

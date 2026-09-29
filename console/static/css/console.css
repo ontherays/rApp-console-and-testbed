@@ -540,3 +540,9 @@ article code { background: #f4f5f6; padding: 1px 5px; border-radius: 5px; }
 article pre.cmd code { background: none; padding: 0; }
 article .table-wrap { margin: var(--s4) 0; border: 1px solid var(--line);
                       border-radius: var(--radius-sm); }
+
+/* A metric column's link into the figure form. Quiet until the row is hovered:
+   it is an offer, not part of the reading. */
+.plot-link { color: var(--muted); opacity: .45; margin-left: 4px; }
+.plot-link:hover, thead tr:hover .plot-link { opacity: 1; color: var(--accent); }
+.plot-link .ic { width: 13px; height: 13px; vertical-align: -2px; }

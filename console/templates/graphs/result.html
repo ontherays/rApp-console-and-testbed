@@ -1,0 +1,80 @@
+{# What came back from POST /plots: the figure, or ETHOS's refusal.
+
+   A refusal is shown in ETHOS's own words. It says exactly what is wrong with
+   the request, and rewording it here would put a second, vaguer explanation in
+   front of the accurate one. #}
+{% from "components/macros.html" import ic, chip %}
+
+{% if error %}
+  <div class="card">
+    <header>
+      <span class="tile red">{{ ic('warning') }}</span>
+      <span style="min-width:0">
+        <span class="card-title">ETHOS refused this figure</span>
+        <span class="card-sub">Its own words, unedited</span>
+      </span>
+    </header>
+    <p style="margin:0">{{ error }}</p>
+
+    {% if buckets %}
+      <p class="hint" style="margin:10px 0 0">
+        Run lengths in the selection:
+        {% for b in buckets %}{{ chip(b, 'amber') }}{% endfor %}
+      </p>
+    {% endif %}
+
+    {% if retry_mixed %}
+      {# Only where the flag actually fixes it. ETHOS refuses two different
+         things here and says so: lengths differing BETWEEN points are a flag
+         away, two lengths INSIDE one point are not, and offering a button for
+         the second would fail again in the same way. #}
+      <div class="row" style="margin-top:12px;gap:10px;align-items:center">
+        <button class="btn" type="button"
+                hx-post="/graphs/make"
+                hx-include="#plot-form"
+                hx-vals='{"allow_mixed_durations": "1"}'
+                hx-target="#plot-result" hx-swap="innerHTML"
+                hx-indicator="#plot-spinner">
+          {{ ic('repeats') }}Retry allowing mixed durations
+        </button>
+        <span class="hint">
+          Sets the flag explicitly, and the figure records that it was set.
+        </span>
+      </div>
+    {% elif mixed_durations %}
+      <p class="hint" style="margin:10px 0 0">
+        {{ ic('info', 'faint') }}
+        Allowing mixed durations does not help here: ETHOS refuses two lengths
+        inside one point whatever the flag says, because the mean would describe
+        neither run. Narrow with a minimum duration, or name the runs you want.
+      </p>
+    {% endif %}
+  </div>
+
+{% elif result %}
+  <div class="card">
+    <header>
+      <span class="tile orange">{{ ic('graphs') }}</span>
+      <span style="min-width:0">
+        <span class="card-title">{{ result.manifest.label or result.figure_id }}</span>
+        <span class="card-sub">
+          {{ result.manifest.metric_label or result.metric }}
+          · {{ result.manifest.kind }}
+          · y {{ result.manifest.y_scale }}
+          · {{ result.points | length }} point(s)
+        </span>
+      </span>
+      <a class="btn btn-sm" href="/graphs/view/{{ result.figure_id }}">Open</a>
+    </header>
+
+    {% for warning in result.warnings %}
+      <div class="banner warn">{{ ic('warning') }}<span>{{ warning }}</span></div>
+    {% endfor %}
+
+    <img src="/graphs/file/{{ result.figure_id }}/image.png?label={{ result.manifest.label or result.figure_id }}"
+         alt="{{ result.manifest.label }}" style="max-width:100%;margin-top:12px">
+
+    {% include "graphs/downloads.html" %}
+    {% include "graphs/data.html" %}
+  </div>
+{% endif %}

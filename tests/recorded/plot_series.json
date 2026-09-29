@@ -1,0 +1,79 @@
+{
+  "ideal_label": "Ideal throughput",
+  "order": [
+    "oai-cudu",
+    "oaicu-ocududu",
+    "ocuducu-oaidu",
+    "ocudu-cudu",
+    "oai-mono",
+    "ocudu-mono"
+  ],
+  "series": [
+    {
+      "head": "oai-cudu",
+      "label": "OAI CU + OAI DU",
+      "legend_label": "OAI CU + OAI DU",
+      "marker": "o",
+      "colour": "#0072B2",
+      "linestyle": "-",
+      "hatch": "//",
+      "note": "",
+      "order": 0
+    },
+    {
+      "head": "oaicu-ocududu",
+      "label": "OAI CU + OCUDU DU",
+      "legend_label": "OAI CU + OCUDU DU",
+      "marker": "s",
+      "colour": "#009E73",
+      "linestyle": "-",
+      "hatch": "\\\\",
+      "note": "",
+      "order": 1
+    },
+    {
+      "head": "ocuducu-oaidu",
+      "label": "OCUDU CU + OAI DU",
+      "legend_label": "OCUDU CU + OAI DU",
+      "marker": "^",
+      "colour": "#D55E00",
+      "linestyle": "-",
+      "hatch": "xx",
+      "note": "",
+      "order": 2
+    },
+    {
+      "head": "ocudu-cudu",
+      "label": "OCUDU CU + OCUDU DU",
+      "legend_label": "OCUDU CU + OCUDU DU",
+      "marker": "D",
+      "colour": "#CC79A7",
+      "linestyle": "-",
+      "hatch": "..",
+      "note": "",
+      "order": 3
+    },
+    {
+      "head": "oai-mono",
+      "label": "OAI (monolithic)",
+      "legend_label": "OAI (monolithic)",
+      "marker": "v",
+      "colour": "#E69F00",
+      "linestyle": "--",
+      "hatch": "++",
+      "note": "",
+      "order": 4
+    },
+    {
+      "head": "ocudu-mono",
+      "label": "OCUDU (monolithic)",
+      "legend_label": "OCUDU (monolithic)",
+      "marker": "h",
+      "colour": "#56B4E9",
+      "linestyle": "--",
+      "hatch": "oo",
+      "note": "",
+      "order": 5
+    }
+  ]
+}

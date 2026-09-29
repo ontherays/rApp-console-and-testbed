@@ -6,43 +6,43 @@
       "id": "topology",
       "status": "pass",
       "reason": "ocudu-mono_swphy_pega_samsung_o5gs_joule deploys as ocudu-mono (wired)",
-      "checked_at": "2026-09-28T14:14:23Z"
+      "checked_at": "2026-09-29T01:30:56Z"
     },
     {
       "id": "lock",
       "status": "pass",
       "reason": "the testbed is free",
-      "checked_at": "2026-09-28T14:14:23Z"
+      "checked_at": "2026-09-29T01:30:56Z"
     },
     {
       "id": "node_free",
       "status": "pass",
       "reason": "state verified: no gNB and no traffic on the node",
-      "checked_at": "2026-09-28T14:14:24Z"
+      "checked_at": "2026-09-29T01:30:56Z"
     },
     {
       "id": "ue_reachable",
       "status": "pass",
       "reason": "iapc_ssh: sshuser@140.118.162.81:24 answered 'bmwlab_ia'; adb_device: R5CN30TMBYR is 'device'; ue_address: skipped: no UE driver supplied, so the address was not read",
-      "checked_at": "2026-09-28T14:14:25Z"
+      "checked_at": "2026-09-29T01:30:57Z"
     },
     {
       "id": "iperf_server",
       "status": "pass",
       "reason": "mode app_binary (the plan): foreign iperf3 (pid 31749, uid u0_a336) holds 5201",
-      "checked_at": "2026-09-28T14:14:27Z"
+      "checked_at": "2026-09-29T01:30:59Z"
     },
     {
       "id": "traffic_plan",
       "status": "pass",
       "reason": "2 rate(s) DL, 1 repeat(s), so 2 point(s) of 30 s",
-      "checked_at": "2026-09-28T14:14:27Z"
+      "checked_at": "2026-09-29T01:30:59Z"
     },
     {
       "id": "core",
       "status": "unknown",
       "reason": "o5gs at 192.168.8.26:38412: no TCP answer from 192.168.8.26:38412 (curl exited 28). The gNB reaches the core over the interface its pod holds, which does not exist before a deploy, so silence from the node's host network is not evidence that the core is down",
-      "checked_at": "2026-09-28T14:14:30Z"
+      "checked_at": "2026-09-29T01:31:02Z"
     }
   ],
   "plan": {

@@ -1,0 +1,75 @@
+{# Everything behind the figure: what it drew, from how many runs, and what it
+   left out.
+
+   The dropped list is the part that matters most. A point missing because a
+   run recorded no radio summary is a fact about the figure, and a reader who
+   cannot see it reads the gap as a measurement. #}
+{% from "components/macros.html" import ic, num %}
+<sl-details summary="Data" style="margin-top:14px">
+
+  <p class="hint" style="margin-top:0">
+    {{ result.manifest.metric_label }}
+    {% if result.manifest.metric_unit %}in {{ result.manifest.metric_unit }}{% endif %}
+    · read from <span class="mono">{{ result.manifest.metric_field }}</span>
+    · {{ result.manifest.selection.source }} source
+  </p>
+
+  <div class="table-wrap">
+    <table class="data">
+      <thead>
+        <tr><th>configuration</th><th class="num">offered</th><th class="num">mean</th>
+            <th class="num">n</th><th class="num">95% CI</th><th>durations</th></tr>
+      </thead>
+      <tbody>
+      {% for point in result.points %}
+        <tr>
+          <td>{{ point.config_id }}</td>
+          <td class="num">{{ point.offered_mbps | round | int }} M</td>
+          <td class="num">{{ num(point.mean_mbps, 3) }}</td>
+          <td class="num">{{ point.n }}</td>
+          <td class="num">{{ num(point.ci95_mbps, 3) }}</td>
+          <td>{{ point.durations_s | join(', ') }} s</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if result.caps %}
+    <p class="hint" style="margin:10px 0 0">
+      {{ ic('info', 'faint') }}
+      Cap drawn for
+      {% for config_id, cap in result.caps.items() %}
+        {{ config_id.split('_')[0] }} at {{ cap | round | int }}{{ ", " if not loop.last }}
+      {% endfor %}
+      {% if result.manifest.mcs_tables %}
+        · table {{ result.manifest.mcs_tables | join(' and ') }}
+      {% endif %}
+    </p>
+  {% endif %}
+
+  {% if result.dropped %}
+    <p class="label" style="margin-top:14px">
+      Left out, with ETHOS's reason ({{ result.dropped | length }})
+    </p>
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>run</th><th>why it is not in this figure</th></tr></thead>
+        <tbody>
+        {% for entry in result.dropped %}
+          <tr class="not-measured">
+            <td class="mono">{{ entry.run_id or entry.config_id or NOT_MEASURED }}</td>
+            <td>{{ entry.reason }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="hint" style="margin:10px 0 0">Every selected run is in this figure.</p>
+  {% endif %}
+
+  <sl-details summary="manifest.json" style="margin-top:12px">
+    <pre class="cmd">{{ result.manifest | tojson(indent=2) }}</pre>
+  </sl-details>
+</sl-details>

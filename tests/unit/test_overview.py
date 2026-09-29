@@ -112,7 +112,7 @@ class TestShares:
         shares = by_topology(runs)
         assert [s.count for s in shares] == [3, 1]
         assert round(sum(s.share for s in shares)) == 100
-        assert shares[0].label == "OCUDU monolithic"
+        assert shares[0].label == "OCUDU (monolithic)"   # ETHOS's own wording
 
     def test_a_run_with_no_config_id_is_not_counted(self):
         assert by_topology([Run(run_id="x")]) == []
@@ -145,7 +145,7 @@ class TestNeedsYou:
                    delivered_bytes=1000),
         ]
         rows = topologies_needing_you(slice_runs(runs, "24h", "all", now=NOW))
-        assert rows[0].label == "OCUDU monolithic"
+        assert rows[0].label == "OCUDU (monolithic)"     # ETHOS's own wording
         assert rows[0].completed == 0
 
     def test_a_single_run_campaign_is_not_treated_as_a_sweep(self):

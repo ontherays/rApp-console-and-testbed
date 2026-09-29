@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import num, stack_chip, ago, chip, gated %}
+{% from "components/macros.html" import ic, num, stack_chip, ago, chip, gated %}
 {% from "components/header.html" import bell, export_button, crumbs %}
 
 {% block title %}{{ title }} · Testbed Console{% endblock %}
@@ -53,12 +53,24 @@
   <table class="data">
     <thead>
       <tr>
+        {# Each metric column carries a Plot link into the figure form, already
+           naming these runs and that metric. First-transmission BLER has none:
+           it is OAI-only, so ETHOS does not offer it and neither does this. #}
+        {% macro plot(column) %}{% if plot_links and plot_links.get(column) %}
+          <a class="plot-link" href="{{ plot_links[column] }}" title="Plot this column"
+             >{{ ic('graphs') }}</a>{% endif %}{% endmacro %}
         <th class="num">offered</th><th class="num">n</th>
-        <th class="num">achieved</th><th class="num">loss %</th>
-        <th class="num">RTT p95</th><th class="num">PUSCH SNR</th>
-        <th class="num">resid. BLER DL</th><th class="num">resid. BLER UL</th>
-        <th class="num">CQI</th><th class="num">RI DL</th><th class="num">RI UL</th>
-        <th class="num">MCS DL</th><th class="num">MCS UL</th>
+        <th class="num">achieved {{ plot('achieved') }}</th>
+        <th class="num">loss % {{ plot('loss') }}</th>
+        <th class="num">RTT p95 {{ plot('rtt_p95') }}</th>
+        <th class="num">PUSCH SNR {{ plot('pusch_snr') }}</th>
+        <th class="num">resid. BLER DL {{ plot('bler_dl') }}</th>
+        <th class="num">resid. BLER UL {{ plot('bler_ul') }}</th>
+        <th class="num">CQI {{ plot('cqi') }}</th>
+        <th class="num">RI DL {{ plot('ri_dl') }}</th>
+        <th class="num">RI UL</th>
+        <th class="num">MCS DL {{ plot('mcs_dl') }}</th>
+        <th class="num">MCS UL {{ plot('mcs_ul') }}</th>
         <th class="num">1st-tx BLER DL</th>
         <th>cell</th><th></th>
       </tr>

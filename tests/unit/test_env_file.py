@@ -100,7 +100,6 @@ def test_the_example_lists_every_variable_the_code_reads():
         "CONSOLE_SESSION_SECRET",
         "CONSOLE_ETHOS_URL",
         "CONSOLE_PLANS_DIR",
-        "CONSOLE_GRAPH_DIR",
         "CONSOLE_DEPLOY_PROFILES",
         "CONSOLE_TZ",
     ],

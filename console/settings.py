@@ -35,11 +35,10 @@ ENV_ETHOS_ACT_TIMEOUT_S = "CONSOLE_ETHOS_ACT_TIMEOUT_S"
 ENV_RUNS_CACHE_S = "CONSOLE_RUNS_CACHE_S"
 ENV_STATUS_CACHE_S = "CONSOLE_STATUS_CACHE_S"
 
-# --- read-only stand-ins for ETHOS endpoints that do not exist yet ------------
-# Both are plain data files on this host. Neither holds a credential, and the
-# console only ever reads them. They are removed when B4 and B9 land.
+# --- read-only stand-in for an ETHOS endpoint that does not exist yet ---------
+# A plain data file on this host. It holds no credential, the console only ever
+# reads it, and it is removed when B4 lands.
 ENV_DEPLOY_PROFILES = "CONSOLE_DEPLOY_PROFILES"   # stands in for GET /catalogue (B4)
-ENV_GRAPH_DIR = "CONSOLE_GRAPH_DIR"               # stands in for GET /plots (B9)
 ENV_ETHOS_REPO = "CONSOLE_ETHOS_REPO"             # only to render a copy-able CLI command
 
 # --- console's own storage ----------------------------------------------------
@@ -135,7 +134,6 @@ class Settings:
     runs_cache_s: float
     status_cache_s: float
     deploy_profiles: Path | None
-    graph_dir: Path | None
     ethos_repo: Path
     plans_dir: Path
     grafana_url: str
@@ -204,7 +202,6 @@ def load_settings() -> Settings:
             ENV_STATUS_CACHE_S, DEFAULT_STATUS_CACHE_S, allow_zero=True
         ),
         deploy_profiles=_path(ENV_DEPLOY_PROFILES),
-        graph_dir=_path(ENV_GRAPH_DIR),
         ethos_repo=Path(_text(ENV_ETHOS_REPO, DEFAULT_ETHOS_REPO)).expanduser(),
         plans_dir=Path(_text(ENV_PLANS_DIR, DEFAULT_PLANS_DIR)).expanduser(),
         grafana_url=_text(ENV_GRAFANA_URL),

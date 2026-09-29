@@ -83,21 +83,6 @@ def test_run_is_offered_and_asks_for_a_preview_before_it_acts(logged_in):
     assert "Nothing has been sent to the testbed yet" in dialog.inner_text()
 
 
-def test_the_gallery_opens_a_figure_and_shows_its_manifest(logged_in):
-    logged_in.goto("/graphs")
-    logged_in.wait_for_load_state("networkidle")
-    logged_in.click("text=full-sweep")
-    logged_in.wait_for_load_state("networkidle")
-    assert "achieved_over_tx_mbps" in logged_in.content()
-
-
-def test_a_figure_png_downloads(logged_in):
-    logged_in.goto("/graphs/view/2026-09-25/185503_line_full-sweep")
-    with logged_in.expect_download() as download:
-        logged_in.click("a[download][href$='/png']")
-    assert download.value.suggested_filename.endswith(".png")
-
-
 class TestTopologyForm:
     """Task A, in a real browser: the CU and DU vendor groups follow the split."""
 
@@ -539,3 +524,122 @@ class TestWiredFlows:
                 assert "CLI campaign ocudu-mono, rates 100, DL" in logged_in.content(), path
         finally:
             control("reset", {})
+
+
+class TestFigures:
+    """The Graphs page in a real browser, against the fake ETHOS (B9)."""
+
+    def test_generating_shows_the_figure_its_warnings_and_its_data(self, logged_in):
+        logged_in.goto("/graphs")
+        logged_in.wait_for_load_state("networkidle")
+        logged_in.fill("#run_ids", "run-a run-b")
+        logged_in.fill("#label", "e2e-figure")
+        logged_in.select_option("#metric", "pusch_snr")
+        logged_in.click("#plot-form button[type=submit]")
+        logged_in.wait_for_selector("#plot-result img", timeout=30000)
+
+        panel = logged_in.locator("#plot-result").inner_text()
+        assert "e2e-figure" in panel
+        # The manifest's warnings are shown as their own bars, and the Data
+        # accordion carries the points, the caps and the dropped runs.
+        assert logged_in.locator("#plot-result .banner.warn").count() >= 1
+        data = logged_in.locator("#plot-result sl-details[summary=Data]")
+        assert data.count() == 1
+        data.click()
+        logged_in.wait_for_selector("#plot-result sl-details table")
+        assert "ocudu-mono" in data.inner_text()
+
+    def test_naming_runs_moves_the_source_to_selected_runs(self, logged_in):
+        """The radio reads back what was asked for, not what was defaulted."""
+        logged_in.goto("/graphs")
+        logged_in.wait_for_load_state("networkidle")
+        assert logged_in.input_value("#run_ids") == ""
+        assert logged_in.is_checked("input[name=source][value=influx]")
+        logged_in.fill("#run_ids", "run-a")
+        assert logged_in.is_checked("input[name=source][value=runs]")
+        logged_in.click("sl-details[summary='Filter instead']")
+        logged_in.fill("#config_ids", "ocudu-mono")
+        assert logged_in.is_checked("input[name=source][value=influx]")
+
+    def test_the_form_offers_only_the_metrics_ethos_offers(self, logged_in):
+        logged_in.goto("/graphs")
+        logged_in.wait_for_load_state("networkidle")
+        offered = logged_in.eval_on_selector_all(
+            "#metric option", "els => els.map(e => e.value)")
+        assert "pusch_snr" in offered and "mcs_dl" in offered
+        assert "bler_dl_first_tx" not in offered
+        assert "pucch_snr" not in offered
+
+    def test_a_refusal_shows_ethoss_message_and_the_retry_where_it_helps(
+            self, logged_in, fake_ethos_server):
+        import urllib.request
+
+        message = (
+            "these series mix run durations across their points -- "
+            "ocudu-mono_x: [10, 20] s. Re-run with --min-duration to select "
+            "one, or --allow-mixed-durations to accept it"
+        )
+        request = urllib.request.Request(
+            f"{fake_ethos_server}/__control/refuse_plot",
+            data=json.dumps({"detail": message}).encode(),
+            headers={"content-type": "application/json"}, method="POST")
+        urllib.request.urlopen(request, timeout=10).read()
+
+        logged_in.goto("/graphs")
+        logged_in.wait_for_load_state("networkidle")
+        logged_in.fill("#run_ids", "run-a run-b")
+        logged_in.click("#plot-form button[type=submit]")
+        logged_in.wait_for_selector("#plot-result .card", timeout=30000)
+
+        panel = logged_in.locator("#plot-result").inner_text()
+        assert "mix run durations" in panel
+        assert "10 s" in panel and "20 s" in panel
+
+        # The retry sets the flag, and the second attempt succeeds.
+        logged_in.click("#plot-result button:has-text('Retry allowing mixed durations')")
+        logged_in.wait_for_selector("#plot-result img", timeout=30000)
+
+    def test_the_gallery_regenerates_a_figure(self, logged_in):
+        logged_in.goto("/graphs")
+        logged_in.wait_for_load_state("networkidle")
+        logged_in.locator(".gallery button:has-text('Regenerate')").first.click()
+        logged_in.wait_for_url("**/graphs/view/**", timeout=30000)
+        assert logged_in.locator("sl-details[summary=Data]").count() == 1
+        assert "point(s)" in logged_in.locator(".card-sub").first.inner_text()
+
+    def test_a_download_arrives_with_its_type_and_name(self, logged_in):
+        logged_in.goto("/graphs")
+        logged_in.wait_for_load_state("networkidle")
+        with logged_in.expect_download() as download:
+            logged_in.locator(".gallery a[download]").first.click()
+        name = download.value.suggested_filename
+        assert name.endswith(".png")
+        assert name != "image.png"
+
+    def test_results_selection_prefills_the_form(self, logged_in):
+        logged_in.goto("/results")
+        logged_in.wait_for_load_state("networkidle")
+        logged_in.locator("input[name=run_id]").first.check()
+        logged_in.click("button:has-text('Graph selected')")
+        logged_in.wait_for_url("**/graphs**", timeout=30000)
+        assert logged_in.input_value("#run_ids").strip()
+
+    def test_a_sweep_column_prefills_the_metric(self, logged_in):
+        logged_in.goto("/results")
+        logged_in.wait_for_load_state("networkidle")
+        logged_in.locator("input[name=run_id]").first.check()
+        logged_in.click("button:has-text('Compare selected')")
+        logged_in.wait_for_url("**/results/compare**", timeout=30000)
+        logged_in.locator("a.plot-link").nth(3).click()
+        logged_in.wait_for_url("**/graphs**", timeout=30000)
+        assert logged_in.input_value("#metric")
+        assert logged_in.input_value("#run_ids").strip()
+
+    def test_a_finished_job_prefills_its_id(self, logged_in):
+        from tests.fake_ethos.server import SEEDED_DONE_JOB
+
+        logged_in.goto(f"/jobs/{SEEDED_DONE_JOB}")
+        logged_in.wait_for_load_state("networkidle")
+        logged_in.click("a:has-text('Plot this job')")
+        logged_in.wait_for_url("**/graphs**", timeout=30000)
+        assert logged_in.input_value("#job_id") == SEEDED_DONE_JOB

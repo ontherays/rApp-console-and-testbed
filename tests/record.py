@@ -58,6 +58,12 @@ READS: tuple[tuple[str, str, str, dict | None], ...] = (
     ("status_summary", "GET", "/status/summary", None),
     ("ue", "GET", "/ue", None),
     ("ue_iperf", "GET", "/ue/samsung/iperf", None),
+    # B9. Reads only: `/plots` lists what already exists and `/plots/options`
+    # and `/plots/series` are static tables. POST /plots is NOT recorded, because
+    # recording it would draw a figure into the real graph directory.
+    ("plots", "GET", "/plots", None),
+    ("plot_options", "GET", "/plots/options", None),
+    ("plot_series", "GET", "/plots/series", None),
     (
         "readiness",
         "POST",

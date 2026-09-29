@@ -28,9 +28,13 @@ from console.rapps.ethos.models import (
     Catalogue,
     DeployStatus,
     EthosHealth,
+    FigureResult,
+    FigureSummary,
     Holder,
     Job,
     JobList,
+    PlotOptions,
+    PlotSeriesList,
     Preview,
     Readiness,
     Run,
@@ -460,4 +464,75 @@ class EthosClient:
             f"/ue/{ue}/{action}",
             json={"confirm": True, "preview_token": preview_token},
             timeout_s=self.act_timeout_s,
+        )
+
+    # --- figures on request (B9) ---------------------------------------------
+
+    async def plot_options(self) -> PlotOptions:
+        """Every metric, kind, grouping, width and scale a figure can take.
+
+        Cached for a long time and served straight to the form, so the console
+        holds no list of its own. A list kept here would drift: it would offer a
+        metric ETHOS had dropped, or hide one it had gained, and the operator
+        would have no way to tell which.
+        """
+
+        async def fetch() -> PlotOptions:
+            return PlotOptions.model_validate(await self.call("GET", "/plots/options"))
+
+        return await self._cached("plot_options", 300.0, fetch)
+
+    async def plot_series(self) -> PlotSeriesList:
+        """The palette the figures are drawn with.
+
+        Fetched rather than copied. A chip on a results page and a line in the
+        figure beside it must be the same colour for the same stack, and two
+        tables saying so is how they stop being.
+        """
+
+        async def fetch() -> PlotSeriesList:
+            return PlotSeriesList.model_validate(await self.call("GET", "/plots/series"))
+
+        return await self._cached("plot_series", 300.0, fetch)
+
+    async def figures(self) -> list[FigureSummary]:
+        """Every figure in ETHOS's graph directory, newest first.
+
+        CLI-made and console-made alike: they are the same kind of thing, in the
+        same place, and which one made it is a chip rather than a separate list.
+        """
+        body = await self.call("GET", "/plots", slow=True)
+        return [FigureSummary.model_validate(f) for f in (body.get("figures") or [])]
+
+    async def figure(self, figure_id: str) -> dict[str, Any]:
+        """One figure's manifest: its inputs, filters, n per point and warnings."""
+        return await self.call("GET", f"/plots/{figure_id}")
+
+    async def make_figure(self, request: dict[str, Any]) -> FigureResult:
+        """Draw one. Slow on purpose: matplotlib is serialised in ETHOS, so this
+        can wait behind another figure as well as taking seconds itself."""
+        return FigureResult.model_validate(
+            await self.call("POST", "/plots", json=request, timeout_s=self.act_timeout_s)
+        )
+
+    async def regenerate_figure(self, figure_id: str) -> FigureResult:
+        """Redraw a figure from its own snapshot, into a new folder.
+
+        The published original is left exactly as it was, which is the point:
+        regenerating is how a figure in a paper is checked, not how it is
+        replaced.
+        """
+        return FigureResult.model_validate(
+            await self.call("POST", f"/plots/{figure_id}/regenerate",
+                            timeout_s=self.act_timeout_s)
+        )
+
+    def figure_file_stream(self, figure_id: str, name: str) -> Any:
+        """An open response for one of a figure's four files.
+
+        Streamed rather than read into memory and re-sent: the console is a
+        relay here, and a PDF has no business being buffered in the web process.
+        """
+        return self._client.stream(
+            "GET", f"/plots/{figure_id}/{name}", timeout=self.slow_timeout_s
         )

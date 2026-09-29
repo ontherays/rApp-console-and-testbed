@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import gated, chip, ic %}
+{% from "components/macros.html" import gated, chip, ic, ago %}
 {% from "components/header.html" import bell, primary %}
 
 {% block title %}Graphs · Testbed Console{% endblock %}
 {% block page_title %}Graphs{% endblock %}
-{% block page_icon %}bar-chart-line{% endblock %}
+{% block page_icon %}graphs{% endblock %}
 {% block page_tone %}orange{% endblock %}
 {% block actions %}
   {{ bell(badges.new_runs) }}
@@ -12,60 +12,83 @@
 {% endblock %}
 {% block lede %}
   <p class="lede">
-    Every figure ETHOS's plotting package has produced, newest first. Each one keeps
-    its manifest, <span class="mono">points.csv</span> and <span class="mono">raw.csv</span>,
-    so a figure here is the same image, from the same numbers, as the one in a paper.
+    Ask ETHOS for a figure, and browse the ones that exist. The console draws
+    nothing itself: the image here is the one ETHOS's plotting package made,
+    archived with its manifest, <span class="mono">points.csv</span> and
+    <span class="mono">raw.csv</span>, and identical to the same request from
+    the CLI.
   </p>
 {% endblock %}
 
 {% block content %}
+
 <div class="card">
   <header>
     <span class="tile orange">{{ ic('graphs') }}</span>
     <span style="min-width:0">
-      <span class="card-title">Request a new figure</span>
-      <span class="card-sub">Metric, kind and grouping, once ETHOS can take a plot request</span>
+      <span class="card-title">Request a figure</span>
+      <span class="card-sub">Every option below is ETHOS's own</span>
     </span>
   </header>
-  {{ gated(caps, 'plots',
-     'The metric, kind, grouping and width all exist in the plotting package; what is missing is an endpoint that takes a plot request. That is backend change B9, and it is what makes a figure from the console identical to the same request from the CLI.') }}
+
+  {% if not caps.ready('plots') %}
+    {{ gated(caps, 'plots') }}
+  {% elif not options %}
+    <p class="muted" style="margin:0">
+      ETHOS did not answer <span class="mono">GET /plots/options</span>, so the
+      form cannot be built. It is built from that response rather than from a
+      list kept here, which is why there is nothing to fall back to.
+    </p>
+  {% else %}
+    {% include "graphs/form.html" %}
+    {% include "graphs/not_offered.html" %}
+  {% endif %}
 </div>
 
-{% if not figures %}
-  <div class="card">
-    <p class="muted" style="margin:0">
-      No figures found in
-      <span class="mono">{{ graph_dir or 'no graph directory configured' }}</span>.
-      Set <span class="mono">CONSOLE_GRAPH_DIR</span> to ETHOS's
-      <span class="mono">ETHOS_GRAPH_DIR</span> to list them.
-    </p>
-  </div>
+<div id="plot-result">{% include "graphs/result.html" %}</div>
+
+{% if gallery_error %}
+  <div class="banner bad" style="margin-top:16px">{{ ic('warning') }}{{ gallery_error }}</div>
 {% else %}
-  <p class="faint" style="margin:0 4px">{{ figures | length }} figure(s)</p>
-  <div class="gallery">
-    {% for figure in figures %}
-      <div class="card">
-        <header>
-          <a class="card-title" href="/graphs/view/{{ figure.folder }}">{{ figure.label }}</a>
-        </header>
-        {% if figure.png %}
-          <a href="/graphs/view/{{ figure.folder }}">
-            <img src="/graphs/file/{{ figure.folder }}/png" alt="{{ figure.label }}" loading="lazy">
-          </a>
-        {% else %}
-          <p class="muted">no PNG in this folder</p>
+<p class="faint" style="margin:16px 4px 0">{{ figures | length }} figure(s)</p>
+<div class="gallery">
+  {% for figure in figures %}
+    <div class="card">
+      <header>
+        <a class="card-title" href="/graphs/view/{{ figure.figure_id }}">{{ figure.label }}</a>
+      </header>
+      <a href="/graphs/view/{{ figure.figure_id }}">
+        <img src="/graphs/file/{{ figure.figure_id }}/image.png?label={{ figure.label | urlencode }}"
+             alt="{{ figure.label }}" loading="lazy">
+      </a>
+      <div class="chips" style="margin-top:12px">
+        {# CLI or Console. They are the same kind of thing in the same place,
+           so which one made it is a chip rather than a separate list. #}
+        {{ chip(figure.maker, 'purple' if figure.by_console else 'slate') }}
+        {{ chip(figure.metric or 'metric not recorded') }}
+        {{ chip(figure.kind or 'figure') }}
+        {% if figure.warnings %}
+          {{ chip(figure.warnings | length ~ ' caveat(s)', 'warn', 'warning') }}
         {% endif %}
-        <div class="chips" style="margin-top:12px">
-          {{ chip(figure.kind or 'figure') }}
-          {% if figure.width %}{{ chip(figure.width ~ ' column') }}{% endif %}
-          {% if figure.run_count %}{{ chip(figure.run_count ~ ' runs') }}{% endif %}
-          {% if figure.warnings %}{{ chip(figure.warnings | length ~ ' caveat(s)', 'warn', 'exclamation-triangle') }}{% endif %}
-        </div>
-        <p class="faint" style="margin:10px 0 0;font-size:12px">
-          {{ figure.date }} · <span class="mono">{{ figure.metric or 'metric not recorded' }}</span>
-        </p>
       </div>
-    {% endfor %}
-  </div>
+      <p class="faint" style="margin:10px 0 0;font-size:12px">{{ ago(figure.created) }}</p>
+      <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap">
+        <a class="btn btn-sm" href="/graphs/view/{{ figure.figure_id }}">Open</a>
+        <a class="btn btn-sm" download
+           href="/graphs/file/{{ figure.figure_id }}/image.png?label={{ figure.label | urlencode }}">PNG</a>
+        <button class="btn btn-sm" type="button"
+                hx-post="/graphs/{{ figure.figure_id }}/regenerate">Regenerate</button>
+      </div>
+    </div>
+  {% endfor %}
+  {% if not figures %}
+    <div class="card">
+      <p class="muted" style="margin:0">
+        ETHOS has no figures yet. Request one above, or run
+        <span class="mono">python -m plotting figure</span> on the ETHOS host.
+      </p>
+    </div>
+  {% endif %}
+</div>
 {% endif %}
 {% endblock %}

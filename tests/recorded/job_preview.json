@@ -9,7 +9,7 @@
     "afterwards the UE is detached and the stack is torn down, DU before CU",
     "the testbed is free, and this job would hold it for its whole life"
   ],
-  "preview_token": "1790604870.4fb149f1551c957c74a74207bcd10da8.7dc7c83483f70ee34960a667a92f0939",
+  "preview_token": "1790645462.4fb149f1551c957c74a74207bcd10da8.fea1a133498dbf79cf5efaded06e2e99",
   "expires_in_s": 300,
   "state": {
     "holder": null,

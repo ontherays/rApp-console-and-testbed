@@ -10,7 +10,7 @@
       "reachable": true,
       "attached": false,
       "ip": null,
-      "checked_at": "2026-09-28T14:14:19Z"
+      "checked_at": "2026-09-29T01:30:51Z"
     },
     {
       "ue": "Pegatron-Dongle",
@@ -21,7 +21,7 @@
       "reachable": null,
       "attached": null,
       "ip": null,
-      "checked_at": "2026-09-28T14:14:20Z"
+      "checked_at": "2026-09-29T01:30:52Z"
     },
     {
       "ue": "Samsung",
@@ -32,7 +32,7 @@
       "reachable": true,
       "attached": false,
       "ip": null,
-      "checked_at": "2026-09-28T14:14:20Z"
+      "checked_at": "2026-09-29T01:30:52Z"
     },
     {
       "ue": "TM500",
@@ -43,7 +43,7 @@
       "reachable": null,
       "attached": null,
       "ip": null,
-      "checked_at": "2026-09-28T14:14:22Z"
+      "checked_at": "2026-09-29T01:30:54Z"
     }
   ]
 }

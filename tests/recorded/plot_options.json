@@ -1,0 +1,148 @@
+{
+  "metrics": [
+    {
+      "id": "throughput",
+      "label": "Received throughput",
+      "unit": "Mbit/s",
+      "axis_label": "Received Throughput (Mbit/s)",
+      "y_scale": "linear",
+      "field": "achieved_over_tx_mbps",
+      "cross_vendor": true,
+      "has_cap": false,
+      "note": "The only throughput compared across stacks. The gNB's own MAC bitrate (OCUDU) and goodput (OAI) are not the same quantity and are not plotted."
+    },
+    {
+      "id": "loss",
+      "label": "Loss",
+      "unit": "%",
+      "axis_label": "Loss (%)",
+      "y_scale": "log",
+      "field": "loss_pct",
+      "cross_vendor": true,
+      "has_cap": false,
+      "note": "Log by default: a good run and a bad one differ by orders of magnitude."
+    },
+    {
+      "id": "rtt_p95",
+      "label": "RTT p95",
+      "unit": "ms",
+      "axis_label": "RTT p95 (ms)",
+      "y_scale": "linear",
+      "field": "rtt_ms_p95",
+      "cross_vendor": true,
+      "has_cap": false,
+      "note": ""
+    },
+    {
+      "id": "pusch_snr",
+      "label": "PUSCH SNR",
+      "unit": "dB",
+      "axis_label": "PUSCH SNR (dB)",
+      "y_scale": "linear",
+      "field": "pusch_snr_db_mean",
+      "cross_vendor": true,
+      "has_cap": false,
+      "note": "PUCCH SNR is OAI-only and is deliberately not offered."
+    },
+    {
+      "id": "bler_dl_residual",
+      "label": "Residual BLER DL",
+      "unit": "",
+      "axis_label": "Residual BLER DL",
+      "y_scale": "log",
+      "field": "bler_dl_residual_mean",
+      "cross_vendor": true,
+      "has_cap": false,
+      "note": "First-transmission BLER is OAI-only and is deliberately not offered."
+    },
+    {
+      "id": "bler_ul_residual",
+      "label": "Residual BLER UL",
+      "unit": "",
+      "axis_label": "Residual BLER UL",
+      "y_scale": "log",
+      "field": "bler_ul_residual_mean",
+      "cross_vendor": true,
+      "has_cap": false,
+      "note": "First-transmission BLER is OAI-only and is deliberately not offered."
+    },
+    {
+      "id": "mcs_dl",
+      "label": "MCS DL",
+      "unit": "index",
+      "axis_label": "MCS DL (index)",
+      "y_scale": "linear",
+      "field": "mcs_dl_mean",
+      "cross_vendor": true,
+      "has_cap": true,
+      "note": "Shown with the stack's cap, and with the modulation table on the axis."
+    },
+    {
+      "id": "mcs_ul",
+      "label": "MCS UL",
+      "unit": "index",
+      "axis_label": "MCS UL (index)",
+      "y_scale": "linear",
+      "field": "mcs_ul_mean",
+      "cross_vendor": true,
+      "has_cap": true,
+      "note": "Shown with the stack's cap, and with the modulation table on the axis."
+    },
+    {
+      "id": "cqi",
+      "label": "CQI",
+      "unit": "index",
+      "axis_label": "CQI (index)",
+      "y_scale": "linear",
+      "field": "cqi_mean",
+      "cross_vendor": true,
+      "has_cap": false,
+      "note": "Reported against each gNB's own CSI-RS configuration, so a cross-vendor difference is not necessarily a channel difference."
+    },
+    {
+      "id": "ri_dl",
+      "label": "RI DL",
+      "unit": "layers",
+      "axis_label": "RI DL (layers)",
+      "y_scale": "linear",
+      "field": "ri_dl_mean",
+      "cross_vendor": true,
+      "has_cap": false,
+      "note": "Always direction-labelled. OCUDU reports a mean, OAI an instantaneous value."
+    }
+  ],
+  "default_metric": "throughput",
+  "kinds": [
+    "auto",
+    "line",
+    "bar"
+  ],
+  "group_by": [
+    "config",
+    "run"
+  ],
+  "widths": [
+    "single",
+    "double"
+  ],
+  "y_scales": [
+    "auto",
+    "linear",
+    "log"
+  ],
+  "sources": [
+    "influx",
+    "runs",
+    "snapshot"
+  ],
+  "not_offered": [
+    {
+      "id": "bler_dl_first_tx",
+      "reason": "first-transmission BLER is OAI-only, so it is not comparable across stacks"
+    },
+    {
+      "id": "pucch_snr",
+      "reason": "PUCCH SNR is OAI-only, so it is not comparable across stacks"
+    }
+  ]
+}

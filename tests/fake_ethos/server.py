@@ -35,6 +35,9 @@ RECORDED = Path(__file__).resolve().parent.parent / "recorded"
 #: the page has a log to render the moment it opens.
 SEEDED_JOB = "j-seeded"
 
+#: A job that has finished, so the browser tests can reach "Plot this job".
+SEEDED_DONE_JOB = "j-seeded-done"
+
 SEEDED_LOG = (
     "topology : ocudu-mono",
     "deploy   : ok",
@@ -51,6 +54,10 @@ def create_app(recorded: Path = RECORDED) -> Starlette:
     for line in SEEDED_LOG:
         fake.emit(SEEDED_JOB, "log", line=line)
 
+    fake.add_job(SEEDED_DONE_JOB, state="completed", stop_requested=False,
+                 ended="2026-09-29T09:10:00Z", outcome="the sweep finished",
+                 error="")
+
     async def control(request: Request) -> Response:
         """Set up a state a browser test needs. Not an ETHOS endpoint."""
         what = request.path_params["what"]
@@ -66,10 +73,14 @@ def create_app(recorded: Path = RECORDED) -> Starlette:
                 fake.answers.pop("GET /lock", None)
                 fake.answers.pop("GET /status/summary", None)
             return Response(status_code=204)
+        if what == "refuse_plot":
+            fake.refuse_next_plot(body.get("detail") or "refused")
+            return Response(status_code=204)
         if what == "reset":
             fake.answers.clear()
             fake.locked_by = None
             fake.refuse_with = None
+            fake.refuse_plot = None
             fake.down = False
             return Response(status_code=204)
         return Response("unknown control", status_code=404)

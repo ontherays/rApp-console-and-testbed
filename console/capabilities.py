@@ -1,9 +1,9 @@
 """What ETHOS can answer right now, and which backend change adds the rest.
 
-The lock, jobs, readiness, the status summary and standalone UE control have
-landed (B1, B2, B5, B6, B11), and the pages that needed them are live. What is
-still outstanding is the catalogue (B4), figure generation (B9) and server-side
-results queries (B10).
+The lock, jobs, readiness, the status summary, standalone UE control and figures on
+request have landed (B1, B2, B5, B6, B9, B11), and the pages that needed them are
+live. What is still outstanding is the catalogue (B4) and server-side results
+queries (B10).
 
 The table stays even for a change that has landed, and that is deliberate. It is
 not only a gate, it is a live check: if an endpoint disappears in a rollback or a
@@ -224,6 +224,18 @@ class CapabilityProbe:
                 # 422 from a real endpoint means built; anything else means the
                 # feature cannot be used right now.
                 states[feature.key] = OK if exc.status == 422 else UNREACHABLE
+
+        # The figure palette comes from ETHOS, and every page that draws a chip
+        # needs it synchronously. Refreshed on the probe's own schedule so the
+        # first page is served with it already in hand, and so a change in
+        # ETHOS's palette reaches the chips within a minute.
+        if states.get("plots") == OK:
+            try:
+                from console.rapps.ethos.series import PALETTE
+
+                PALETTE.replace(await self._client.plot_series())
+            except Exception:  # a palette must never take the probe down
+                pass
 
         self.result = Capabilities(
             states=states,

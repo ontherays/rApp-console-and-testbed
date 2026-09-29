@@ -1,0 +1,20 @@
+{# What ETHOS says about the selected metric, in ETHOS's words.
+
+   The caveats are the point: CQI is reported against each gNB's own CSI-RS
+   configuration, throughput is the one rate comparable across stacks, and
+   PUSCH SNR is the cross-vendor half of a pair whose other half is OAI-only.
+   A figure read without them invites a comparison that is not there. #}
+{% from "components/macros.html" import ic %}
+{% set chosen = options.metric(values.metric) or options.metric(options.default_metric) %}
+{% if chosen and chosen.note %}
+  <p class="hint" style="margin:8px 0 0">
+    {{ ic('info', 'faint') }} {{ chosen.note }}
+  </p>
+{% endif %}
+{% if chosen and chosen.has_cap %}
+  <p class="hint" style="margin:4px 0 0">
+    {{ ic('info', 'faint') }}
+    Each stack's cap is drawn as a dashed line where one is recorded, and the
+    modulation table goes on the axis.
+  </p>
+{% endif %}

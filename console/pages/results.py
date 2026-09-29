@@ -132,6 +132,45 @@ async def run_detail(request: Request, run_id: str, tab: str = "summary"):
     )
 
 
+#: Each sweep column and the ETHOS metric it shows, so a "Plot" link beside a
+#: column asks for exactly that metric. Columns with no cross-vendor metric
+#: (first-transmission BLER is OAI-only) get no link, which is the same reason
+#: ETHOS does not offer them.
+SWEEP_METRICS: dict[str, str] = {
+    "achieved": "throughput",
+    "loss": "loss",
+    "rtt_p95": "rtt_p95",
+    "pusch_snr": "pusch_snr",
+    "bler_dl": "bler_dl_residual",
+    "bler_ul": "bler_ul_residual",
+    "cqi": "cqi",
+    "ri_dl": "ri_dl",
+    "mcs_dl": "mcs_dl",
+    "mcs_ul": "mcs_ul",
+}
+
+
+def plot_links(runs) -> dict[str, str]:
+    """A ready-made figure query per metric column, for these runs.
+
+    The run ids travel in the link, so the form opens describing the figure the
+    column is about rather than asking the operator to retype a selection they
+    have already made.
+    """
+    from urllib.parse import urlencode
+
+    ids = [r.run_id for r in runs if r.run_id]
+    if not ids:
+        return {}
+    return {
+        column: "/graphs?" + urlencode(
+            [("source", "runs"), ("metric", metric)]
+            + [("run_id", run_id) for run_id in ids]
+        )
+        for column, metric in SWEEP_METRICS.items()
+    }
+
+
 @router.get("/results/campaigns/{campaign_id}")
 async def campaign_sweep(request: Request, campaign_id: str):
     client = request.app.state.client
@@ -157,6 +196,7 @@ async def campaign_sweep(request: Request, campaign_id: str):
             "runs": runs,
             "consistent": consistent,
             "cell_configs": configs,
+            "plot_links": plot_links(runs),
             "error": error,
         },
     )
@@ -194,6 +234,7 @@ async def compare(request: Request, run_id: list[str] = Query(default=[])):
             "runs": runs,
             "consistent": consistent,
             "cell_configs": configs,
+            "plot_links": plot_links(runs),
             "error": error,
         },
     )

@@ -194,7 +194,12 @@
 <div class="row" style="justify-content:space-between;align-items:center">
   <div>
     <button class="btn" type="submit"><svg class="ic" aria-hidden="true"><use href="#icon-sweep"/></svg>Compare selected</button>
-    <span class="faint" style="margin-left:8px">Selected runs open as a sweep, grouped by offered load.</span>
+    {# The same checkboxes, sent to the figure form instead. formaction keeps one
+       selection serving both, so nothing has to be ticked twice. #}
+    <button class="btn" type="submit" formaction="/graphs" formmethod="get">
+      <svg class="ic" aria-hidden="true"><use href="#icon-graphs"/></svg>Graph selected
+    </button>
+    <span class="faint" style="margin-left:8px">Selected runs open as a sweep, or as a figure.</span>
   </div>
   <div class="row" style="gap:8px">
     {% if page.offset > 0 %}

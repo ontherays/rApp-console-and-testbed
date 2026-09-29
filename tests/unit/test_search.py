@@ -26,7 +26,7 @@ def test_a_partial_run_id_lists_the_matches(client):
 def test_a_config_id_fragment_finds_the_configuration(client):
     body = client.get("/search?q=ocudu-mono").text
     assert "Configurations" in body
-    assert "OCUDU monolithic" in body
+    assert "OCUDU (monolithic)" in body
 
 
 def test_a_campaign_name_finds_the_campaign(client):

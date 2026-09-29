@@ -114,20 +114,19 @@ service afterwards (§4).
 ```
 
 ```
-console.env: applied 18, kept 0 already in the environment
+console.env: applied 17, kept 0 already in the environment
 bind            0.0.0.0:8443
 ethos           http://127.0.0.1:8081
 tls             ready
 login           configured
 plans           /home/oai-gnb/testbed-console-data/plans
 deploy profiles /home/oai-gnb/ravi-ethos-rApp/deployment/deploy_profiles.yaml
-graph dir       /home/oai-gnb/ravi-ethos-rApp-graph
 time zone       Asia/Taipei
 
 no problems found
 ```
 
-"applied 18, kept 0" counts names, never values. Anything missing is listed under
+"applied 17, kept 0" counts names, never values. Anything missing is listed under
 `problems:` with the command that fixes it.
 
 ---
@@ -252,12 +251,12 @@ sudo ufw allow from 192.168.8.0/24 to any port 8443 proto tcp
 
 ## 6. The pages
 
-ETHOS has the testbed lock, the job model, readiness, the status summary and
-standalone UE control, and the console uses all of them: a test can be started,
-watched and stopped from the browser. What it still lacks is the catalogue, figure
-generation and server-side results queries, and every control that needs one of
-those is **disabled and says which backend change adds it** (`needs ETHOS B9,
-generating a figure on request`), with the command that does the job now.
+ETHOS has the testbed lock, the job model, readiness, the status summary, standalone
+UE control and figures on request, and the console uses all of them: a test can be
+started, watched and stopped from the browser, and a figure asked for from it. What
+it still lacks is the catalogue and server-side results queries, and every control
+that needs one of those is **disabled and says which backend change adds it**
+(`needs ETHOS B4, the catalogue`), with the command that does the job now.
 `docs/ethos-backlog.md` lists them all.
 
 | Page | What it does today |
@@ -267,14 +266,14 @@ generating a figure on request`), with the command that does the job now.
 | **Jobs** | Every job ETHOS knows about, newest first, and below it the campaigns in the run archive grouped by `campaign_id`. A job's own page shows its steps, its points as each finishes, and its live log; **Stop** asks it to stop at the next point boundary, behind a confirmation. The log survives a refresh: each event carries a sequence number and the browser resumes from the last one it saw. |
 | **Results** | Every archived run, with filters, sortable columns, CSV export of the filtered set from **Export** in the header, and a detail page per run: Summary, Channel conditions, Latency, Cell config, Config, Raw. Runs that cannot be analysed are hidden behind a toggle. |
 | **Sweep / Compare** | One row per offered load with repeats collapsed to a mean and an n, expandable to the individual runs. Amber warning when the runs do not share one cell configuration. |
-| **Graphs** | The gallery of figures ETHOS's plotting package produced, with the PNG, the PDF and each figure's manifest. Requesting a new figure is B9. |
+| **Graphs** | Asks ETHOS for a figure, and lists the ones that exist. Every control on the form is ETHOS's own, from `GET /plots/options`: the source (runs, a campaign, a job or a filter), the metric with its unit and its cross-stack caveat, the kind, the grouping, the width, the y scale, the label, and which runs are let in (minimum duration, whether lengths may differ between points, whether stacks with a known defect and runs with an unrecorded serving binary are included). Generate shows a spinner, then the figure, a bar per warning in its manifest, a **Data** accordion with the points, the n behind each one and every dropped run with its reason, and downloads for the PNG, the PDF, `raw.csv` and `points.csv`. A refusal is shown in ETHOS's own words. The gallery below chips each figure **CLI** or **Console**, and offers open, download and regenerate. |
 | **Search** | In the sidebar, or press <kbd>/</kbd> anywhere. An exact run id opens that run; anything else lists matching configurations, campaigns and runs. |
 | **Testbed** | The testbed's UEs with driver, control path, state, address and who holds port 5201, and **Attach**, **Detach** and **Free 5201** for each one ETHOS drives, every one behind a dialog showing ETHOS's own preview. Below that, what is deployed. Deploying on its own is deliberately not offered: RUN already deploys what its plan needs and tears it down. |
 | **O1 / O2** | What each will show, its requirement ids, and where things stand today. |
 | **Documentation** | These documents, served from `docs/`. |
 
 The sidebar's foot shows **ETHOS backend: n of 6 ready**, how many of B1, B2,
-B4, B5, B6 and B9 are answering. B1, B2, B5 and B6 do; B4 and B9 do not yet. It
+B4, B5, B6 and B9 are answering. All but B4 do. It
 fills in by itself as the capability probe finds each endpoint, and the probe keeps
 running afterwards, so an endpoint that disappears in a rollback disables the
 controls that need it rather than letting them fail on click. "Details" opens
@@ -390,9 +389,16 @@ reaching the console by a name the certificate does not cover. It covers
 no delivered bytes, or one whose iperf server ETHOS does not recognise, cannot be
 analysed. Tick "show unusable runs".
 
-**The Graphs gallery is empty.** `CONSOLE_GRAPH_DIR` is unset or points somewhere
-without figures. It should be ETHOS's own `ETHOS_GRAPH_DIR`
-(`/home/oai-gnb/ravi-ethos-rApp-graph`).
+**The figure form is not there.** ETHOS did not answer `GET /plots/options`. The
+form is built from that response rather than from a list kept in the console, so
+there is nothing to fall back to; the status strip says whether ETHOS is reachable
+at all.
+
+**A figure is refused as mixing run durations.** ETHOS refuses two things by that
+name. Lengths differing **between** points are accepted once you say so, and the
+panel offers "Retry allowing mixed durations". Two lengths **inside** one point are
+refused whatever the flag says, because a mean across them describes neither run:
+set a minimum duration, or name the runs you want.
 
 **The RUN button will not light up.** Its tooltip says why. Most often a readiness
 check has failed: the testbed lock is held by somebody else, or something is

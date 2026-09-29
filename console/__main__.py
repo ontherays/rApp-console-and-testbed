@@ -88,7 +88,6 @@ def _check(args: argparse.Namespace) -> int:
     print(f"login           {'configured' if settings.login_ready else 'NOT configured'}")
     print(f"plans           {settings.plans_dir}")
     print(f"deploy profiles {settings.deploy_profiles or 'not configured (B4 stand-in off)'}")
-    print(f"graph dir       {settings.graph_dir or 'not configured (gallery empty)'}")
     print(f"time zone       {settings.tz}")
     problems = settings.problems()
     if problems:

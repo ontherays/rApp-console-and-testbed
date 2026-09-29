@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import ic, chip %}
+{% from "components/header.html" import crumbs %}
+
+{% block title %}{{ figure_id }} · Graphs · Testbed Console{% endblock %}
+{% block page_title %}{{ (result.manifest.label if result else figure_id) or figure_id }}{% endblock %}
+{% block page_icon %}graphs{% endblock %}
+{% block page_tone %}orange{% endblock %}
+{% block crumbs %}{{ crumbs([{'label': 'Graphs', 'href': '/graphs'}, {'label': 'figure'}]) }}{% endblock %}
+
+{% block content %}
+{% if error %}
+  <div class="banner bad">{{ ic('warning') }}{{ error }}</div>
+{% else %}
+  <div class="card">
+    <header>
+      <span class="tile orange">{{ ic('graphs') }}</span>
+      <span style="min-width:0">
+        <span class="card-title">{{ result.manifest.metric_label or result.metric }}</span>
+        <span class="card-sub">
+          {{ result.manifest.kind }} · y {{ result.manifest.y_scale }}
+          · {{ result.points | length }} point(s)
+          · made by {{ 'the console' if result.manifest.made_by == 'api' else 'the CLI' }}
+        </span>
+      </span>
+      <button class="btn btn-sm" type="button"
+              hx-post="/graphs/{{ figure_id }}/regenerate">Regenerate</button>
+    </header>
+
+    {% for warning in result.warnings %}
+      <div class="banner warn">{{ ic('warning') }}<span>{{ warning }}</span></div>
+    {% endfor %}
+
+    <img src="/graphs/file/{{ figure_id }}/image.png?label={{ (result.manifest.label or figure_id) | urlencode }}"
+         alt="{{ result.manifest.label }}" style="max-width:100%;margin-top:12px">
+
+    {% include "graphs/downloads.html" %}
+    {% include "graphs/data.html" %}
+  </div>
+{% endif %}
+{% endblock %}

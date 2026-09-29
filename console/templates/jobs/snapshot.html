@@ -26,6 +26,12 @@
               hx-target="#stop-confirm" hx-swap="innerHTML">
         <svg class="ic" aria-hidden="true"><use href="#icon-stop"/></svg>Stop
       </button>
+    {% elif job.state == 'completed' %}
+      {# Only once it has finished: a figure of a job still running would be a
+         figure of however much of it happened to exist at that moment. #}
+      <a class="btn" href="/graphs?job_id={{ job.job_id }}&label={{ (job.label or job.job_id) | urlencode }}">
+        <svg class="ic" aria-hidden="true"><use href="#icon-graphs"/></svg>Plot this job
+      </a>
     {% endif %}
   </header>
 

@@ -26,7 +26,6 @@ import httpx
 # refused here.
 NOT_ROUTED = (
     "/catalogue",
-    "/plots",
     "/runs.csv",
     "/o1/freshness",
     "/o2/nf",
@@ -59,6 +58,11 @@ class FakeEthos:
         #: can prove the relay forwarded the browser's header.
         self.resumed_from: str | None = None
         self.started_plans: list[dict[str, Any]] = []
+        #: Figures this fake has drawn, by id, and the bodies it was asked for.
+        self.figures: dict[str, dict[str, Any]] = {}
+        self.plot_requests: list[dict[str, Any]] = []
+        #: A 422 a test wants the next POST /plots to answer with.
+        self.refuse_plot: str | None = None
 
     # --- what a test sets up -------------------------------------------------
 
@@ -104,6 +108,14 @@ class FakeEthos:
         job.update({"job_id": job_id, **fields})
         self.jobs[job_id] = job
         return job
+
+    def refuse_next_plot(self, detail: str) -> None:
+        """Make the next figure request fail with ETHOS's own wording.
+
+        Used for the two duration refusals, which differ in one clause and lead
+        the console to offer different things.
+        """
+        self.refuse_plot = detail
 
     def emit(self, job_id: str, event: str, **data: Any) -> None:
         """One event on a job's stream, numbered as ETHOS numbers them.
@@ -299,6 +311,50 @@ class FakeEthos:
                 404, json={"detail": f"no job {job_id}"}, request=request
             )
 
+        if path == "/plots/options" and method == "GET":
+            return httpx.Response(200, json=self._load("plot_options"), request=request)
+
+        if path == "/plots/series" and method == "GET":
+            return httpx.Response(200, json=self._load("plot_series"), request=request)
+
+        if path == "/plots" and method == "GET":
+            recorded = self._load("plots") or {"count": 0, "figures": []}
+            figures = [f["summary"] for f in self.figures.values()]
+            figures += list(recorded.get("figures") or [])
+            return httpx.Response(
+                200, json={"count": len(figures), "figures": figures}, request=request
+            )
+
+        if path == "/plots" and method == "POST":
+            body = json.loads(request.content or b"{}")
+            self.plot_requests.append(body)
+            if self.refuse_plot:
+                detail, self.refuse_plot = self.refuse_plot, None
+                return httpx.Response(422, json={"detail": detail}, request=request)
+            return httpx.Response(201, json=self._draw(body), request=request)
+
+        if path.startswith("/plots/") and path.endswith("/regenerate") and method == "POST":
+            source = path.split("/")[2]
+            body = self._draw({"label": f"{source}-again"}, regenerated_from=source)
+            return httpx.Response(201, json=body, request=request)
+
+        if path.startswith("/plots/") and method == "GET":
+            parts = path.split("/")
+            figure_id = parts[2]
+            if len(parts) == 4:
+                return self._figure_file(request, figure_id, parts[3])
+            drawn = self.figures.get(figure_id)
+            if drawn is not None:
+                return httpx.Response(200, json=drawn["manifest"], request=request)
+            recorded = self._load("plots") or {"figures": []}
+            if any(f["figure_id"] == figure_id for f in recorded.get("figures") or []):
+                manifest = dict(self._load("plot_manifest") or {})
+                manifest["label"] = figure_id.split("_", 2)[-1]
+                return httpx.Response(200, json=manifest, request=request)
+            return httpx.Response(
+                404, json={"detail": f"no figure {figure_id!r}"}, request=request
+            )
+
         if path == "/ue" and method == "GET":
             return httpx.Response(200, json=self._load("ue"), request=request)
 
@@ -351,6 +407,69 @@ class FakeEthos:
             )
 
         return None
+
+    #: What each served name contains, so a test can check the console passed the
+    #: content type and the bytes through rather than inventing either.
+    FILES: dict[str, tuple[bytes, str]] = {
+        "image.png": (b"\x89PNG\r\n\x1a\nFAKE-PNG-BYTES", "image/png"),
+        "figure.pdf": (b"%PDF-1.4 FAKE-PDF-BYTES", "application/pdf"),
+        "raw.csv": (b"run_id,offered_mbps\nr-1,100.0\n", "text/csv"),
+        "points.csv": (b"config_id,mean_mbps\nocudu-mono_x,99.9\n", "text/csv"),
+    }
+
+    def _figure_file(self, request: httpx.Request, figure_id: str,
+                     name: str) -> httpx.Response:
+        if name not in self.FILES:
+            return httpx.Response(
+                404, json={"detail": f"a figure does not serve {name!r}"},
+                request=request,
+            )
+        content, media = self.FILES[name]
+        return httpx.Response(200, content=content,
+                              headers={"content-type": media}, request=request)
+
+    def _draw(self, body: dict[str, Any],
+              regenerated_from: str | None = None) -> dict[str, Any]:
+        """A figure, shaped exactly as the real POST /plots answers.
+
+        The manifest comes from a recording of a real one, with the request's
+        own metric and label put back, so a test reads the shapes ETHOS
+        actually produces rather than shapes invented here.
+        """
+        index = len(self.figures) + 1
+        figure_id = f"2026-09-29__09{index:02d}00_line_{body.get('label') or 'figure'}"
+        manifest = dict(self._load("plot_manifest") or {})
+        manifest.update({
+            "label": body.get("label") or "figure",
+            "metric": body.get("metric") or "throughput",
+            "kind": body.get("kind") if body.get("kind") not in (None, "auto") else "line",
+            "y_scale": body.get("y_scale") if body.get("y_scale") not in (None, "auto")
+                       else "linear",
+            "made_by": "api",
+        })
+        warnings = list(manifest.get("warnings") or [])
+        summary = {
+            "figure_id": figure_id,
+            "label": manifest["label"],
+            "kind": manifest["kind"],
+            "metric": manifest["metric"],
+            "width": manifest.get("width") or "single",
+            "created": f"2026-09-29T09:{index:02d}:00+08:00",
+            "made_by": "api",
+            "n_points": len(manifest.get("points") or []),
+            "warnings": warnings,
+            "folder": f"/graphs/{figure_id}",
+        }
+        self.figures[figure_id] = {"manifest": manifest, "summary": summary}
+        answer = {
+            "figure_id": figure_id,
+            "folder": summary["folder"],
+            "warnings": warnings,
+            "manifest": manifest,
+        }
+        if regenerated_from:
+            answer["regenerated_from"] = regenerated_from
+        return answer
 
     def _events(self, request: httpx.Request, job_id: str) -> httpx.Response:
         """The SSE stream, numbered and resumable exactly as ETHOS numbers it.

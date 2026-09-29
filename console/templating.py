@@ -105,6 +105,13 @@ def render(
         "search_q": request.query_params.get("q", ""),
     }
     full.update(context or {})
+    if status_code >= 400 and request.headers.get("hx-request"):
+        # A refusal that was rendered rather than raised is meant to land in the
+        # panel that asked for it. htmx does not swap a 4xx by default, so the
+        # response says it carries a partial and console.js opts that one in.
+        # Without this a 422 shows a generic toast and the accurate explanation
+        # ETHOS wrote is thrown away.
+        headers = {**(headers or {}), "X-Console-Inline": "1"}
     return templates().TemplateResponse(
         request, template, full, status_code=status_code, headers=headers
     )

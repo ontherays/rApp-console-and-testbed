@@ -5,7 +5,7 @@
     "what": null,
     "since": null,
     "error": "",
-    "checked_at": "2026-09-28T14:14:16Z"
+    "checked_at": "2026-09-29T01:30:48Z"
   },
   "deployed": {
     "profile": null,
@@ -17,19 +17,19 @@
     "node_free": null,
     "node_reason": "the node was not observed",
     "error": "",
-    "checked_at": "2026-09-28T14:14:16Z"
+    "checked_at": "2026-09-29T01:30:48Z"
   },
   "latest_job": {
-    "job_id": "j-20260928T100336Z",
-    "state": "interrupted",
-    "label": "restart-test-2",
-    "config_id": "ocudu-mono_swphy_pega_samsung_o5gs_joule",
-    "points": 0,
-    "expected_points": 3,
-    "started": "2026-09-28T10:03:36Z",
-    "ended": "2026-09-28T10:07:01Z",
+    "job_id": "j-20260929T005349Z",
+    "state": "completed",
+    "label": "b9-oai",
+    "config_id": "oai-mono_swphy_pega_samsung_o5gs_joule",
+    "points": 5,
+    "expected_points": 5,
+    "started": "2026-09-29T00:53:49Z",
+    "ended": "2026-09-29T00:57:57Z",
     "error": "",
-    "checked_at": "2026-09-28T14:14:16Z"
+    "checked_at": "2026-09-29T01:30:48Z"
   },
   "ue": {
     "ue": "samsung",
@@ -37,7 +37,7 @@
     "attached": null,
     "ip": null,
     "error": "",
-    "checked_at": "2026-09-28T14:14:17Z"
+    "checked_at": "2026-09-29T01:30:49Z"
   },
   "iperf_server": {
     "default_mode": "app_binary",
@@ -51,11 +51,11 @@
       "owner": "foreign"
     },
     "error": "",
-    "checked_at": "2026-09-28T14:14:19Z"
+    "checked_at": "2026-09-29T01:30:51Z"
   },
   "freshness": {
     "results": {
-      "last_point": "2026-09-28T12:14:01.329437952Z",
+      "last_point": "2026-09-29T00:57:23.901500928Z",
       "bucket": "ethos-results",
       "measurement": "ethos_iperf_v2"
     },
@@ -70,13 +70,13 @@
       "measurement": "ocloud_power"
     },
     "error": "",
-    "checked_at": "2026-09-28T14:14:19Z"
+    "checked_at": "2026-09-29T01:30:11Z"
   },
   "api": {
     "version": "0.1.0",
-    "started": "2026-09-28T11:37:39Z",
-    "uptime_s": 9400.4,
+    "started": "2026-09-29T00:47:35Z",
+    "uptime_s": 2595.6,
     "error": "",
-    "checked_at": "2026-09-28T14:14:19Z"
+    "checked_at": "2026-09-29T01:30:51Z"
   }
 }

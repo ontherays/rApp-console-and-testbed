@@ -193,8 +193,10 @@ class TestGatedFeatures:
         assert "needs ETHOS B11" not in body
         assert "UEs" in body
 
-    def test_the_graphs_page_names_b9(self, client):
-        assert "needs ETHOS B9" in client.get("/graphs").text
+    def test_the_graphs_page_offers_the_form_rather_than_naming_b9(self, client):
+        body = client.get("/graphs").text
+        assert "needs ETHOS B9" not in body
+        assert "Request a figure" in body
 
 
 class TestPlanPage:
@@ -316,29 +318,33 @@ class TestResults:
 
 
 class TestGraphs:
-    def test_the_gallery_lists_the_archived_figures(self, client):
+    """The gallery is ETHOS's listing now, not a directory read."""
+
+    def test_the_gallery_lists_what_ethos_reports(self, client, ethos_url):
         body = client.get("/graphs").text
-        assert "full-sweep" in body
+        first = (ethos_url._load("plots") or {})["figures"][0]
+        assert first["label"] in body
 
-    def test_a_figure_page_shows_its_manifest(self, client):
-        body = client.get("/graphs/view/2026-09-25/185503_line_full-sweep").text
-        assert "achieved_over_tx_mbps" in body
-        assert "n=5 per point" in body
+    def test_a_figure_made_by_the_cli_is_chipped_as_such(self, client, ethos_url):
+        body = client.get("/graphs").text
+        assert "CLI" in body
 
-    def test_a_figure_whose_inputs_mix_durations_warns(self, client):
-        body = client.get("/graphs/view/2026-09-25/190000_bar_mixed").text
-        assert "mix traffic durations" in body or "mixed durations" in body
+    def test_a_figure_page_shows_its_manifest_and_its_points(self, client, ethos_url):
+        figure_id = (ethos_url._load("plots") or {})["figures"][0]["figure_id"]
+        body = client.get(f"/graphs/view/{figure_id}").text
+        assert "manifest.json" in body
+        assert "Data" in body
 
-    def test_the_png_and_pdf_download(self, client):
-        base = "/graphs/file/2026-09-25/185503_line_full-sweep"
-        png = client.get(f"{base}/png")
-        pdf = client.get(f"{base}/pdf")
-        assert png.status_code == 200 and png.headers["content-type"] == "image/png"
-        assert pdf.status_code == 200 and pdf.headers["content-type"] == "application/pdf"
+    def test_a_figures_warnings_are_shown(self, client, ethos_url):
+        figure_id = (ethos_url._load("plots") or {})["figures"][0]["figure_id"]
+        body = client.get(f"/graphs/view/{figure_id}").text
+        manifest = ethos_url._load("plot_manifest") or {}
+        for warning in (manifest.get("warnings") or [])[:1]:
+            assert warning[:40] in body
 
-    def test_a_path_outside_the_graph_directory_is_refused(self, client):
-        assert client.get("/graphs/view/../../etc/passwd").status_code == 404
-        assert client.get("/graphs/file/2026-09-25/nope/png").status_code == 404
+    def test_a_figure_that_ethos_does_not_have_is_reported(self, client):
+        response = client.get("/graphs/view/2026-01-01__000000_line_nope")
+        assert response.status_code == 404
 
 
 class TestDocs:

@@ -1,0 +1,15 @@
+{# The metrics ETHOS deliberately does not offer, with its reason for each.
+
+   Shown rather than omitted: "why can't I plot first-transmission BLER" is
+   answered where somebody would look for it, and the answer is that it is
+   OAI-only and so not comparable across stacks. #}
+{% from "components/macros.html" import ic %}
+{% if options and options.not_offered %}
+  <sl-details summary="Not offered, and why" style="margin-top:12px">
+    <ul style="margin:0;padding-left:18px;line-height:1.8">
+      {% for item in options.not_offered %}
+        <li><span class="mono">{{ item.id }}</span>: {{ item.reason }}</li>
+      {% endfor %}
+    </ul>
+  </sl-details>
+{% endif %}

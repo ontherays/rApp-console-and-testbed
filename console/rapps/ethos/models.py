@@ -705,3 +705,137 @@ class UeIperf(Loose):
             f"{self.owner} iperf3 (pid {holder.get('pid') or '?'}, "
             f"uid {holder.get('uid') or '?'})"
         )
+
+
+# --- figures on request (B9) --------------------------------------------------
+
+
+class PlotMetric(Loose):
+    """One thing a figure can put on its y axis, as ETHOS describes it.
+
+    Every field comes from `GET /plots/options`. The console keeps no metric
+    list of its own: one that drifted would offer a metric ETHOS has dropped, or
+    hide one it has gained.
+    """
+
+    id: str = ""
+    label: str = ""
+    unit: str = ""
+    axis_label: str = ""
+    y_scale: str = "linear"
+    field: str = ""
+    cross_vendor: bool = True
+    has_cap: bool = False
+    note: str = ""
+
+    @property
+    def display(self) -> str:
+        return f"{self.label} ({self.unit})" if self.unit else self.label
+
+
+class PlotNotOffered(Loose):
+    """A metric ETHOS deliberately does not offer, and why.
+
+    Shown rather than hidden: "why can't I plot first-transmission BLER" is
+    answered where somebody looks for it, and the answer is that it is OAI-only
+    and so not comparable across stacks.
+    """
+
+    id: str = ""
+    reason: str = ""
+
+
+class PlotOptions(Loose):
+    metrics: list[PlotMetric] = Field(default_factory=list)
+    default_metric: str = "throughput"
+    kinds: list[str] = Field(default_factory=list)
+    group_by: list[str] = Field(default_factory=list)
+    widths: list[str] = Field(default_factory=list)
+    y_scales: list[str] = Field(default_factory=list)
+    sources: list[str] = Field(default_factory=list)
+    not_offered: list[PlotNotOffered] = Field(default_factory=list)
+
+    def metric(self, metric_id: str | None) -> PlotMetric | None:
+        return next((m for m in self.metrics if m.id == metric_id), None)
+
+
+class PlotSeries(Loose):
+    """How one stack is drawn, from ETHOS's own palette."""
+
+    head: str = ""
+    label: str = ""
+    legend_label: str = ""
+    marker: str = ""
+    colour: str = "#666666"
+    linestyle: str = "-"
+    hatch: str = ""
+    note: str = ""
+    order: int = 99
+
+
+class PlotSeriesList(Loose):
+    ideal_label: str = ""
+    order: list[str] = Field(default_factory=list)
+    series: list[PlotSeries] = Field(default_factory=list)
+
+
+class FigureSummary(Loose):
+    """One figure in the gallery, as `GET /plots` lists it."""
+
+    figure_id: str = ""
+    label: str = ""
+    kind: str | None = None
+    metric: str | None = None
+    width: str | None = None
+    created: str | None = None
+    made_by: str = "cli"
+    n_points: int = 0
+    warnings: list[str] = Field(default_factory=list)
+    folder: str | None = None
+
+    @property
+    def by_console(self) -> bool:
+        return self.made_by == "api"
+
+    @property
+    def maker(self) -> str:
+        """What the chip says. ETHOS calls the console's own requests `api`;
+        to somebody reading the gallery the distinction is CLI or Console."""
+        return "Console" if self.by_console else "CLI"
+
+
+class FigureResult(Loose):
+    """What `POST /plots` returns: where it landed and what it warns about."""
+
+    figure_id: str = ""
+    folder: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+    manifest: dict[str, Any] = Field(default_factory=dict)
+    regenerated_from: str | None = None
+
+    @property
+    def points(self) -> list[dict[str, Any]]:
+        return list(self.manifest.get("points") or [])
+
+    @property
+    def dropped(self) -> list[dict[str, Any]]:
+        """The runs ETHOS left out, with its reason for each.
+
+        Shown beside the figure rather than buried: a point missing because a
+        run had no radio summary is a fact about the figure, and a reader who
+        cannot see it will read the gap as a measurement.
+        """
+        selection = self.manifest.get("selection") or {}
+        return list(selection.get("dropped") or [])
+
+    @property
+    def n_summary(self) -> dict[str, Any]:
+        return dict(self.manifest.get("n_summary") or {})
+
+    @property
+    def metric(self) -> str:
+        return str(self.manifest.get("metric") or "")
+
+    @property
+    def caps(self) -> dict[str, Any]:
+        return dict(self.manifest.get("mcs_caps") or {})

@@ -1,0 +1,14 @@
+{# The four files, streamed from ETHOS.
+
+   Named after the figure's label rather than after the endpoint, so four
+   downloads do not all land as `image.png`. The content type is ETHOS's. #}
+{% set fig_label = result.manifest.label or result.figure_id %}
+<div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap">
+  {% for name, suffix, text in [('image.png','png','PNG'), ('figure.pdf','pdf','PDF'),
+                                ('raw.csv','raw.csv','raw.csv'), ('points.csv','points.csv','points.csv')] %}
+    <a class="btn btn-sm" download
+       href="/graphs/file/{{ result.figure_id }}/{{ name }}?label={{ fig_label | urlencode }}">
+      <svg class="ic" aria-hidden="true"><use href="#icon-export"/></svg>{{ text }}
+    </a>
+  {% endfor %}
+</div>

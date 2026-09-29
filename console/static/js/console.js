@@ -56,6 +56,17 @@
     }
   });
 
+  // A response the console marked as inline carries its own explanation, so it
+  // is swapped into the target instead of becoming a toast that says only the
+  // status code.
+  document.addEventListener("htmx:beforeSwap", function (event) {
+    const xhr = event.detail.xhr;
+    if (xhr && xhr.getResponseHeader("X-Console-Inline")) {
+      event.detail.shouldSwap = true;
+      event.detail.isError = false;
+    }
+  });
+
   document.addEventListener("htmx:responseError", function (event) {
     const xhr = event.detail.xhr;
     if (xhr && xhr.status === 401) {
@@ -222,5 +233,26 @@
 
   document.addEventListener("htmx:sseError", function () {
     window.toast("The job event stream dropped; it is reconnecting.", "warning", "info");
+  });
+
+  // The figure form's source follows what was typed into it. Naming runs and
+  // leaving the radio on "A filter" would describe a request nobody made, and
+  // the radio is what the operator reads back to check what they asked for.
+  const SOURCE_OF = {
+    run_ids: "runs", campaign_id: "runs", job_id: "runs",
+    config_ids: "influx", since: "influx", until: "influx", rates: "influx",
+  };
+
+  document.addEventListener("input", function (event) {
+    const field = event.target;
+    if (!field || !field.name) return;
+    const wanted = SOURCE_OF[field.name];
+    if (!wanted || !field.value.trim()) return;
+    const form = field.closest("#plot-form");
+    if (!form) return;
+    form.querySelectorAll("input[name=source]").forEach(function (radio) {
+      radio.checked = radio.value === wanted;
+      radio.closest(".pick").classList.toggle("on", radio.checked);
+    });
   });
 })();

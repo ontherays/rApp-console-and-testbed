@@ -28,6 +28,32 @@ from console.auth import SESSION_COOKIE, SessionCodec  # noqa: E402
 RECORDED = Path(__file__).parent / "recorded"
 
 
+@pytest.fixture(autouse=True)
+def palette():
+    """Fill the figure palette, as the capability probe does in the running app.
+
+    The console holds no colour table of its own any more: `GET /plots/series`
+    is the palette (B9). Without this every stack would render in the grey
+    fallback here, which is correct behaviour for an unreachable ETHOS and
+    useless for testing anything that draws a chip.
+
+    Per test rather than per session: the palette is process-global, as it is
+    in the running app, so a test that drives the probe against a stub would
+    otherwise leave the next test looking at whatever that stub returned.
+    """
+    import json
+
+    from console.rapps.ethos.models import PlotSeriesList
+    from console.rapps.ethos.series import PALETTE
+
+    PALETTE.replace(
+        PlotSeriesList.model_validate(
+            json.loads((RECORDED / "plot_series.json").read_text())
+        )
+    )
+    return PALETTE
+
+
 @pytest.fixture
 def ethos_url(monkeypatch):
     """Point the console at the fake ETHOS, not at the real one."""
@@ -55,7 +81,6 @@ def client(ethos_url, session_cookie, monkeypatch, tmp_path):
     monkeypatch.setenv("CONSOLE_PLANS_DIR", str(tmp_path / "plans"))
     monkeypatch.setenv("CONSOLE_PASSWORD_HASH", "")
     monkeypatch.setenv("CONSOLE_DEPLOY_PROFILES", str(RECORDED / "deploy_profiles.yaml"))
-    monkeypatch.setenv("CONSOLE_GRAPH_DIR", str(RECORDED / "graphs"))
 
     app = create_app()
     app.state.client._client._transport = ethos_url.transport()
