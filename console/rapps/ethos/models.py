@@ -505,6 +505,34 @@ class Job(Loose):
         return self.state in TERMINAL_JOB_STATES
 
     @property
+    def graph_run_ids(self) -> list[str]:
+        """The runs a figure drawn from this job would be built from.
+
+        These are the runs that produced a point, which is exactly what ETHOS
+        resolves `job_ids` to. `run_ids` is a longer list: a sweep also creates
+        a run it abandons before any traffic, and that run has no measurement to
+        contribute, so counting it would overstate what the job offers a figure.
+        """
+        seen: list[str] = []
+        for point in self.points:
+            if point.run_id and point.run_id not in seen:
+                seen.append(point.run_id)
+        return seen
+
+    @property
+    def measured_run_ids(self) -> list[str]:
+        """The graph-eligible runs that actually carry a measurement.
+
+        Usually every one of them, and then a picker reads `10/10`. It is not
+        always: a sweep can finish with points that recorded no throughput, and
+        one job in this lab's archive has ten points of which one measured. The
+        two numbers are kept apart so that job reads `1/10` rather than a tidy
+        `10/10` that would hide it.
+        """
+        return [p.run_id for p in self.points
+                if p.run_id and p.achieved_mbps is not None]
+
+    @property
     def label(self) -> str:
         return str(self.plan.get("label") or "")
 

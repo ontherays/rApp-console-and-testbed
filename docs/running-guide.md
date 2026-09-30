@@ -335,9 +335,15 @@ different thing.
 | **Campaign** / `campaign_id` | A label grouping runs by intent. | An optional field on a run, set by hand. Jobs do not set it, so most runs have none. The Jobs page groups whatever carries one. |
 | **Quarantined job** | A sweep held out of normal graph generation. | An entry in ETHOS's quarantine record. §8. |
 
-A job contributes the runs that **produced a measurement**. A sweep also creates
-one run it never measures, so the picker shows two numbers, for example
-`10/11 runs`: ten are plottable, eleven exist. Figures are drawn from the ten.
+A job contributes the runs that **produced a measurement**. The picker shows two
+numbers, and both are about those runs, not about every run id the job touched:
+
+    <runs that recorded a measurement> / <runs a figure would be drawn from>
+
+A healthy sweep reads `10/10`. The runs a sweep creates and abandons before any
+traffic are not counted on either side, because they have no measurement to
+contribute. When the two differ, for example `6/10`, the sweep finished with
+runs that recorded nothing: the count is marked and says how many on hover.
 
 ### 7.2 The workflow
 
@@ -358,7 +364,8 @@ sweeps below without reloading the page. Both bounds are inclusive when
 filtering the sweep list.
 
 **Sweeps.** Each row is one job: its id, its configuration, its offered range,
-its plottable and total run counts, and its state. Tick the ones to draw.
+its measured and graph-eligible run counts, and its state. Tick the ones to
+draw.
 **Select all** ticks every row that is not held out; **Clear** unticks
 everything. Several ticked jobs are combined into one figure: ETHOS unions their
 runs in selection order, de-duplicated, so the same selection always produces

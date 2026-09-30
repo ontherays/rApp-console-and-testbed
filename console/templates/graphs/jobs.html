@@ -69,7 +69,10 @@
             </span>
           </span>
           <span class="job-pick-facts">
-            <span class="runs">{{ row.plottable }}/{{ row.total }} runs</span>
+            <span class="runs{% if row.measured < row.eligible %} runs-short{% endif %}"
+                  {% if row.measured < row.eligible %}
+                  title="{{ row.eligible - row.measured }} of this sweep's runs recorded no measurement, so the figure is drawn from {{ row.measured }}."
+                  {% endif %}>{{ row.measured }}/{{ row.eligible }} runs</span>
             <span class="state">{{ row.job.state }}</span>
           </span>
           {% if row.quarantined %}

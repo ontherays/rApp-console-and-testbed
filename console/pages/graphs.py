@@ -148,7 +148,7 @@ async def _job_choices(request, since: str = "", until: str = "") -> dict:
     """The jobs the picker offers, and which of them are quarantined.
 
     Built from `GET /jobs`, which already carries everything a row needs:
-    the id, the state, the config, the plan's rates, and both run counts. A
+    the id, the state, the config, the plan's rates, and its points. A
     second endpoint for "this job's runs" would be a different spelling of data
     already in hand.
 
@@ -183,8 +183,12 @@ async def _job_choices(request, since: str = "", until: str = "") -> dict:
         entry = held.get(job.job_id)
         rows.append({
             "job": job,
-            "plottable": len({p.run_id for p in job.points if p.run_id}),
-            "total": len(job.run_ids),
+            # Both numbers come from the job's points, which is the set ETHOS
+            # resolves `job_ids` to. `run_ids` is longer, because a sweep also
+            # creates a run it abandons before any traffic, and counting that
+            # against the figure overstated what the job offers it.
+            "measured": len(job.measured_run_ids),
+            "eligible": len(job.graph_run_ids),
             "rates": (job.plan or {}).get("rates") or "",
             "quarantined": entry is not None,
             "reason": entry.reason if entry else "",

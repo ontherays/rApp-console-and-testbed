@@ -609,10 +609,19 @@ class TestFigures:
         # The row fades to its selected colour over 120ms, so read it after it
         # has settled: sampling immediately returns a value part-way through the
         # transition, which is neither colour and compares equal to neither.
+        #
+        # The colour is read from `--pick-on` rather than written here, so
+        # retuning the shade is a one-line change in the stylesheet and not a
+        # test edit as well.
         logged_in.wait_for_function(
             """() => {
                  const row = document.querySelector('.job-pick:not(.job-pick-held)');
-                 return getComputedStyle(row).backgroundColor === 'rgb(242, 246, 255)';
+                 const probe = document.createElement('span');
+                 probe.style.color = 'var(--pick-on)';
+                 document.body.appendChild(probe);
+                 const want = getComputedStyle(probe).color;
+                 probe.remove();
+                 return getComputedStyle(row).backgroundColor === want;
                }""",
             timeout=2000,
         )
@@ -622,7 +631,16 @@ class TestFigures:
         # Compared as channels, not as a string: Chrome serialises a colour that
         # is still transitioning as `rgba(r, g, b, 1)` and the settled one as
         # `rgb(r, g, b)`, so a string match passes or fails on timing.
-        assert _channels(edge) == (37, 99, 235), "the accent edge marks the selection"
+        accent = logged_in.evaluate(
+            """() => {
+                 const p = document.createElement('span');
+                 p.style.color = 'var(--pick-on-edge)';
+                 document.body.appendChild(p);
+                 const c = getComputedStyle(p).color;
+                 p.remove();
+                 return c;
+               }""")
+        assert _channels(edge) == _channels(accent), "the accent edge marks the selection"
 
     def test_the_graph_form_does_not_scroll_sideways_when_narrowed(self, logged_in):
         logged_in.goto("/graphs")
