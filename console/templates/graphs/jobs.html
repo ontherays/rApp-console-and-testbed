@@ -1,5 +1,10 @@
-{# The job picker. Swapped in by htmx whenever Since or Until changes, so the
-   list always answers "what ran in the window I am plotting?".
+{# The job picker. Swapped in by htmx whenever Since, Until or the
+   include-quarantined toggle changes, so the list always answers "what ran in
+   the window I am plotting?".
+
+   The toolbar lives INSIDE #job-picker on purpose: the hx-include on every
+   control here names #job-picker, so the toggle's own state travels with the
+   request that re-renders it. Moving it out would silently drop it.
 
    A quarantined job is shown, not hidden: seeing that a sweep exists and why it
    is being left out is most of the value. Its box is disabled unless "Include
@@ -7,19 +12,48 @@
    figure's manifest.
 
    Every box is styled from its own :checked state, never from a class the
-   server wrote: this fragment is re-rendered on a date change but the cards
-   around it are not, and a server-written class would leave two rows looking
+   server wrote: this fragment is re-rendered on a date change but the card
+   around it is not, and a server-written class would leave two rows looking
    selected at once. #}
-<div id="job-picker">
+<div id="job-picker" class="picker">
+  <div class="picker-bar">
+    {% if job_rows %}
+      <span class="picker-count">
+        <strong>{{ job_rows | length }}</strong>
+        sweep{{ '' if job_rows | length == 1 else 's' }} in this window
+      </span>
+      {# Handled in console.js, not with an inline onclick: the console's CSP is
+         `script-src 'self'`, which blocks inline handlers outright. The buttons
+         looked right and did nothing. #}
+      <button class="btn btn-sm" type="button" data-picker="all">Select all</button>
+      <button class="btn btn-sm" type="button" data-picker="none">Clear</button>
+    {% else %}
+      <span class="picker-count">No sweep in this window</span>
+    {% endif %}
+    <span class="spacer"></span>
+    <label class="picker-toggle"
+           title="A quarantined sweep was judged invalid by somebody. Including it is recorded in the figure's manifest.">
+      <input type="checkbox" name="include_quarantined" value="1"
+             {% if values.include_quarantined %}checked{% endif %}
+             hx-get="/graphs/jobs" hx-target="#job-picker" hx-swap="outerHTML"
+             hx-include="#since, #until, #job-picker">
+      Include quarantined jobs
+    </label>
+  </div>
+
   {% if jobs_error %}
-    <p class="hint">Jobs could not be listed: {{ jobs_error }}</p>
+    <p class="picker-empty">
+      <strong>Jobs could not be listed</strong>
+      {{ jobs_error }}
+    </p>
   {% elif not job_rows %}
-    <p class="hint">
-      No job ran in this window. Widen the dates, or leave every box clear and
-      plot the range directly.
+    <p class="picker-empty">
+      <strong>No sweep ran between these dates</strong>
+      Widen the range, or leave every box clear to plot the whole window
+      directly.
     </p>
   {% else %}
-    <div class="job-picks">
+    <div class="job-picks" role="group" aria-label="Sweeps to draw">
       {% for row in job_rows %}
         {% set checked = row.job.job_id in (values.job_ids or []) %}
         {% set blocked = row.quarantined and not values.include_quarantined %}
@@ -27,42 +61,25 @@
           <input type="checkbox" name="job_ids" value="{{ row.job.job_id }}"
                  {% if checked and not blocked %}checked{% endif %}
                  {% if blocked %}disabled{% endif %}>
-          <span class="job-pick-body">
+          <span class="job-pick-main">
             <span class="job-pick-id">{{ row.job.job_id }}</span>
-            <span class="job-pick-meta">
+            <span class="job-pick-sub">
               {{ row.job.config_id or "configuration unknown" }}
               {%- if row.rates %} · {{ row.rates }} Mbps{% endif %}
-              · {{ row.plottable }} of {{ row.total }} runs
-              · {{ row.job.state }}
             </span>
-            {% if row.quarantined %}
-              <span class="job-pick-held-note">
-                quarantined{% if row.excluded_at %} {{ row.excluded_at }}{% endif %}:
-                {{ row.reason }}
-              </span>
-            {% endif %}
           </span>
+          <span class="job-pick-facts">
+            <span class="runs">{{ row.plottable }}/{{ row.total }} runs</span>
+            <span class="state">{{ row.job.state }}</span>
+          </span>
+          {% if row.quarantined %}
+            <span class="job-pick-why">
+              quarantined{% if row.excluded_at %} {{ row.excluded_at }}{% endif %}:
+              {{ row.reason }}
+            </span>
+          {% endif %}
         </label>
       {% endfor %}
-    </div>
-
-    <div class="row" style="gap:8px;margin-top:8px;align-items:center">
-      <sl-button size="small" variant="default" type="button"
-                 onclick="document.querySelectorAll('#job-picker input[name=job_ids]:not([disabled])').forEach(b => b.checked = true)">
-        Select all
-      </sl-button>
-      <sl-button size="small" variant="default" type="button"
-                 onclick="document.querySelectorAll('#job-picker input[name=job_ids]').forEach(b => b.checked = false)">
-        Clear
-      </sl-button>
-      <span style="flex:1"></span>
-      <label class="check" title="Quarantined jobs are held out because somebody judged the sweep invalid. Including them is recorded in the figure's manifest.">
-        <input type="checkbox" name="include_quarantined" value="1"
-               {% if values.include_quarantined %}checked{% endif %}
-               hx-get="/graphs/jobs" hx-target="#job-picker" hx-swap="outerHTML"
-               hx-include="#since, #until, #job-picker">
-        Include quarantined jobs
-      </label>
     </div>
   {% endif %}
 </div>

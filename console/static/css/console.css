@@ -553,33 +553,6 @@ article .table-wrap { margin: var(--s4) 0; border: 1px solid var(--line);
 .plot-link:hover, thead tr:hover .plot-link { opacity: 1; color: var(--accent); }
 .plot-link .ic { width: 13px; height: 13px; vertical-align: -2px; }
 
-/* The graph page's job picker: one card per sweep, scannable down the left.
-   Styled from each box's own :checked state, like .opt and .pick above, because
-   the picker is swapped in on a date change while the card around it is not,
-   and a server-written class would leave a stale row looking selected. */
-.job-picks { display: grid; gap: 6px; max-height: 320px; overflow-y: auto;
-             padding: 2px; }
-.job-pick { display: flex; gap: 10px; align-items: flex-start; padding: 9px 11px;
-            border: 1px solid var(--line-strong); border-radius: 10px;
-            background: #fff; cursor: pointer; }
-.job-pick input { margin: 2px 0 0; accent-color: var(--accent); flex: none;
-                  width: 15px; height: 15px; }
-.job-pick:hover:not(.job-pick-held) { border-color: #c9cdd4; background: #fbfcfd; }
-.job-pick:has(input:checked) { border-color: var(--accent); background: #f2f6ff;
-                               box-shadow: 0 0 0 1px var(--accent) inset; }
-.job-pick:has(input:focus-visible) { outline: 2px solid var(--accent);
-                                     outline-offset: 2px; }
-.job-pick-body { min-width: 0; display: grid; gap: 2px; }
-.job-pick-id { font-family: var(--mono, ui-monospace, monospace); font-size: 12.5px;
-               font-weight: 500; }
-.job-pick-meta { font-size: 12px; color: var(--muted); }
-
-/* A held-out sweep stays visible and stays readable: hiding it would leave the
-   operator wondering why a fortnight of data is missing from the figure. */
-.job-pick-held { background: #f9f9fa; border-style: dashed; cursor: not-allowed; }
-.job-pick-held .job-pick-id { color: var(--muted); }
-.job-pick-held-note { font-size: 12px; color: #92400e; }
-
 /* The quarantine panel on the Jobs page. */
 .held-list { display: grid; gap: 8px; }
 .held-item { padding: 10px 12px; border: 1px solid var(--line-strong);
@@ -588,3 +561,113 @@ article .table-wrap { margin: var(--s4) 0; border: 1px solid var(--line);
                       font-size: 12.5px; font-weight: 500; }
 .held-item .held-why { font-size: 13px; margin-top: 2px; }
 .held-item .held-when { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* --- the graph request form ----------------------------------------------- */
+
+/* `.hint` was only ever styled as `.field .hint`, and the graph form uses it
+   outside a `.field`, so every explanatory line rendered at full body size and
+   competed with the controls it was explaining. */
+.hint { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 6px 0 0; }
+.hint .ic { width: 13px; height: 13px; vertical-align: -2px; }
+
+/* A form section: a quiet heading and the controls under it. This is the level
+   the page was missing, between the card title and a field label. */
+.form-sec { margin-top: var(--s5); }
+.form-sec:first-child { margin-top: 0; }
+.form-sec-title { display: flex; align-items: baseline; gap: var(--s2);
+                  font-size: 11.5px; font-weight: 600; letter-spacing: .06em;
+                  text-transform: uppercase; color: var(--muted);
+                  margin: 0 0 var(--s2); }
+.form-sec-title .count { font-weight: 500; letter-spacing: 0; text-transform: none;
+                         color: var(--faint); font-size: 12px; }
+
+.field-row { display: flex; gap: var(--s3); flex-wrap: wrap; align-items: flex-end; }
+.field-row > * { flex: 1 1 150px; min-width: 0; }
+.field-row > .narrow { flex: 0 0 116px; }
+.field-row label { display: block; }
+
+/* --- the job picker ------------------------------------------------------- */
+
+/* The one genuinely interactive part of the page, so it gets a surface of its
+   own: a faint panel inside the white card, enough to read as a single region
+   without becoming a second colour. */
+.picker { border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+          background: #fbfbfc; overflow: hidden; }
+.picker-bar { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap;
+              padding: 8px 10px; border-bottom: 1px solid var(--line);
+              background: #fff; }
+.picker-bar .spacer { flex: 1 1 auto; }
+.picker-count { font-size: 12px; color: var(--muted); }
+.picker-count strong { color: var(--text); font-weight: 600; }
+
+/* The include-quarantined toggle. `.check` is the readiness list's style, with
+   a bottom rule and tall padding; a toolbar needs neither. */
+.picker-toggle { display: inline-flex; align-items: center; gap: 7px;
+                 font-size: 12.5px; color: var(--muted); cursor: pointer;
+                 padding: 5px 8px; border-radius: 7px; white-space: nowrap; }
+.picker-toggle:hover { background: #f4f5f7; color: var(--text); }
+.picker-toggle input { accent-color: var(--warn); width: 14px; height: 14px; margin: 0; }
+.picker-toggle:has(input:checked) { color: var(--warn); background: #fdf6ec; }
+.picker-toggle:has(input:focus-visible) { outline: 2px solid var(--accent);
+                                          outline-offset: 1px; }
+
+.job-picks { display: grid; gap: 1px; max-height: 300px; overflow-y: auto;
+             background: var(--line); }
+
+/* One sweep. Three columns so the run counts and the state line up down the
+   list instead of trailing a sentence of different length on every row.
+   Styled from the box's own :checked state, like .opt and .pick: the picker is
+   swapped in on a date change while the card around it is not, and a
+   server-written class would leave a stale row looking selected. */
+.job-pick { display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center; gap: 10px; padding: 7px 10px; background: #fff;
+            cursor: pointer; border-left: 3px solid transparent;
+            transition: background .12s ease, border-color .12s ease; }
+.job-pick input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0;
+                  flex: none; }
+/* Hover must not mask the selection. `.job-pick:hover:not(.job-pick-held)` is
+   (0,3,0) and `.job-pick:has(input:checked)` is (0,2,1), so plain hover won on
+   specificity and a ticked row under the pointer looked unticked. Hover is
+   scoped to unticked rows, and a ticked row gets its own deeper hover. */
+.job-pick:hover:not(.job-pick-held):not(:has(input:checked)) { background: #f6f8fd; }
+.job-pick:has(input:checked) { background: #f2f6ff; border-left-color: var(--accent); }
+.job-pick:has(input:checked):hover { background: #e8f0ff; }
+.job-pick:has(input:focus-visible) { outline: 2px solid var(--accent);
+                                     outline-offset: -2px; }
+
+.job-pick-main { min-width: 0; }
+.job-pick-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+               font-size: 13px; font-weight: 500; color: var(--text);
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.job-pick-sub { font-size: 12px; color: var(--muted); overflow: hidden;
+                text-overflow: ellipsis; white-space: nowrap; }
+.job-pick-facts { display: flex; align-items: center; gap: 10px; font-size: 12px;
+                  color: var(--muted); white-space: nowrap; }
+.job-pick-facts .runs { font-variant-numeric: tabular-nums; }
+.job-pick-facts .state { color: var(--faint); }
+
+/* A held-out sweep stays visible and readable. Hiding it would leave the
+   operator wondering why a fortnight is missing from the figure. */
+.job-pick-held { background: #fffdf7; border-left-color: #e8c99a;
+                 cursor: not-allowed; }
+.job-pick-held .job-pick-id { color: var(--muted); }
+.job-pick-held input { accent-color: var(--warn); }
+.job-pick-why { grid-column: 2 / -1; font-size: 12px; color: var(--warn);
+                line-height: 1.4; white-space: normal; }
+
+.picker-empty { padding: 18px 14px; font-size: 12.5px; color: var(--muted);
+                line-height: 1.55; background: #fff; }
+.picker-empty strong { color: var(--text); font-weight: 600; display: block;
+                       margin-bottom: 2px; font-size: 13px; }
+
+/* --- the primary action --------------------------------------------------- */
+
+.form-actions { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+                margin-top: var(--s5); padding-top: var(--s4);
+                border-top: 1px solid var(--line); }
+.form-actions .btn.primary { height: 40px; padding: 0 20px; font-size: 14px; }
+
+@media (max-width: 720px) {
+  .job-pick { grid-template-columns: auto minmax(0, 1fr); }
+  .job-pick-facts { grid-column: 2; }
+}

@@ -243,6 +243,24 @@
     config_ids: "influx", since: "influx", until: "influx", rates: "influx",
   };
 
+  // Select all / Clear in the figure form's sweep picker. Delegated rather than
+  // an inline onclick because the CSP is `script-src 'self'`, and delegated on
+  // the document rather than bound to the buttons because htmx swaps the whole
+  // picker out whenever the date range or the quarantine toggle changes.
+  document.addEventListener("click", function (event) {
+    const button = event.target.closest("[data-picker]");
+    if (!button) return;
+    event.preventDefault();
+    const wantAll = button.dataset.picker === "all";
+    const boxes = document.querySelectorAll("#job-picker input[name=job_ids]");
+    boxes.forEach(function (box) {
+      // A held-out sweep is disabled; Select all must not tick it, and Clear
+      // has nothing to untick on it either.
+      if (box.disabled) return;
+      box.checked = wantAll;
+    });
+  });
+
   document.addEventListener("input", function (event) {
     const field = event.target;
     if (!field || !field.name) return;

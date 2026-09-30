@@ -526,6 +526,15 @@ class TestWiredFlows:
             control("reset", {})
 
 
+
+def _channels(colour: str) -> tuple[int, ...]:
+    """The numbers out of `rgb(...)` or `rgba(...)`, so a comparison does not
+    depend on which of the two forms the browser happened to serialise."""
+    import re
+
+    return tuple(int(float(n)) for n in re.findall(r"[\d.]+", colour)[:3])
+
+
 class TestFigures:
     """The Graphs page in a real browser, against the fake ETHOS (B9)."""
 
@@ -560,6 +569,73 @@ class TestFigures:
         logged_in.click("sl-details[summary='Filter instead']")
         logged_in.fill("#config_ids", "ocudu-mono")
         assert logged_in.is_checked("input[name=source][value=influx]")
+
+    def test_select_all_and_clear_work_and_skip_a_held_out_sweep(self, logged_in):
+        """These are the picker's only scripted behaviour, so they need a real
+        browser to be tested at all.
+
+        They were written as inline `onclick` handlers and never ran once: the
+        console's CSP is `script-src 'self'`, which blocks inline handlers, and
+        a unit test asserting the button's text was present could not see it.
+        """
+        logged_in.goto("/graphs")
+        logged_in.wait_for_load_state("networkidle")
+
+        boxes = logged_in.locator("#job-picker input[name=job_ids]")
+        enabled = logged_in.locator("#job-picker input[name=job_ids]:not([disabled])")
+        held = logged_in.locator("#job-picker input[name=job_ids][disabled]")
+        assert boxes.count() > 0 and held.count() > 0, "the fake seeds a held-out sweep"
+
+        logged_in.click("#job-picker button[data-picker=all]")
+        assert logged_in.locator(
+            "#job-picker input[name=job_ids]:checked").count() == enabled.count()
+        assert held.first.is_checked() is False, "Select all must skip a held-out sweep"
+
+        logged_in.click("#job-picker button[data-picker=none]")
+        assert logged_in.locator("#job-picker input[name=job_ids]:checked").count() == 0
+
+    def test_a_ticked_sweep_is_visually_distinct_from_an_unticked_one(self, logged_in):
+        """The highlight follows the box's own :checked state, so it is right
+        the instant it is clicked and cannot be left behind when htmx swaps the
+        picker on a date change."""
+        logged_in.goto("/graphs")
+        logged_in.wait_for_load_state("networkidle")
+
+        rows = logged_in.locator(".job-pick:not(.job-pick-held)")
+        plain = rows.nth(1).evaluate("e => getComputedStyle(e).backgroundColor")
+        rows.nth(0).locator("input").check()
+        logged_in.mouse.move(0, 0)   # read the resting colour, not the hover one
+
+        # The row fades to its selected colour over 120ms, so read it after it
+        # has settled: sampling immediately returns a value part-way through the
+        # transition, which is neither colour and compares equal to neither.
+        logged_in.wait_for_function(
+            """() => {
+                 const row = document.querySelector('.job-pick:not(.job-pick-held)');
+                 return getComputedStyle(row).backgroundColor === 'rgb(242, 246, 255)';
+               }""",
+            timeout=2000,
+        )
+        picked = rows.nth(0).evaluate("e => getComputedStyle(e).backgroundColor")
+        edge = rows.nth(0).evaluate("e => getComputedStyle(e).borderLeftColor")
+        assert picked != plain, "a ticked sweep looks the same as an unticked one"
+        # Compared as channels, not as a string: Chrome serialises a colour that
+        # is still transitioning as `rgba(r, g, b, 1)` and the settled one as
+        # `rgb(r, g, b)`, so a string match passes or fails on timing.
+        assert _channels(edge) == (37, 99, 235), "the accent edge marks the selection"
+
+    def test_the_graph_form_does_not_scroll_sideways_when_narrowed(self, logged_in):
+        logged_in.goto("/graphs")
+        logged_in.wait_for_load_state("networkidle")
+        try:
+            for width in (1440, 1100, 900):
+                logged_in.set_viewport_size({"width": width, "height": 900})
+                overflows = logged_in.evaluate(
+                    "() => document.documentElement.scrollWidth > "
+                    "document.documentElement.clientWidth")
+                assert not overflows, f"the page scrolls sideways at {width}px"
+        finally:
+            logged_in.set_viewport_size({"width": 1440, "height": 900})
 
     def test_the_form_offers_only_the_metrics_ethos_offers(self, logged_in):
         logged_in.goto("/graphs")

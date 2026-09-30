@@ -99,7 +99,11 @@ def test_the_picker_filters_by_the_date_range(client, ethos_url):
     outside = client.get("/graphs/jobs?since=2020-01-01&until=2020-01-02").text
     assert HELD_JOB in inside
     assert HELD_JOB not in outside
-    assert "No job ran in this window" in outside
+    # The empty state says so rather than rendering an empty list. Matched on
+    # the part that carries the meaning, not on the whole sentence, so a
+    # rewording does not fail a test about date filtering.
+    assert "No sweep" in outside
+    assert 'name="job_ids"' not in outside, "an empty window offers nothing to tick"
 
 
 # --- the jobs page ----------------------------------------------------------
