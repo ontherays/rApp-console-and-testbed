@@ -28,6 +28,37 @@
   --t-red: #dc2626;     --t-red-bg: #fdeaea;
   --t-slate: #55606f;   --t-slate-bg: #eef1f5;
 
+  /* The three states a sweep-picker row can be in. One shade each, far enough
+     apart to tell apart down a list of thirty, and taken from the two tint
+     families above rather than from new colours: `on` IS --t-blue-bg and `held`
+     IS --t-orange-bg. The hover companions are the same two hues a step
+     lighter and a step deeper. */
+  --pick-rest: var(--card);
+  --pick-hover: #f1f5fe;
+  --pick-on: var(--t-blue-bg);
+  --pick-on-hover: #dae7ff;
+  --pick-on-edge: var(--accent);
+  --pick-held: var(--t-orange-bg);
+  --pick-held-edge: #e0b183;
+  /* Row text. `--muted` reads 3.88:1 on the deepest of the three shades, under
+     the 4.5:1 AA floor, so the rows carry their own two ink values that clear
+     it on all of them. */
+  --pick-ink: var(--ink-soft);
+  --pick-held-ink: #a34a07;
+
+  /* The three sections of the figure form's right-hand column: what to draw,
+     how it looks, and which runs are allowed in. Three steps of the palette's
+     own cool tint and then its peach, so the sections group at a glance
+     without becoming a colour each. Every one is a tint of a family already in
+     use above, and none is saturated enough to compete with the controls. */
+  --sec-draw: #f5f9ff;   --sec-draw-line: #e4ecfa;
+  --sec-look: #e6edfa;   --sec-look-line: #d6e0f4;
+  --sec-runs: #fcf4e8;   --sec-runs-line: #f0e2cd;
+
+  /* One soft ink for text on any of those tints. `--muted` reads 4.11:1 on the
+     deepest, under the 4.5:1 AA floor. */
+  --ink-soft: #5f6672;
+
   --radius: 14px;
   --radius-sm: 10px;
   --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 1px 3px rgba(16, 24, 40, .06);
@@ -607,7 +638,7 @@ article .table-wrap { margin: var(--s4) 0; border: 1px solid var(--line);
                  padding: 5px 8px; border-radius: 7px; white-space: nowrap; }
 .picker-toggle:hover { background: #f4f5f7; color: var(--text); }
 .picker-toggle input { accent-color: var(--warn); width: 14px; height: 14px; margin: 0; }
-.picker-toggle:has(input:checked) { color: var(--warn); background: #fdf6ec; }
+.picker-toggle:has(input:checked) { color: var(--warn); background: var(--pick-held); }
 .picker-toggle:has(input:focus-visible) { outline: 2px solid var(--accent);
                                           outline-offset: 1px; }
 
@@ -620,7 +651,8 @@ article .table-wrap { margin: var(--s4) 0; border: 1px solid var(--line);
    swapped in on a date change while the card around it is not, and a
    server-written class would leave a stale row looking selected. */
 .job-pick { display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
-            align-items: center; gap: 10px; padding: 7px 10px; background: #fff;
+            align-items: center; gap: 10px; padding: 7px 10px;
+            background: var(--pick-rest);
             cursor: pointer; border-left: 3px solid transparent;
             transition: background .12s ease, border-color .12s ease; }
 .job-pick input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0;
@@ -629,9 +661,11 @@ article .table-wrap { margin: var(--s4) 0; border: 1px solid var(--line);
    (0,3,0) and `.job-pick:has(input:checked)` is (0,2,1), so plain hover won on
    specificity and a ticked row under the pointer looked unticked. Hover is
    scoped to unticked rows, and a ticked row gets its own deeper hover. */
-.job-pick:hover:not(.job-pick-held):not(:has(input:checked)) { background: #f6f8fd; }
-.job-pick:has(input:checked) { background: #f2f6ff; border-left-color: var(--accent); }
-.job-pick:has(input:checked):hover { background: #e8f0ff; }
+.job-pick:hover:not(.job-pick-held):not(:has(input:checked)) {
+  background: var(--pick-hover); }
+.job-pick:has(input:checked) { background: var(--pick-on);
+                               border-left-color: var(--pick-on-edge); }
+.job-pick:has(input:checked):hover { background: var(--pick-on-hover); }
 .job-pick:has(input:focus-visible) { outline: 2px solid var(--accent);
                                      outline-offset: -2px; }
 
@@ -639,26 +673,50 @@ article .table-wrap { margin: var(--s4) 0; border: 1px solid var(--line);
 .job-pick-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
                font-size: 13px; font-weight: 500; color: var(--text);
                overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.job-pick-sub { font-size: 12px; color: var(--muted); overflow: hidden;
+.job-pick-sub { font-size: 12px; color: var(--pick-ink); overflow: hidden;
                 text-overflow: ellipsis; white-space: nowrap; }
 .job-pick-facts { display: flex; align-items: center; gap: 10px; font-size: 12px;
-                  color: var(--muted); white-space: nowrap; }
+                  color: var(--pick-ink); white-space: nowrap; }
 .job-pick-facts .runs { font-variant-numeric: tabular-nums; }
-.job-pick-facts .state { color: var(--faint); }
+/* Fewer measurements than graph-eligible runs. Marked, not hidden. */
+.job-pick-facts .runs-short { color: var(--pick-held-ink); font-weight: 500; }
+.job-pick-facts .state { color: var(--pick-ink); }
 
 /* A held-out sweep stays visible and readable. Hiding it would leave the
    operator wondering why a fortnight is missing from the figure. */
-.job-pick-held { background: #fffdf7; border-left-color: #e8c99a;
+.job-pick-held { background: var(--pick-held);
+                 border-left-color: var(--pick-held-edge);
                  cursor: not-allowed; }
 .job-pick-held .job-pick-id { color: var(--muted); }
 .job-pick-held input { accent-color: var(--warn); }
-.job-pick-why { grid-column: 2 / -1; font-size: 12px; color: var(--warn);
+.job-pick-why { grid-column: 2 / -1; font-size: 12px; color: var(--pick-held-ink);
                 line-height: 1.4; white-space: normal; }
 
 .picker-empty { padding: 18px 14px; font-size: 12.5px; color: var(--muted);
                 line-height: 1.55; background: #fff; }
 .picker-empty strong { color: var(--text); font-weight: 600; display: block;
                        margin-bottom: 2px; font-size: 13px; }
+
+/* --- the three configuration sections ------------------------------------- */
+
+/* A tinted panel groups one section of the figure form. Applied by an explicit
+   class on the section itself, never by position: `.form-sec` is also the left
+   column's Time range and Sweeps, and those stay on the white card. */
+.form-panel { padding: var(--s3) var(--s4) var(--s4);
+              border: 1px solid transparent; border-radius: var(--radius-sm);
+              margin-top: var(--s4); }
+.form-panel .form-sec-title,
+.form-panel .hint { color: var(--ink-soft); }
+
+.sec-draw { background: var(--sec-draw); border-color: var(--sec-draw-line); }
+.sec-look { background: var(--sec-look); border-color: var(--sec-look-line); }
+
+/* The third section is an `sl-details`, so its surface is `part(base)`. It
+   already carries the shared border and radius; only the tint is added, and
+   the text inside it is reached through the host. */
+.sec-runs::part(base) { background: var(--sec-runs);
+                        border-color: var(--sec-runs-line); }
+.sec-runs .hint { color: var(--ink-soft); }
 
 /* --- the primary action --------------------------------------------------- */
 

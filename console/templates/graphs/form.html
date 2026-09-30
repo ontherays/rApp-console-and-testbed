@@ -112,7 +112,7 @@
 
     <div class="span-6">
 
-      <div class="form-sec">
+      <div class="form-sec form-panel sec-draw">
         <h3 class="form-sec-title">What to draw</h3>
         <label class="label" for="metric">Metric</label>
         <select id="metric" name="metric" hx-get="/graphs/metric-note"
@@ -131,7 +131,7 @@
                placeholder="what to call this figure">
       </div>
 
-      <div class="form-sec">
+      <div class="form-sec form-panel sec-look">
         <h3 class="form-sec-title">How it looks</h3>
         <div class="field-row">
           <span>
@@ -176,7 +176,7 @@
         </p>
       </div>
 
-      <sl-details summary="Which runs are allowed in" style="margin-top:16px">
+      <sl-details class="sec-runs" summary="Which runs are allowed in" style="margin-top:16px">
         <label class="label" for="min_duration_s">Minimum duration (s)</label>
         <input id="min_duration_s" name="min_duration_s" value="{{ values.min_duration_s }}"
                placeholder="exclude shorter runs">
