@@ -839,3 +839,32 @@ class FigureResult(Loose):
     @property
     def caps(self) -> dict[str, Any]:
         return dict(self.manifest.get("mcs_caps") or {})
+
+
+class QuarantineEntry(Loose):
+    """One job held out of normal graph generation, and why.
+
+    `run_ids` is the whole sweep, including any run it created but never
+    measured, so the record still describes the job if ETHOS's local `job.json`
+    is pruned by retention later.
+    """
+
+    job_id: str = ""
+    reason: str = ""
+    excluded_at: str = ""
+    excluded_by: str = ""
+    run_ids: list[str] = Field(default_factory=list)
+    campaign_id: str | None = None
+    config_id: str | None = None
+    state: str = ""
+    rates: str = ""
+
+
+class QuarantineList(Loose):
+    count: int = 0
+    jobs: list[QuarantineEntry] = Field(default_factory=list)
+    excluded_run_ids: list[str] = Field(default_factory=list)
+
+    def by_job(self) -> dict[str, QuarantineEntry]:
+        """Keyed for the job picker, which asks about one job at a time."""
+        return {entry.job_id: entry for entry in self.jobs}

@@ -56,7 +56,7 @@ async def _options(request: Request):
         return None
 
 
-def _request_from(form: dict[str, Any]) -> dict[str, Any]:
+def _request_from(form: Any) -> dict[str, Any]:
     """The form as `POST /plots` takes it.
 
     Only fields the operator actually set are sent. An empty string for a
@@ -68,6 +68,16 @@ def _request_from(form: dict[str, Any]) -> dict[str, Any]:
     run_ids = [r.strip() for r in str(form.get("run_ids") or "").replace(",", " ").split()]
     if run_ids:
         body["run_ids"] = run_ids
+
+    # The picker sends one `job_ids` per ticked box. The free-text Job field is
+    # kept and still sent as `job_id`, so a bookmarked `/graphs?job_id=...` and
+    # every existing caller behave exactly as before; ETHOS unions the two.
+    job_ids = [j.strip() for j in (form.getlist("job_ids")
+                                   if hasattr(form, "getlist") else
+                                   (form.get("job_ids") or [])) if j and j.strip()]
+    if job_ids:
+        body["job_ids"] = job_ids
+
     for name in ("campaign_id", "job_id", "snapshot", "since", "until", "rates",
                  "label", "metric", "kind", "group_by", "width", "y_scale",
                  "direction", "source"):
@@ -87,6 +97,8 @@ def _request_from(form: dict[str, Any]) -> dict[str, Any]:
     for flag in FLAGS:
         if _truthy(form.get(flag)):
             body[flag] = True
+    if _truthy(form.get("include_quarantined")):
+        body["include_quarantined"] = True
     return body
 
 
@@ -102,6 +114,9 @@ def _prefill(params) -> dict[str, Any]:
         "run_ids": " ".join(params.getlist("run_id")) or params.get("run_ids") or "",
         "campaign_id": params.get("campaign_id") or "",
         "job_id": params.get("job_id") or "",
+        "job_ids": params.getlist("job_ids") or
+                   ([params["job_id"]] if params.get("job_id") else []),
+        "include_quarantined": _truthy(params.get("include_quarantined")),
         "config_ids": params.get("config_ids") or "",
         "since": params.get("since") or "",
         "until": params.get("until") or "",
@@ -122,11 +137,60 @@ def _prefill(params) -> dict[str, Any]:
         # nothing else. A snapshot and a campaign each imply their own source.
         if values["run_ids"]:
             values["source"] = "runs"
-        elif values["campaign_id"] or values["job_id"]:
+        elif values["campaign_id"] or values["job_id"] or values["job_ids"]:
             values["source"] = "runs"
         else:
             values["source"] = "influx"
     return values
+
+
+async def _job_choices(request, since: str = "", until: str = "") -> dict:
+    """The jobs the picker offers, and which of them are quarantined.
+
+    Built from `GET /jobs`, which already carries everything a row needs:
+    the id, the state, the config, the plan's rates, and both run counts. A
+    second endpoint for "this job's runs" would be a different spelling of data
+    already in hand.
+
+    Filtered by the form's own date range, so the list answers "what ran in the
+    window I am plotting?" rather than "what has ever run?". A job with no
+    created stamp is kept: dropping it would hide a job for a missing field.
+    """
+    client = request.app.state.client
+    caps = request.app.state.probe.result
+
+    jobs, error = [], None
+    try:
+        jobs = (await client.jobs()).jobs
+    except EthosError as exc:
+        error = exc.message
+
+    held: dict = {}
+    if caps.ready("quarantine"):
+        try:
+            held = (await client.quarantine()).by_job()
+        except EthosError:
+            held = {}
+
+    start, end = (since or "").strip(), (until or "").strip()
+    rows = []
+    for job in jobs:
+        created = (job.created or "")[:10]
+        if start and created and created < start:
+            continue
+        if end and created and created > end:
+            continue
+        entry = held.get(job.job_id)
+        rows.append({
+            "job": job,
+            "plottable": len({p.run_id for p in job.points if p.run_id}),
+            "total": len(job.run_ids),
+            "rates": (job.plan or {}).get("rates") or "",
+            "quarantined": entry is not None,
+            "reason": entry.reason if entry else "",
+            "excluded_at": (entry.excluded_at[:10] if entry else ""),
+        })
+    return {"job_rows": rows, "jobs_error": error}
 
 
 @router.get("/graphs")
@@ -142,15 +206,17 @@ async def graphs(request: Request):
     except EthosError as exc:
         gallery_error = exc.message
 
+    values = _prefill(request.query_params)
     return render(
         request,
         "graphs/page.html",
         {
             "options": options,
-            "values": _prefill(request.query_params),
+            "values": values,
             "figures": figures,
             "gallery_error": gallery_error,
             "result": None,
+            **await _job_choices(request, values["since"], values["until"]),
         },
     )
 
@@ -172,6 +238,24 @@ async def metric_note(request: Request):
     )
 
 
+@router.get("/graphs/jobs")
+async def graph_jobs(request: Request):
+    """The job picker, re-listed for a date range. Swapped in on change."""
+    params = request.query_params
+    return render(
+        request,
+        "graphs/jobs.html",
+        {
+            "values": {
+                "job_ids": params.getlist("job_ids"),
+                "include_quarantined": _truthy(params.get("include_quarantined")),
+            },
+            **await _job_choices(request, params.get("since") or "",
+                                 params.get("until") or ""),
+        },
+    )
+
+
 @router.post("/graphs/make")
 async def make_graph(request: Request):
     """Draw one. ETHOS's refusal is shown as ETHOS worded it.
@@ -181,7 +265,10 @@ async def make_graph(request: Request):
     would pool two run lengths, where the fix is a flag the operator has to set
     deliberately.
     """
-    form = dict(await request.form())
+    # NOT dict(await request.form()): a multi-select arrives as one repeated
+    # key, and dict() keeps only the last of them, so ticking four jobs would
+    # have sent one. The FormData itself carries getlist().
+    form = await request.form()
     body = _request_from(form)
 
     try:

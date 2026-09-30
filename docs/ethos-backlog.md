@@ -260,6 +260,17 @@ measured.
 and 7D2U. The plan page labels those values **planned** and points at the run's
 Cell config tab for what actually ran.
 
+### B16, job quarantine, done
+
+The Graph page lists the jobs that ran in the chosen date range and takes several
+at once; a job held out is shown with its reason rather than hidden, and can be
+included deliberately with "Include quarantined jobs", which the figure's
+manifest records. The Jobs page holds a finished sweep out and restores it.
+
+Nothing is deleted by any of it. Delete this entry when the endpoints are
+permanent; the probe stays either way, so a rollback disables the control with a
+reason instead of failing on click.
+
 ---
 
 ## Things the console will never do, whatever ETHOS gains

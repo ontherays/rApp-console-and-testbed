@@ -63,6 +63,10 @@ class FakeEthos:
         self.plot_requests: list[dict[str, Any]] = []
         #: A 422 a test wants the next POST /plots to answer with.
         self.refuse_plot: str | None = None
+        #: Jobs held out of graphs, by id. Seeded from `recorded/quarantine.json`
+        #: on first read, then mutated by the quarantine endpoints so a test can
+        #: hold a job out and see the page change.
+        self.quarantined: dict[str, dict[str, Any]] | None = None
 
     # --- what a test sets up -------------------------------------------------
 
@@ -316,6 +320,68 @@ class FakeEthos:
 
         if path == "/plots/series" and method == "GET":
             return httpx.Response(200, json=self._load("plot_series"), request=request)
+
+        if path == "/quarantine" and method == "GET":
+            return httpx.Response(200, json=self._quarantine_body(), request=request)
+
+        if path == "/quarantine/preview" and method == "POST":
+            body = json.loads(request.content or b"{}")
+            job_id = body.get("job_id") or ""
+            held = self._held()
+            if job_id in held:
+                return httpx.Response(200, request=request, json={
+                    "job_id": job_id, "already_quarantined": True,
+                    "quarantined": False, "entry": held[job_id]})
+            return httpx.Response(200, request=request, json={
+                "job_id": job_id, "already_quarantined": False,
+                "quarantined": False, "plottable": 10, "total": 11,
+                "would_hold_out": [f"r{i}" for i in range(11)],
+                "preview_token": "fake-quarantine-token",
+                "reason": body.get("reason") or ""})
+
+        if path == "/quarantine" and method == "POST":
+            body = json.loads(request.content or b"{}")
+            if not body.get("confirm") or not body.get("preview_token"):
+                return httpx.Response(428, request=request, json={
+                    "detail": {"error": "confirmation_required",
+                               "message": "ask for a preview first",
+                               "action": "quarantine"}})
+            if not (body.get("reason") or "").strip():
+                return httpx.Response(422, request=request,
+                                      json={"detail": "a quarantine needs a reason"})
+            job_id = body["job_id"]
+            held = self._held()
+            entry = {"job_id": job_id, "reason": body["reason"],
+                     "excluded_at": "2026-09-30T08:00:00+00:00",
+                     "excluded_by": body.get("excluded_by") or "",
+                     "run_ids": [f"r{i}" for i in range(11)],
+                     "campaign_id": None, "config_id": "ocudu-mono_x",
+                     "state": "completed", "rates": "100-1000"}
+            changed = job_id not in held
+            held.setdefault(job_id, entry)
+            return httpx.Response(200, request=request, json={
+                "job_id": job_id, "quarantined": True, "changed": changed,
+                "entry": held[job_id], "runs_held_out": len(held[job_id]["run_ids"]),
+                "detail": "nothing was deleted"})
+
+        if path == "/quarantine/restore" and method == "POST":
+            body = json.loads(request.content or b"{}")
+            job_id = body.get("job_id") or ""
+            held = self._held()
+            if job_id not in held:
+                return httpx.Response(200, request=request, json={
+                    "job_id": job_id, "quarantined": False, "changed": False,
+                    "detail": f"{job_id} is not quarantined"})
+            if not body.get("confirm"):
+                return httpx.Response(200, request=request, json={
+                    **held[job_id], "quarantined": True, "changed": False,
+                    "would_restore": len(held[job_id]["run_ids"]),
+                    "preview_token": "fake-restore-token"})
+            removed = held.pop(job_id)
+            return httpx.Response(200, request=request, json={
+                "job_id": job_id, "quarantined": False, "changed": True,
+                "runs_restored": len(removed["run_ids"]),
+                "detail": "these runs appear in figures drawn from now on"})
 
         if path == "/plots" and method == "GET":
             recorded = self._load("plots") or {"count": 0, "figures": []}
@@ -575,3 +641,24 @@ class FakeEthos:
 
     def transport(self) -> httpx.MockTransport:
         return httpx.MockTransport(self.handle)
+
+    # --- quarantine ----------------------------------------------------------
+
+    def _held(self) -> dict[str, Any]:
+        """The held-out jobs, seeded once from the recorded fixture."""
+        if self.quarantined is None:
+            recorded = self._load("quarantine") or {"jobs": []}
+            self.quarantined = {entry["job_id"]: entry
+                                for entry in (recorded.get("jobs") or [])}
+        return self.quarantined
+
+    def _quarantine_body(self) -> dict[str, Any]:
+        held = self._held()
+        excluded: list[str] = []
+        for entry in held.values():
+            for run_id in entry.get("run_ids") or []:
+                if run_id not in excluded:
+                    excluded.append(run_id)
+        return {"version": 1, "count": len(held), "jobs": list(held.values()),
+                "excluded_run_ids": excluded,
+                "note": "quarantine deletes nothing"}

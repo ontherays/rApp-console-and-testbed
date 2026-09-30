@@ -75,7 +75,18 @@
           </td>
           <td class="nowrap">{{ ago(job.started) }}</td>
           <td class="nowrap">{{ ago(job.ended) if job.ended else NOT_MEASURED }}</td>
-          <td class="right"><a class="btn btn-sm" href="/jobs/{{ job.job_id }}">Open</a></td>
+          <td class="right nowrap">
+            {% if job.job_id in held_ids %}
+              <span class="faint" title="Held out of graphs drawn from now on. Nothing was deleted.">held out</span>
+            {% elif caps.ready('quarantine') and job.finished %}
+              <sl-button size="small" variant="default"
+                         hx-post="/jobs/{{ job.job_id }}/quarantine/preview"
+                         hx-target="#job-quarantine-dialog">
+                Hold out
+              </sl-button>
+            {% endif %}
+            <a class="btn btn-sm" href="/jobs/{{ job.job_id }}">Open</a>
+          </td>
         </tr>
       {% endfor %}
       {% if not jobs and not jobs_error %}
@@ -87,6 +98,11 @@
     </table>
   </div>
 </div>
+
+<div id="job-quarantine-dialog"></div>
+<div id="job-quarantine-result"></div>
+
+{% include "jobs/held.html" %}
 
 {% if archive_error %}
   <div class="banner bad" style="margin-top:16px">{{ ic('warning') }}{{ archive_error }}</div>

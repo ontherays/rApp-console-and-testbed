@@ -95,6 +95,18 @@ async def jobs(request: Request):
     except EthosError:
         lock = None
 
+    # Which sweeps are held out of normal graphs. Gated: when ETHOS has not got
+    # B16 the panel says so and the buttons disable, rather than the page
+    # failing on a call the backend cannot answer.
+    caps = request.app.state.probe.result
+    held, held_error = [], None
+    if caps.ready("quarantine"):
+        try:
+            held = (await client.quarantine()).jobs
+        except EthosError as exc:
+            held_error = exc.message
+    held_ids = {entry.job_id for entry in held}
+
     campaigns: list[CampaignRow] = []
     loose_runs = 0
     archive_error = None
@@ -124,6 +136,9 @@ async def jobs(request: Request):
             "campaigns": campaigns,
             "loose_runs": loose_runs,
             "archive_error": archive_error,
+            "held": held,
+            "held_ids": held_ids,
+            "held_error": held_error,
         },
     )
 
@@ -234,3 +249,63 @@ async def job_stop(request: Request, job_id: str):
             "X-Console-Toast-Variant": "success",
         },
     )
+
+
+@router.post("/jobs/{job_id}/quarantine/preview")
+async def quarantine_preview(request: Request, job_id: str):
+    """What holding this sweep out would cover. Sends nothing to the testbed.
+
+    The reason travels with the preview so the dialog can show it back, but the
+    token is bound to the job and the record, not to the wording: an operator
+    may correct their own sentence before confirming.
+    """
+    form = dict(await request.form())
+    reason = str(form.get("reason") or "").strip()
+    try:
+        preview = await request.app.state.client.quarantine_preview(job_id, reason)
+    except EthosError as exc:
+        return render(request, "jobs/quarantine_confirm.html",
+                      {"job_id": job_id, "error": exc.message, "preview": None},
+                      status_code=exc.status or 502)
+    return render(request, "jobs/quarantine_confirm.html",
+                  {"job_id": job_id, "preview": preview, "reason": reason,
+                   "error": None})
+
+
+@router.post("/jobs/{job_id}/quarantine")
+async def quarantine_job(request: Request, job_id: str):
+    """Hold this sweep out of normal graph generation. Deletes nothing."""
+    form = dict(await request.form())
+    try:
+        await request.app.state.client.quarantine_add(
+            job_id,
+            reason=str(form.get("reason") or "").strip(),
+            preview_token=str(form.get("preview_token") or ""),
+        )
+    except EthosError as exc:
+        return render(request, "jobs/quarantine_result.html",
+                      {"job_id": job_id, "error": exc.message},
+                      status_code=exc.status or 502)
+    return render(request, "jobs/quarantine_result.html",
+                  {"job_id": job_id, "error": None, "quarantined": True})
+
+
+@router.post("/jobs/{job_id}/restore")
+async def restore_job(request: Request, job_id: str):
+    """Let a held-out sweep back into normal graphs.
+
+    ETHOS's restore is its own preview: called without a confirmation it
+    describes what would return and hands back the token, so the console asks
+    once and confirms with what it was given.
+    """
+    client = request.app.state.client
+    try:
+        preview = await client.quarantine_restore_preview(job_id)
+        token = preview.get("preview_token") or ""
+        await client.quarantine_restore(job_id, token)
+    except EthosError as exc:
+        return render(request, "jobs/quarantine_result.html",
+                      {"job_id": job_id, "error": exc.message},
+                      status_code=exc.status or 502)
+    return render(request, "jobs/quarantine_result.html",
+                  {"job_id": job_id, "error": None, "quarantined": False})

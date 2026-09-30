@@ -243,3 +243,33 @@ OCUDU's config doesn't state `n_prb` or max MIMO layers, so `cell_config` has nu
 ## B15, Test-definition radio parameters
 
 `POST /testdef/generate` returns `bandwidth_mhz: 80` and `tdd_pattern: "DDDSU"` for OCUDU, while OCUDU runs 100 MHz and 7D2U. The console labels these values "planned" (requirements TP-20) and shows measured cell config from the run. Fix the source: fill the test definition's radio parameters from the topology's chart configuration (`values-pegatron.yaml` for OCUDU, `config.yaml` for OAI), or return them as null with a reason. Never return a hard-coded default as if it described the topology.
+
+## B16, Job quarantine
+
+A sweep can be invalid for a reason the numbers do not show: the UE detached, the
+deployment was wrong, the testbed was in a state nobody intended. The evidence
+must not be destroyed, but it should stop turning up in every figure drawn over
+that fortnight.
+
+`GET /quarantine` lists the jobs held out and why. `POST /quarantine/preview`
+says what one would cover and returns the token; `POST /quarantine` with
+`confirm` adds the entry; `POST /quarantine/restore` removes it. A reason is
+required.
+
+**Quarantine deletes nothing**, and no endpoint here can: the runs, their
+manifests, the InfluxDB points, the figures already drawn and the published
+archive are untouched, and restoring brings the sweep straight back. The record
+is one JSON file beside the run archive (`ETHOS_QUARANTINE_FILE`, default
+`<runs-root>/../state/quarantine.json`), outside the published archive because it
+is operational judgement rather than measured evidence.
+
+It takes no testbed lock: a campaign in flight is no reason to refuse a
+bookkeeping change.
+
+`POST /plots` gains `job_ids` (several jobs, unioned; `job_id` stays for the
+single-job form every existing caller uses) and `include_quarantined`. A figure
+records what was chosen and what was held out in `selection_by`. A figure
+regenerated from its own snapshot is NOT filtered: it reproduces an archived
+figure, and quarantining something today must not change what a figure drawn in
+September comes back as.
+

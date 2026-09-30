@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "count": 1,
+  "jobs": [
+    {
+      "job_id": "j-20260928T143403Z",
+      "reason": "UE detached during sweep",
+      "excluded_at": "2026-09-30T07:42:11+00:00",
+      "excluded_by": "ravi",
+      "run_ids": [
+        "20260929T1319Z-oai-mono_swphy_pega_samsung_o5gs_joule-DL100M-039",
+        "20260929T1319Z-oai-mono_swphy_pega_samsung_o5gs_joule-DL100M-040",
+        "20260929T1320Z-oai-mono_swphy_pega_samsung_o5gs_joule-DL200M-010",
+        "20260929T1320Z-oai-mono_swphy_pega_samsung_o5gs_joule-DL300M-009",
+        "20260929T1321Z-oai-mono_swphy_pega_samsung_o5gs_joule-DL400M-008"
+      ],
+      "campaign_id": null,
+      "config_id": "ocudu-mono_swphy_pega_samsung_o5gs_joule",
+      "state": "aborted",
+      "rates": "100,200"
+    }
+  ],
+  "excluded_run_ids": [
+    "20260929T1319Z-oai-mono_swphy_pega_samsung_o5gs_joule-DL100M-039",
+    "20260929T1319Z-oai-mono_swphy_pega_samsung_o5gs_joule-DL100M-040",
+    "20260929T1320Z-oai-mono_swphy_pega_samsung_o5gs_joule-DL200M-010",
+    "20260929T1320Z-oai-mono_swphy_pega_samsung_o5gs_joule-DL300M-009",
+    "20260929T1321Z-oai-mono_swphy_pega_samsung_o5gs_joule-DL400M-008"
+  ],
+  "note": "quarantine holds a job out of normal graph generation. It deletes nothing."
+}

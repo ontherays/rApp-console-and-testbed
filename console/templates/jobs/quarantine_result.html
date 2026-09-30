@@ -1,0 +1,17 @@
+{# What the action did, swapped in beside the job. The page is not reloaded, so
+   this is also where the operator learns it worked. #}
+<div id="job-quarantine-result">
+  {% if error %}
+    <p class="error">{{ error }}</p>
+  {% elif quarantined %}
+    <p class="hint">
+      {{ job_id }} is held out of graphs drawn from now on. Nothing was deleted.
+      <a href="/jobs">Refresh</a> to see it in the held-out list.
+    </p>
+  {% elif quarantined is defined %}
+    <p class="hint">
+      {{ job_id }} is back in normal graph generation.
+      <a href="/jobs">Refresh</a> to update the list.
+    </p>
+  {% endif %}
+</div>

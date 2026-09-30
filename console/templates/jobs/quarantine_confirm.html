@@ -1,0 +1,51 @@
+{# Quarantining is a state change, so it confirms like every other one (GL-07),
+   and the preview shown is ETHOS's own: the run set it would cover, counted
+   and listed, not a sentence the console composed.
+
+   The words matter here. This holds a sweep out of graphs drawn from now on.
+   It deletes nothing, and the dialog says so, because an operator who believes
+   they are deleting data will not use it when they should. #}
+{% from "components/macros.html" import ic %}
+
+<sl-dialog label="Hold this sweep out of graphs?" open style="--width:600px">
+  {% if error %}
+    <p class="error">{{ error }}</p>
+  {% elif preview and preview.already_quarantined %}
+    <p>{{ job_id }} is already held out.</p>
+    <p class="hint">{{ preview.entry.reason }}</p>
+  {% elif preview %}
+    <ul class="preview-list">
+      <li>
+        <strong>{{ preview.job_id }}</strong> is left out of graphs drawn from
+        now on: {{ preview.plottable }} measured of
+        {{ preview.total }} runs.
+      </li>
+      <li>
+        Nothing is deleted. The runs, their manifests, the InfluxDB points, the
+        figures already drawn and the published archive are untouched.
+      </li>
+      <li>Figures already in the gallery do not change. They are snapshots.</li>
+      <li>Restoring later brings the sweep straight back.</li>
+    </ul>
+
+    <label class="label" for="q-reason">Why</label>
+    <input id="q-reason" name="reason" value="{{ reason or '' }}"
+           placeholder="UE detached during sweep" required>
+    <p class="hint">
+      {{ ic('info', 'faint') }}
+      Required. In six months the runs will still be here and this sentence is
+      the only thing that will say why they stopped appearing.
+    </p>
+
+    <sl-button slot="footer" variant="default"
+               onclick="this.closest('sl-dialog').hide()">Keep it in</sl-button>
+    <sl-button slot="footer" variant="warning"
+               hx-post="/jobs/{{ job_id }}/quarantine"
+               hx-include="#q-reason"
+               hx-vals='{"preview_token": "{{ preview.preview_token }}"}'
+               hx-target="#job-quarantine-result"
+               hx-on:htmx:after-request="this.closest('sl-dialog').hide()">
+      Hold out of graphs
+    </sl-button>
+  {% endif %}
+</sl-dialog>

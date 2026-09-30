@@ -29,31 +29,52 @@
         Filled in for you from Results, a sweep or a finished job.
       </p>
 
-      <div class="row" style="gap:10px;margin-top:8px">
+      <div class="row" style="gap:10px;margin-top:10px">
         <span style="flex:1">
-          <label class="label" for="campaign_id">Campaign</label>
-          <input id="campaign_id" name="campaign_id" value="{{ values.campaign_id }}">
+          <label class="label" for="since">Since</label>
+          <input id="since" name="since" value="{{ values.since }}"
+                 placeholder="2026-09-01"
+                 hx-get="/graphs/jobs" hx-target="#job-picker" hx-swap="outerHTML"
+                 hx-trigger="change" hx-include="#since, #until, #job-picker">
         </span>
         <span style="flex:1">
-          <label class="label" for="job_id">Job</label>
-          <input id="job_id" name="job_id" value="{{ values.job_id }}">
+          <label class="label" for="until">Until</label>
+          <input id="until" name="until" value="{{ values.until }}"
+                 placeholder="2026-10-01"
+                 hx-get="/graphs/jobs" hx-target="#job-picker" hx-swap="outerHTML"
+                 hx-trigger="change" hx-include="#since, #until, #job-picker">
         </span>
       </div>
+
+      <label class="label" style="margin-top:10px">Jobs</label>
+      <p class="hint">
+        Tick the sweeps to draw. Each contributes the runs that produced a
+        measurement; several jobs are combined. Leave every box clear to plot
+        the whole date range.
+      </p>
+      {% include "graphs/jobs.html" %}
+
+      <sl-details summary="Name a campaign, job or run directly" style="margin-top:10px">
+        <div class="row" style="gap:10px">
+          <span style="flex:1">
+            <label class="label" for="campaign_id">Campaign</label>
+            <input id="campaign_id" name="campaign_id" value="{{ values.campaign_id }}">
+          </span>
+          <span style="flex:1">
+            <label class="label" for="job_id">Job</label>
+            <input id="job_id" name="job_id" value="{{ values.job_id }}">
+          </span>
+        </div>
+        <p class="hint">
+          Kept so a link from a finished job still works. A job named here is
+          added to whatever is ticked above.
+        </p>
+      </sl-details>
 
       <sl-details summary="Filter instead" style="margin-top:10px">
         <label class="label" for="config_ids">Configurations</label>
         <input id="config_ids" name="config_ids" value="{{ values.config_ids }}"
                placeholder="ocudu-mono, oai-mono">
-        <div class="row" style="gap:10px;margin-top:8px">
-          <span style="flex:1">
-            <label class="label" for="since">Since</label>
-            <input id="since" name="since" value="{{ values.since }}" placeholder="2026-09-28">
-          </span>
-          <span style="flex:1">
-            <label class="label" for="until">Until</label>
-            <input id="until" name="until" value="{{ values.until }}">
-          </span>
-        </div>
         <div class="row" style="gap:10px;margin-top:8px">
           <span style="flex:1">
             <label class="label" for="rates">Offered loads</label>

@@ -1,0 +1,68 @@
+{# The job picker. Swapped in by htmx whenever Since or Until changes, so the
+   list always answers "what ran in the window I am plotting?".
+
+   A quarantined job is shown, not hidden: seeing that a sweep exists and why it
+   is being left out is most of the value. Its box is disabled unless "Include
+   quarantined jobs" is ticked, which is a deliberate act and is recorded in the
+   figure's manifest.
+
+   Every box is styled from its own :checked state, never from a class the
+   server wrote: this fragment is re-rendered on a date change but the cards
+   around it are not, and a server-written class would leave two rows looking
+   selected at once. #}
+<div id="job-picker">
+  {% if jobs_error %}
+    <p class="hint">Jobs could not be listed: {{ jobs_error }}</p>
+  {% elif not job_rows %}
+    <p class="hint">
+      No job ran in this window. Widen the dates, or leave every box clear and
+      plot the range directly.
+    </p>
+  {% else %}
+    <div class="job-picks">
+      {% for row in job_rows %}
+        {% set checked = row.job.job_id in (values.job_ids or []) %}
+        {% set blocked = row.quarantined and not values.include_quarantined %}
+        <label class="job-pick{% if blocked %} job-pick-held{% endif %}">
+          <input type="checkbox" name="job_ids" value="{{ row.job.job_id }}"
+                 {% if checked and not blocked %}checked{% endif %}
+                 {% if blocked %}disabled{% endif %}>
+          <span class="job-pick-body">
+            <span class="job-pick-id">{{ row.job.job_id }}</span>
+            <span class="job-pick-meta">
+              {{ row.job.config_id or "configuration unknown" }}
+              {%- if row.rates %} · {{ row.rates }} Mbps{% endif %}
+              · {{ row.plottable }} of {{ row.total }} runs
+              · {{ row.job.state }}
+            </span>
+            {% if row.quarantined %}
+              <span class="job-pick-held-note">
+                quarantined{% if row.excluded_at %} {{ row.excluded_at }}{% endif %}:
+                {{ row.reason }}
+              </span>
+            {% endif %}
+          </span>
+        </label>
+      {% endfor %}
+    </div>
+
+    <div class="row" style="gap:8px;margin-top:8px;align-items:center">
+      <sl-button size="small" variant="default" type="button"
+                 onclick="document.querySelectorAll('#job-picker input[name=job_ids]:not([disabled])').forEach(b => b.checked = true)">
+        Select all
+      </sl-button>
+      <sl-button size="small" variant="default" type="button"
+                 onclick="document.querySelectorAll('#job-picker input[name=job_ids]').forEach(b => b.checked = false)">
+        Clear
+      </sl-button>
+      <span style="flex:1"></span>
+      <label class="check" title="Quarantined jobs are held out because somebody judged the sweep invalid. Including them is recorded in the figure's manifest.">
+        <input type="checkbox" name="include_quarantined" value="1"
+               {% if values.include_quarantined %}checked{% endif %}
+               hx-get="/graphs/jobs" hx-target="#job-picker" hx-swap="outerHTML"
+               hx-include="#since, #until, #job-picker">
+        Include quarantined jobs
+      </label>
+    </div>
+  {% endif %}
+</div>

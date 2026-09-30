@@ -1,0 +1,45 @@
+{# Sweeps held out of normal graphs. Shown rather than hidden: a job that has
+   simply vanished from the figures is the thing this panel exists to prevent. #}
+{% from "components/macros.html" import gated, ic %}
+
+<section class="card">
+  <h2 class="card-title">Held out of graphs</h2>
+
+  {% if not caps.ready('quarantine') %}
+    {{ gated(caps, 'quarantine',
+             'A sweep that went wrong can be held out of graphs without '
+             'deleting any of it.') }}
+  {% elif held_error %}
+    <p class="error">{{ held_error }}</p>
+  {% elif not held %}
+    <p class="hint">
+      Nothing is held out. A sweep that went wrong can be held out from its row
+      above: it stays in the archive and stops appearing in new figures.
+    </p>
+  {% else %}
+    <div class="held-list">
+      {% for entry in held %}
+        <div class="held-item">
+          <div class="held-id">{{ entry.job_id }}</div>
+          <div class="held-why">{{ entry.reason }}</div>
+          <div class="held-when">
+            held out {{ entry.excluded_at[:10] }}
+            {%- if entry.excluded_by %} by {{ entry.excluded_by }}{% endif %}
+            · {{ entry.run_ids | length }} runs
+            {%- if entry.config_id %} · {{ entry.config_id }}{% endif %}
+            {%- if entry.rates %} · {{ entry.rates }} Mbps{% endif %}
+          </div>
+          <sl-button size="small" variant="default" style="margin-top:6px"
+                     hx-post="/jobs/{{ entry.job_id }}/restore"
+                     hx-target="#job-quarantine-result">
+            Restore
+          </sl-button>
+        </div>
+      {% endfor %}
+    </div>
+    <p class="hint" style="margin-top:8px">
+      Held out, never deleted. Every run, manifest, InfluxDB point, figure and
+      published artifact is exactly where it was.
+    </p>
+  {% endif %}
+</section>

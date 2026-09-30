@@ -1,9 +1,9 @@
 """What ETHOS can answer right now, and which backend change adds the rest.
 
-The lock, jobs, readiness, the status summary, standalone UE control and figures on
-request have landed (B1, B2, B5, B6, B9, B11), and the pages that needed them are
-live. What is still outstanding is the catalogue (B4) and server-side results
-queries (B10).
+The lock, jobs, readiness, the status summary, standalone UE control, figures on
+request and job quarantine have landed (B1, B2, B5, B6, B9, B11, B16), and the
+pages that needed them are live. What is still outstanding is the catalogue (B4)
+and server-side results queries (B10).
 
 The table stays even for a change that has landed, and that is deliberate. It is
 not only a gate, it is a live check: if an endpoint disappears in a rollback or a
@@ -89,6 +89,13 @@ FEATURES: tuple[Feature, ...] = (
         change="B9",
         what="generating a figure on request",
         cli="python -m plotting throughput --help",
+    ),
+    Feature(
+        key="quarantine",
+        probe=("GET", "/quarantine"),
+        change="B16",
+        what="holding a failed sweep out of graphs, without deleting it",
+        cli="python -m quarantine exclude --job <job_id> --reason <why>",
     ),
     Feature(
         key="runs_csv",

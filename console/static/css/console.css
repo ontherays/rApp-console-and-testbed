@@ -552,3 +552,39 @@ article .table-wrap { margin: var(--s4) 0; border: 1px solid var(--line);
 .plot-link { color: var(--muted); opacity: .45; margin-left: 4px; }
 .plot-link:hover, thead tr:hover .plot-link { opacity: 1; color: var(--accent); }
 .plot-link .ic { width: 13px; height: 13px; vertical-align: -2px; }
+
+/* The graph page's job picker: one card per sweep, scannable down the left.
+   Styled from each box's own :checked state, like .opt and .pick above, because
+   the picker is swapped in on a date change while the card around it is not,
+   and a server-written class would leave a stale row looking selected. */
+.job-picks { display: grid; gap: 6px; max-height: 320px; overflow-y: auto;
+             padding: 2px; }
+.job-pick { display: flex; gap: 10px; align-items: flex-start; padding: 9px 11px;
+            border: 1px solid var(--line-strong); border-radius: 10px;
+            background: #fff; cursor: pointer; }
+.job-pick input { margin: 2px 0 0; accent-color: var(--accent); flex: none;
+                  width: 15px; height: 15px; }
+.job-pick:hover:not(.job-pick-held) { border-color: #c9cdd4; background: #fbfcfd; }
+.job-pick:has(input:checked) { border-color: var(--accent); background: #f2f6ff;
+                               box-shadow: 0 0 0 1px var(--accent) inset; }
+.job-pick:has(input:focus-visible) { outline: 2px solid var(--accent);
+                                     outline-offset: 2px; }
+.job-pick-body { min-width: 0; display: grid; gap: 2px; }
+.job-pick-id { font-family: var(--mono, ui-monospace, monospace); font-size: 12.5px;
+               font-weight: 500; }
+.job-pick-meta { font-size: 12px; color: var(--muted); }
+
+/* A held-out sweep stays visible and stays readable: hiding it would leave the
+   operator wondering why a fortnight of data is missing from the figure. */
+.job-pick-held { background: #f9f9fa; border-style: dashed; cursor: not-allowed; }
+.job-pick-held .job-pick-id { color: var(--muted); }
+.job-pick-held-note { font-size: 12px; color: #92400e; }
+
+/* The quarantine panel on the Jobs page. */
+.held-list { display: grid; gap: 8px; }
+.held-item { padding: 10px 12px; border: 1px solid var(--line-strong);
+             border-radius: 10px; background: #fffdf7; }
+.held-item .held-id { font-family: var(--mono, ui-monospace, monospace);
+                      font-size: 12.5px; font-weight: 500; }
+.held-item .held-why { font-size: 13px; margin-top: 2px; }
+.held-item .held-when { font-size: 12px; color: var(--muted); margin-top: 2px; }

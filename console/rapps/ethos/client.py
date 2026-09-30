@@ -36,6 +36,7 @@ from console.rapps.ethos.models import (
     PlotOptions,
     PlotSeriesList,
     Preview,
+    QuarantineList,
     Readiness,
     Run,
     RunList,
@@ -507,6 +508,46 @@ class EthosClient:
     async def figure(self, figure_id: str) -> dict[str, Any]:
         """One figure's manifest: its inputs, filters, n per point and warnings."""
         return await self.call("GET", f"/plots/{figure_id}")
+
+    async def quarantine(self) -> QuarantineList:
+        """Which jobs are held out of normal graphs, and why.
+
+        Cached briefly like the other read-only lists: the graph form and the
+        jobs page both want it on every render, and it changes when somebody
+        decides something, not on a timer.
+        """
+        async def fetch() -> QuarantineList:
+            return QuarantineList.model_validate(await self.call("GET", "/quarantine"))
+
+        return await self._cached("quarantine", 10.0, fetch)
+
+    async def quarantine_preview(self, job_id: str, reason: str) -> dict[str, Any]:
+        """What quarantining would hold out, and the token that allows it.
+
+        Writes nothing. ETHOS has no endpoint here that deletes anything.
+        """
+        return await self.call(
+            "POST", "/quarantine/preview", json={"job_id": job_id, "reason": reason}
+        )
+
+    async def quarantine_add(self, job_id: str, reason: str, preview_token: str,
+                             excluded_by: str = "") -> dict[str, Any]:
+        answer = await self.call("POST", "/quarantine", json={
+            "job_id": job_id, "reason": reason, "excluded_by": excluded_by,
+            "confirm": True, "preview_token": preview_token,
+        })
+        self.invalidate("quarantine")
+        return answer
+
+    async def quarantine_restore_preview(self, job_id: str) -> dict[str, Any]:
+        return await self.call("POST", "/quarantine/restore", json={"job_id": job_id})
+
+    async def quarantine_restore(self, job_id: str, preview_token: str) -> dict[str, Any]:
+        answer = await self.call("POST", "/quarantine/restore", json={
+            "job_id": job_id, "confirm": True, "preview_token": preview_token,
+        })
+        self.invalidate("quarantine")
+        return answer
 
     async def make_figure(self, request: dict[str, Any]) -> FigureResult:
         """Draw one. Slow on purpose: matplotlib is serialised in ETHOS, so this
