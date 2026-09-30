@@ -1,16 +1,16 @@
 # What the console is waiting for from ETHOS
 
 The testbed lock, the job model, preview-then-confirm, readiness, the status
-summary, the per-job iperf mode, standalone UE control and figures on request have
-landed (B1, B2, B3, B5, B6, B7, B9, B11), and the console uses all of them. What is
-left is the catalogue (B4) and server-side results queries (B10), plus the O1 and
-O2 phases.
+summary, the per-job iperf mode, standalone UE control, figures on request and job
+quarantine have landed (B1, B2, B3, B5, B6, B7, B9, B11, B16), and the console uses
+all of them. What is left is the catalogue (B4) and server-side results queries
+(B10), plus the O1 and O2 phases.
 
 Rather than buttons that look live and fail on click, a control that still needs a
 backend change is disabled and names it. This is the list, and it is also the
 order of work in `04-build-plan.md`.
 
-Checked against the live API on 127.0.0.1:8081 on 2026-09-29.
+Checked against the live API on 127.0.0.1:8081 on 2026-09-30.
 
 ---
 
@@ -61,6 +61,7 @@ disables itself with a reason instead of failing on click.
 | `GET /ue`, `GET /ue/{ue}/iperf`, `GET /ue/{ue}/signal`, the attach, detach and iperf-stop pairs | **works** | the Testbed page's UE panel |
 | `GET /catalogue` | not routed | B4 |
 | `GET /plots/options`, `GET /plots/series`, `GET /plots`, `POST /plots`, `GET /plots/{id}`, its four files, `POST /plots/{id}/regenerate` | **works** | the Graphs page, and the palette on every page that draws a chip |
+| `GET /quarantine`, `POST /quarantine/preview`, `POST /quarantine`, `POST /quarantine/restore` | **works** | holding a sweep out of graphs, and restoring it |
 | `GET /runs.csv`, `GET /campaigns/{id}/summary`, `GET /runs/{id}/radio-samples` | not routed | B10 |
 | `GET /o1/freshness`, `GET /o1/alarms` | not routed | B12 |
 | `GET /o2/nf`, `GET /o2/deploy-times`, `GET /o2/dms/*` | not routed | B13 |

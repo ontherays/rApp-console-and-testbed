@@ -12,7 +12,7 @@ Runs as the systemd user service `testbed-console` on the KVM host
 Standing rules for commits, branches, guides and reports:
 `~/.claude/skills/ravi-rules/SKILL.md`.
 The contract: `docs/01-requirements.md` … `docs/04-build-plan.md`. Requirement ids
-(`TP-04`, `RS-12`, `GL-09`) and backend-change ids (`B1`–`B15`) refer to them.
+(`TP-04`, `RS-12`, `GL-09`) and backend-change ids (`B1`–`B16`) refer to them.
 
 ## Hard rules (never violate)
 - **The console presents; ETHOS acts.** No InfluxDB query, no SSH, no kubectl, no
@@ -54,10 +54,11 @@ The contract: `docs/01-requirements.md` … `docs/04-build-plan.md`. Requirement
   when the page loaded, and two options look selected at once.
 
 ## The capability gate (this is the shape of the whole thing)
-ETHOS has no lock, no job model, no readiness endpoint and no figure generation.
-`console/capabilities.py` declares each feature with the endpoint it needs and its
-`B`-number, probes them every 60 s, and a page renders
-`caps.ready(key)` / `caps.why(key)`.
+Every feature the console offers depends on an ETHOS endpoint, and not all of them
+exist. `console/capabilities.py` declares each one with the endpoint it needs and
+its `B`-number, probes them every 60 s, and a page renders
+`caps.ready(key)` / `caps.why(key)`. The catalogue (B4) and server-side results
+queries (B10) are the ones still outstanding.
 
 **A feature that is not built is a disabled control that names its backend change,
 never a button that fails on click and never a silently missing panel.** When a
@@ -67,12 +68,11 @@ entry from `FEATURES` is the last step. `docs/ethos-backlog.md` is the full list
 ## The read-only stand-ins (delete, do not extend)
 Two files read ETHOS's data directly because the endpoint that should serve it
 does not exist. Both are plain data files on this host, read and never written,
-holding no credential. **Neither is a pattern to copy.**
+holding no credential. **Neither is a pattern to copy.** Delete each one when its
+backend change lands, as `rapps/ethos/figures.py` was deleted when B9 did.
 - `rapps/ethos/profiles.py` reads `deployment/deploy_profiles.yaml` for
   deployability → deleted when `GET /catalogue` lands (B4). Its `OPTION_REASONS`
   table is hard-coded prose and is the weakest part of the console.
-- `rapps/ethos/figures.py` reads `ETHOS_GRAPH_DIR` for the gallery → deleted when
-  `GET /plots` lands (B9).
 - `rapps/ethos/query.py` filters, sorts, pages and writes CSV in the console
   because `GET /runs` takes no limit and re-reads every manifest → deleted when
   B10 lands.
