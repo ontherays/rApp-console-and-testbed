@@ -17,8 +17,12 @@ browser (lab LAN) ──HTTPS :8443, one password──► Testbed Console
                                     SSH · kubectl · adb · InfluxDB · SDNC
 ```
 
+- **[docs/user-guide.md](docs/user-guide.md)**: how to use the console. Log in,
+  plan a test, run it, read the results, draw a figure. Start here if you are a
+  user.
 - **[docs/running-guide.md](docs/running-guide.md)**: install, configure, run,
-  reach it, what each page does, and troubleshooting. Start here.
+  reach it, what each page does, and troubleshooting. Start here if you look
+  after the host.
 - **[docs/ethos-backlog.md](docs/ethos-backlog.md)**: the ETHOS endpoints the
   console is waiting for, and what each one unlocks.
 - **[docs/01-requirements.md](docs/01-requirements.md)** …
