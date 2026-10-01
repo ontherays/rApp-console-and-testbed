@@ -1,0 +1,52 @@
+{# What publishing would make durable, in ETHOS's own counts.
+
+   The token below is bound to the CONTENT this preview described, not to the
+   clock: a run enriched before the confirmation arrives makes ETHOS refuse it
+   rather than commit something nobody saw. #}
+{% from "components/macros.html" import ic %}
+
+<sl-dialog label="{{ 'Publish and push?' if push else 'Publish?' }}" open style="--width:640px">
+  <p class="hint" style="margin-top:0">
+    {{ ic('info', 'faint') }}
+    ETHOS's own description. Nothing has been written yet.
+  </p>
+
+  <dl class="kv">
+    <dt>Surveyed</dt><dd>{{ preview.surveyed }}</dd>
+    <dt>Already durable</dt><dd>{{ preview.already_durable }}</dd>
+    <dt>Would publish</dt><dd>{{ preview.would_publish | length }}
+      ({{ preview.counts.get('new', 0) }} new, {{ preview.counts.get('changed', 0) }} changed)</dd>
+  </dl>
+
+  {% if preview.would_publish %}
+    <ul class="preview-list">
+      {% for item in preview.would_publish[:12] %}
+        <li>{{ item.get('state') }} {{ item.get('kind') }} {{ item.get('artifact_id') }}</li>
+      {% endfor %}
+      {% if preview.would_publish | length > 12 %}
+        <li>... and {{ preview.would_publish | length - 12 }} more</li>
+      {% endif %}
+    </ul>
+  {% endif %}
+
+  {% if push %}
+    <p class="hint">
+      ETHOS commits, verifies that commit, and pushes only if it verified. A
+      publication that did not land in full keeps its commit and is not pushed.
+    </p>
+  {% else %}
+    <p class="hint">Nothing is pushed. Use Push to GitHub when you want it upstream.</p>
+  {% endif %}
+
+  <sl-button slot="footer" variant="default"
+             onclick="this.closest('sl-dialog').hide()">Cancel</sl-button>
+  <sl-button slot="footer" variant="primary"
+             hx-post="/publication/publish" hx-include="#publish-token,#publish-push"
+             hx-target="#publication-action"
+             hx-on:htmx:after-request="this.closest('sl-dialog').hide()">
+    {{ 'Publish and push' if push else 'Publish' }}
+  </sl-button>
+</sl-dialog>
+
+<input type="hidden" id="publish-token" name="preview_token" value="{{ preview.preview_token }}">
+<input type="hidden" id="publish-push" name="push" value="{{ 'true' if push else '' }}">

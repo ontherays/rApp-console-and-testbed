@@ -1,0 +1,48 @@
+{# What a publish actually did.
+
+   published, verified and pushed are shown separately because they are
+   separate: a publication can be committed and not verified, or verified and
+   not pushed, and a panel that collapsed them could report a success nobody
+   got. #}
+{% from "components/macros.html" import ic %}
+
+<section class="card" style="margin-top:16px"
+         hx-get="/publication/status" hx-target="#publication-status"
+         hx-trigger="load delay:100ms">
+  <h2>Publish</h2>
+
+  {% if not result.published %}
+    <div class="banner info">
+      {{ ic('info') }}{{ result.detail or 'nothing to publish' }}
+    </div>
+  {% else %}
+    <p>{{ ic('check', 'good') }} Published. Commit <code>{{ result.commit[:8] if result.commit else 'none' }}</code>,
+      {{ result.files_written }} files written.</p>
+
+    {% if result.verified %}
+      <p>{{ ic('check', 'good') }} Verified: the commit took every byte the publish wrote.</p>
+    {% else %}
+      <div class="banner bad">
+        {{ ic('warning') }}
+        <span>
+          <strong>Not verified.</strong> {{ result.push_detail }}
+          {% if result.verification.get('reason') %}<br>{{ result.verification.get('reason') }}{% endif %}
+        </span>
+      </div>
+    {% endif %}
+
+    {% if result.pushed %}
+      <p>{{ ic('check', 'good') }} Pushed: {{ result.push_detail }}</p>
+    {% elif asked_push %}
+      <div class="banner bad">
+        {{ ic('warning') }}
+        <span>
+          <strong>Not pushed.</strong> {{ result.push_detail }}
+          The commit is kept. Use Push to GitHub to retry it; it will not commit again.
+        </span>
+      </div>
+    {% else %}
+      <p class="hint">{{ ic('info', 'faint') }} {{ result.push_detail }}</p>
+    {% endif %}
+  {% endif %}
+</section>

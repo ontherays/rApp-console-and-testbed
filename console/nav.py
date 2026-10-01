@@ -58,7 +58,13 @@ GROUPS: tuple[Group, ...] = (
             Item("O2", "/o2", "o2", phase="Phase 4"),
         ),
     ),
-    Group("System", (Item("Docs", "/docs", "docs"),)),
+    Group(
+        "System",
+        (
+            Item("Publication", "/publication", "export"),
+            Item("Docs", "/docs", "docs"),
+        ),
+    ),
 )
 
 

@@ -1,0 +1,31 @@
+{# A read. Nothing on this panel changed anything. #}
+{% from "components/macros.html" import ic %}
+
+<section class="card" style="margin-top:16px">
+  <h2>Verification</h2>
+  <p class="hint">{{ ic('info', 'faint') }} Read-only: nothing was published, committed, pushed or removed.</p>
+
+  <dl class="kv">
+    <dt>Artifacts</dt><dd>{{ verification.artifacts }}</dd>
+    <dt>Durable</dt><dd>{{ verification.durable }}</dd>
+    <dt>Not durable</dt><dd>{{ verification.not_durable }}</dd>
+    <dt>Missing files</dt><dd>{{ verification.missing_files }}</dd>
+  </dl>
+
+  {% if verification.verified %}
+    <p>{{ ic('check', 'good') }} Every published artifact matches its committed copy.</p>
+  {% else %}
+    <div class="banner warn">
+      {{ ic('warning') }}
+      <span>
+        {{ verification.not_durable }} artifact(s) are not durable. A run enriched
+        since it was published reads as changed until the next publish picks it up.
+      </span>
+    </div>
+    <ul class="preview-list">
+      {% for item in verification.artifacts_detail[:12] if not item.get('durable') %}
+        <li><code>{{ item.get('status') }}</code> {{ item.get('artifact_id') }}, {{ item.get("reason") }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</section>

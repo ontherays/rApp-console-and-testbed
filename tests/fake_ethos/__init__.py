@@ -67,6 +67,17 @@ class FakeEthos:
         #: on first read, then mutated by the quarantine endpoints so a test can
         #: hold a job out and see the page change.
         self.quarantined: dict[str, dict[str, Any]] | None = None
+        #: The publication state this fake presents, and what it was asked.
+        self.publication: dict[str, Any] = dict(PUBLICATION)
+        self.publish_calls: list[dict[str, Any]] = []
+        self.push_calls: list[dict[str, Any]] = []
+        #: What the next POST /publish answers with. Defaults to a clean
+        #: publish that verified and was not asked to push.
+        self.publish_result: dict[str, Any] | None = None
+        self.push_result: dict[str, Any] | None = None
+        #: True once a publication holds the lock, so the acting endpoints
+        #: answer 409 the way ETHOS does.
+        self.publication_busy: dict[str, Any] | None = None
 
     # --- what a test sets up -------------------------------------------------
 
@@ -112,6 +123,20 @@ class FakeEthos:
         job.update({"job_id": job_id, **fields})
         self.jobs[job_id] = job
         return job
+
+    def hold_publication(self, holder: str = "cli:publish:4242",
+                         what: str = "publishing results",
+                         since: str = "2026-10-02T09:00:00Z", pid: int = 4242) -> None:
+        """Make a publication busy, in ETHOS's own 409 shape.
+
+        Not the testbed lock: a campaign and a publish do not block each other,
+        so this must not make `/lock` look held.
+        """
+        self.publication_busy = {"holder": holder, "what": what,
+                                 "since": since, "pid": pid}
+        self.publication["lock"] = {"busy": True, **self.publication_busy,
+                                    "message": f"publication busy: {what} "
+                                               f"(holder {holder}, pid {pid}, since {since})"}
 
     def refuse_next_plot(self, detail: str) -> None:
         """Make the next figure request fail with ETHOS's own wording.
@@ -174,6 +199,11 @@ class FakeEthos:
                     request=request,
                 )
 
+        if path.startswith("/publish"):
+            answered = self._publication(request, path)
+            if answered is not None:
+                return answered
+
         if path == "/healthz":
             return httpx.Response(
                 200,
@@ -207,6 +237,102 @@ class FakeEthos:
             )
 
         return httpx.Response(404, json={"detail": "Not Found"}, request=request)
+
+    def _publication_busy(self, request: httpx.Request) -> httpx.Response:
+        held = self.publication_busy or {}
+        return httpx.Response(
+            409,
+            json={"detail": {
+                "error": "publication_busy",
+                "message": (f"publication busy: {held.get('what', 'a publication')} "
+                            f"(holder {held.get('holder')}, pid {held.get('pid')}, "
+                            f"since {held.get('since')})"),
+                **held,
+            }},
+            request=request,
+        )
+
+    def _publication(self, request: httpx.Request, path: str) -> httpx.Response | None:
+        """The five publication endpoints, in ETHOS's shapes.
+
+        The reads answer even while a publication is busy; only the acts are
+        refused, which is what ETHOS does -- asking is not acting.
+        """
+        acting = request.method == "POST" and path in ("/publish", "/publish/push")
+        if acting and self.publication_busy is not None:
+            return self._publication_busy(request)
+
+        if request.method == "GET" and path == "/publish/status":
+            body = dict(self.publication)
+            if request.url.params.get("remote") == "true":
+                body["remote"] = dict(self.publication.get("remote_when_asked") or {
+                    "checked": True, "established": True, "remote": "origin",
+                    "branch": "main", "head": body["head"],
+                    "reason": "origin refs/heads/main is at eaa4a737",
+                    "message": "origin/main is at eaa4a737",
+                })
+            return httpx.Response(200, json=body, request=request)
+
+        if request.method == "GET" and path == "/publish/verify":
+            return httpx.Response(200, json=self.publication.get("verification") or {
+                "configured": True, "head": self.publication["head"],
+                "artifacts": 952, "durable": 952, "not_durable": 0,
+                "verified": True, "missing_files": 0, "artifacts_detail": [],
+            }, request=request)
+
+        if request.method == "POST" and path == "/publish/preview":
+            return httpx.Response(200, json={
+                "configured": True, "surveyed": 952, "already_durable": 937,
+                "counts": {"new": 12, "changed": 3, "unchanged": 937},
+                "would_publish": [
+                    {"artifact_id": "20261002T0900Z-run", "kind": "run",
+                     "state": "new", "reason": "never published", "files": 1,
+                     "skipped": []},
+                ],
+                "published": False, "preview_token": "1790.abc.def",
+            }, request=request)
+
+        if request.method == "POST" and path == "/publish":
+            body = json.loads(request.content or b"{}")
+            self.publish_calls.append(body)
+            if not body.get("confirm") or not body.get("preview_token"):
+                return httpx.Response(428, json={"detail": {
+                    "error": "confirmation_required",
+                    "message": "preview first, then send the token back",
+                }}, request=request)
+            if self.publish_result is not None:
+                return httpx.Response(200, json=self.publish_result, request=request)
+            return httpx.Response(200, json={
+                "published": True, "verified": True,
+                "pushed": bool(body.get("push")),
+                "commit": "0981621225" + "0" * 30,
+                "files_written": 15,
+                "push_detail": ("pushed, origin/main now at 09816212"
+                                if body.get("push") else "not asked to push"),
+                "verification": {"ok": True, "reason": "verified, 15 files"},
+            }, request=request)
+
+        if request.method == "POST" and path == "/publish/push":
+            body = json.loads(request.content or b"{}")
+            self.push_calls.append(body)
+            if self.push_result is not None:
+                return httpx.Response(200, json=self.push_result, request=request)
+            if not body.get("confirm"):
+                return httpx.Response(200, json={
+                    "configured": True, "pushed": False,
+                    "head": self.publication["head"], "surveyed": 952,
+                    "missing_files": [],
+                    "detail": "this would push eaa4a737 to the remote",
+                    "preview_token": "1790.head.sig",
+                }, request=request)
+            return httpx.Response(200, json={
+                "configured": True, "pushed": True,
+                "head": self.publication["head"], "surveyed": 952,
+                "missing_files": [],
+                "push_detail": "pushed, origin/main now at eaa4a737",
+            }, request=request)
+
+        return None
 
     def _locked(self, request: httpx.Request) -> httpx.Response:
         """A 409 in ETHOS's own shape, naming the holder."""
@@ -662,3 +788,30 @@ class FakeEthos:
         return {"version": 1, "count": len(held), "jobs": list(held.values()),
                 "excluded_run_ids": excluded,
                 "note": "quarantine deletes nothing"}
+
+
+#: A publication state with something pending and nothing on the remote yet.
+PUBLICATION: dict[str, Any] = {
+    "configured": True,
+    "repository": "/home/oai-gnb/ravi-ethos-rApp-results",
+    "exists": True,
+    "head": "eaa4a737b654a17d648ff03aa7b4a7faa6b6d3ad",
+    "retention_days": 10.0,
+    "working_storage": {
+        "runs": "/home/oai-gnb/ravi-ethos-rApp-run/runs",
+        "graph": "/home/oai-gnb/ravi-ethos-rApp-graph",
+        "jobs": "/home/oai-gnb/ravi-ethos-rApp-run/jobs",
+    },
+    "artifacts": 952,
+    "durable": 937,
+    "to_publish": 15,
+    "new": 12,
+    "changed": 3,
+    "incomplete": [],
+    "retention": {"considered": 952, "eligible": 135, "kept": 817,
+                  "reclaimable_bytes": 226300},
+    "lock": {"busy": False},
+    "remote": {"checked": False,
+               "reason": "not asked: pass remote=true to query the remote"},
+    "note": "publish never deletes.",
+}

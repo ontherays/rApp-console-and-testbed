@@ -98,6 +98,13 @@ FEATURES: tuple[Feature, ...] = (
         cli="python -m quarantine exclude --job <job_id> --reason <why>",
     ),
     Feature(
+        key="publication",
+        probe=("GET", "/publish/status"),
+        change="B17",
+        what="publishing results to the durable archive and pushing them to GitHub",
+        cli="python -m publication status",
+    ),
+    Feature(
         key="runs_csv",
         probe=("GET", "/runs.csv"),
         change="B10",

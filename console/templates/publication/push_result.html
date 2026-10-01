@@ -1,0 +1,22 @@
+{% from "components/macros.html" import ic %}
+
+<section class="card" style="margin-top:16px"
+         hx-get="/publication/status" hx-target="#publication-status"
+         hx-trigger="load delay:100ms">
+  <h2>Push</h2>
+  {% if result.pushed %}
+    <p>{{ ic('check', 'good') }} {{ result.push_detail or 'pushed' }}</p>
+  {% else %}
+    <div class="banner bad">
+      {{ ic('warning') }}
+      <span>
+        <strong>Not pushed.</strong>
+        {{ result.push_detail or result.detail }}
+        {% if result.missing_files %}
+          <br>The repository is missing files for
+          {{ result.missing_files | length }} artifact(s); publish to commit them, then push.
+        {% endif %}
+      </span>
+    </div>
+  {% endif %}
+</section>

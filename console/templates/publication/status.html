@@ -1,0 +1,72 @@
+{# The archive's state. Local by default: the remote is asked only on request,
+   so this panel cannot fail because GitHub is down. #}
+{% from "components/macros.html" import ic %}
+
+{% if error %}
+  <div class="banner bad">{{ ic('warning') }}{{ error }}</div>
+{% elif not status or not status.configured %}
+  <div class="banner info">
+    {{ ic('info') }}
+    <span>
+      Publication is not configured on this host.
+      {% if status and status.reason %}{{ status.reason }}{% endif %}
+    </span>
+  </div>
+{% else %}
+
+  {% if status.lock.busy %}
+    <div class="banner warn" style="margin-bottom:16px">
+      {{ ic('lock') }}
+      <span>
+        Publication busy: {{ status.lock.what }}, held by
+        <strong>{{ status.lock.holder }}</strong>, PID {{ status.lock.pid }},
+        since {{ status.lock.since }}. Actions will be refused until it finishes.
+      </span>
+    </div>
+  {% endif %}
+
+  <section class="card">
+    <h2>Status</h2>
+    <dl class="kv">
+      <dt>Artifacts</dt><dd>{{ status.artifacts }}</dd>
+      <dt>Durable</dt><dd>{{ status.durable }}</dd>
+      <dt>Pending</dt><dd>{{ status.to_publish }}
+        {%- if status.to_publish %} ({{ status.new }} new, {{ status.changed }} changed){% endif %}</dd>
+      <dt>Incomplete</dt><dd>{{ status.incomplete | length }}
+        {%- if status.incomplete %} (kept locally for ever){% endif %}</dd>
+      <dt>Repository</dt><dd><code>{{ status.repository }}</code></dd>
+      <dt>Local HEAD</dt><dd><code>{{ status.head[:8] if status.head else 'nothing published yet' }}</code></dd>
+      <dt>Retention</dt><dd>{{ status.retention_days | round(0) | int }} days</dd>
+    </dl>
+
+    <h3>Remote</h3>
+    {% if not status.remote.checked %}
+      <p class="hint">
+        Not asked. Reading this page does not depend on GitHub.
+        <sl-button size="small" hx-get="/publication/status?remote=true"
+                   hx-target="#publication-status">Check GitHub</sl-button>
+      </p>
+    {% elif status.remote.established %}
+      <p>{{ ic('check', 'good') }} {{ status.remote.message }}</p>
+    {% else %}
+      <div class="banner warn">
+        {{ ic('warning') }}
+        <span>Remote synchronization unknown: {{ status.remote.reason }}</span>
+      </div>
+    {% endif %}
+
+    <h3>Retention</h3>
+    <dl class="kv">
+      <dt>Eligible locally</dt><dd>{{ status.retention.eligible }}</dd>
+      <dt>Kept</dt><dd>{{ status.retention.kept }}</dd>
+      <dt>Reclaimable</dt><dd>{{ status.retention.reclaimable_bytes }} bytes</dd>
+    </dl>
+    <p class="hint">
+      {{ ic('info', 'faint') }}
+      Local count only, and an upper bound: a prune additionally requires GitHub
+      to hold every commit an artifact sits in, and refuses everything when that
+      cannot be established. Removal is
+      <code>python -m publication prune --confirm</code>, never a button here.
+    </p>
+  </section>
+{% endif %}

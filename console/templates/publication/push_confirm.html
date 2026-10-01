@@ -1,0 +1,29 @@
+{# Which commit a push would send. Offered whether or not anything is pending:
+   the state this exists for -- committed here, not upstream -- has nothing
+   pending. #}
+{% from "components/macros.html" import ic %}
+
+<sl-dialog label="Push to GitHub?" open style="--width:600px">
+  <p class="hint" style="margin-top:0">
+    {{ ic('info', 'faint') }} {{ preview.detail }}
+  </p>
+  <dl class="kv">
+    <dt>Commit</dt><dd><code>{{ preview.head[:8] if preview.head else 'none' }}</code></dd>
+    <dt>Surveyed</dt><dd>{{ preview.surveyed }}</dd>
+  </dl>
+  <p class="hint">
+    This publishes nothing and commits nothing. It sends the publication that
+    already exists.
+  </p>
+
+  <sl-button slot="footer" variant="default"
+             onclick="this.closest('sl-dialog').hide()">Cancel</sl-button>
+  <sl-button slot="footer" variant="primary"
+             hx-post="/publication/push" hx-include="#push-token"
+             hx-target="#publication-action"
+             hx-on:htmx:after-request="this.closest('sl-dialog').hide()">
+    Push
+  </sl-button>
+</sl-dialog>
+
+<input type="hidden" id="push-token" name="preview_token" value="{{ preview.preview_token }}">

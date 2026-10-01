@@ -256,13 +256,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         login,
         overview,
         plan,
+        publication,
         results,
         search,
         testbed,
     )
 
     for module in (
-        login, overview, plan, jobs, results, graphs, testbed, search, later, docs_pages
+        login, overview, plan, jobs, results, graphs, testbed, publication, search,
+        later, docs_pages
     ):
         app.include_router(module.router)
 

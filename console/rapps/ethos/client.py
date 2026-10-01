@@ -36,6 +36,11 @@ from console.rapps.ethos.models import (
     PlotOptions,
     PlotSeriesList,
     Preview,
+    PublishPreview,
+    PublishPushResult,
+    PublishResult,
+    PublishStatus,
+    PublishVerification,
     QuarantineList,
     Readiness,
     Run,
@@ -106,14 +111,28 @@ class EthosServerError(EthosError):
     kind = "server_error"
 
 
+def _detail_of(body: Any) -> Any:
+    """FastAPI wraps a structured refusal in `detail`. Look inside it.
+
+    ETHOS raises `HTTPException(detail={"error": ..., "message": ..., "holder":
+    ...})`, so the fields that say WHY sit one level down. Reading only the top
+    level turned every refusal into the generic fallback, which is how a 409
+    naming a holder arrived on screen as "the testbed is busy".
+    """
+    if isinstance(body, dict) and isinstance(body.get("detail"), dict):
+        return body["detail"]
+    return body
+
+
 def _message_from(body: Any, fallback: str) -> str:
-    if isinstance(body, dict):
-        for key in ("message", "detail", "error"):
-            value = body.get(key)
-            if isinstance(value, str) and value:
-                return value
-            if isinstance(value, list) and value:
-                return "; ".join(str(v.get("msg", v)) for v in value)
+    for candidate in (_detail_of(body), body):
+        if isinstance(candidate, dict):
+            for key in ("message", "detail", "error"):
+                value = candidate.get(key)
+                if isinstance(value, str) and value:
+                    return value
+                if isinstance(value, list) and value:
+                    return "; ".join(str(v.get("msg", v)) for v in value)
     return fallback
 
 
@@ -196,7 +215,8 @@ class EthosClient:
                 body=body,
             )
         if status == 409:
-            holder = body.get("holder") if isinstance(body, dict) else None
+            inner = _detail_of(body)
+            holder = inner.get("holder") if isinstance(inner, dict) else None
             raise EthosRefused(
                 _message_from(body, "the testbed is busy"),
                 holder=str(holder) if holder else None,
@@ -576,4 +596,67 @@ class EthosClient:
         """
         return self._client.stream(
             "GET", f"/plots/{figure_id}/{name}", timeout=self.slow_timeout_s
+        )
+
+    # --- publication ---------------------------------------------------------
+
+    async def publish_status(self, *, remote: bool = False) -> PublishStatus:
+        """What is durable, what is pending, and who holds the lock.
+
+        `remote` is off by default and the default is the one the page uses:
+        ETHOS only asks GitHub when told to, so opening the Publication page
+        does not fail because the network is down. The operator asks for the
+        remote explicitly, and waits for it when they do.
+        """
+        return PublishStatus.model_validate(
+            await self.call("GET", "/publish/status",
+                            params={"remote": "true"} if remote else None,
+                            slow=remote)
+        )
+
+    async def publish_preview(self) -> PublishPreview:
+        """What publishing would make durable, and the token that allows it.
+
+        Writes nothing. There is no argument to this that publishes.
+        """
+        return PublishPreview.model_validate(
+            await self.call("POST", "/publish/preview", json={}, slow=True)
+        )
+
+    async def publish(self, preview_token: str, *, push: bool = False) -> PublishResult:
+        """Publish what the operator has just seen the preview of.
+
+        `push` rides inside the same confirmation rather than beside it, and
+        ETHOS owns the sequencing: it commits, verifies that commit, and only
+        then pushes. The console does not order those steps and must not try.
+        """
+        return PublishResult.model_validate(
+            await self.call("POST", "/publish",
+                            json={"confirm": True, "preview_token": preview_token,
+                                  "push": push},
+                            timeout_s=self.act_timeout_s)
+        )
+
+    async def publish_verify(self) -> PublishVerification:
+        """Prove the durable copy is complete and identical. Changes nothing."""
+        return PublishVerification.model_validate(
+            await self.call("GET", "/publish/verify", slow=True)
+        )
+
+    async def publish_push_preview(self) -> PublishPushResult:
+        """Which commit a push would send, and the token that allows it."""
+        return PublishPushResult.model_validate(
+            await self.call("POST", "/publish/push", json={}, slow=True)
+        )
+
+    async def publish_push(self, preview_token: str) -> PublishPushResult:
+        """Send the existing publication upstream. Commits nothing.
+
+        The retry: it works with nothing pending, which is the whole point of
+        it, because the state a failed push leaves behind has nothing pending.
+        """
+        return PublishPushResult.model_validate(
+            await self.call("POST", "/publish/push",
+                            json={"confirm": True, "preview_token": preview_token},
+                            timeout_s=self.act_timeout_s)
         )

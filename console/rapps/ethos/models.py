@@ -896,3 +896,130 @@ class QuarantineList(Loose):
     def by_job(self) -> dict[str, QuarantineEntry]:
         """Keyed for the job picker, which asks about one job at a time."""
         return {entry.job_id: entry for entry in self.jobs}
+
+
+# --- publication -------------------------------------------------------------
+
+
+class PublishLock(Loose):
+    """Whether a publication is running, and who is running it."""
+
+    busy: bool = False
+    holder: str | None = None
+    what: str | None = None
+    since: str | None = None
+    pid: int | None = None
+    message: str | None = None
+
+
+class PublishRemote(Loose):
+    """What the remote said, when it was asked at all.
+
+    `checked` false is the ordinary case: the status endpoint does not touch
+    GitHub unless asked, so that reading this page cannot fail because GitHub
+    is down.
+    """
+
+    checked: bool = False
+    established: bool = False
+    remote: str | None = None
+    branch: str | None = None
+    head: str | None = None
+    reason: str | None = None
+    message: str | None = None
+
+
+class PublishRetention(Loose):
+    """What retention would offer, counted LOCALLY.
+
+    An upper bound on what a prune would remove: prune additionally requires
+    the remote to hold every commit an artifact sits in, and that is not
+    computed here.
+    """
+
+    considered: int = 0
+    eligible: int = 0
+    kept: int = 0
+    reclaimable_bytes: int = 0
+
+
+class IncompleteArtifact(Loose):
+    artifact_id: str | None = None
+    reason: str | None = None
+
+
+class PublishStatus(Loose):
+    """Everything the Publication page reads in one call."""
+
+    configured: bool = False
+    reason: str | None = None
+    repository: str | None = None
+    exists: bool = False
+    head: str | None = None
+    retention_days: float = 0.0
+    artifacts: int = 0
+    durable: int = 0
+    to_publish: int = 0
+    new: int = 0
+    changed: int = 0
+    incomplete: list[IncompleteArtifact] = Field(default_factory=list)
+    retention: PublishRetention = Field(default_factory=PublishRetention)
+    lock: PublishLock = Field(default_factory=PublishLock)
+    remote: PublishRemote = Field(default_factory=PublishRemote)
+
+
+class PublishPreview(Loose):
+    """What publishing would make durable, and the token that allows it."""
+
+    configured: bool = True
+    surveyed: int = 0
+    already_durable: int = 0
+    counts: dict[str, int] = Field(default_factory=dict)
+    would_publish: list[dict[str, Any]] = Field(default_factory=list)
+    preview_token: str | None = None
+    published: bool = False
+    detail: str | None = None
+
+
+class PublishResult(Loose):
+    """What a publish actually did, including whether it got upstream.
+
+    `published`, `verified` and `pushed` are separate on purpose. A publication
+    can be committed and not verified, or verified and not pushed, and a page
+    that collapsed them would be able to report a success nobody got.
+    """
+
+    published: bool = False
+    verified: bool = False
+    pushed: bool = False
+    commit: str | None = None
+    files_written: int = 0
+    push_detail: str | None = None
+    detail: str | None = None
+    verification: dict[str, Any] = Field(default_factory=dict)
+    preview_token: str | None = None
+
+
+class PublishVerification(Loose):
+    """The read-only verification of the durable copy."""
+
+    configured: bool = True
+    head: str | None = None
+    artifacts: int = 0
+    durable: int = 0
+    not_durable: int = 0
+    verified: bool = False
+    missing_files: int = 0
+    artifacts_detail: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class PublishPushResult(Loose):
+    """What a push did, or why it did not."""
+
+    pushed: bool = False
+    head: str | None = None
+    surveyed: int = 0
+    detail: str | None = None
+    push_detail: str | None = None
+    preview_token: str | None = None
+    missing_files: list[dict[str, Any]] = Field(default_factory=list)

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import ic %}
+
+{% block title %}Publication · Testbed Console{% endblock %}
+{% block page_title %}Publication{% endblock %}
+{% block page_icon %}export{% endblock %}
+{% block page_tone %}teal{% endblock %}
+{% block lede %}
+  <p class="lede">
+    The durable archive of results and figures, and whether GitHub has it.
+    Publishing never deletes anything; retention is shown here and is only ever
+    acted on from the command line.
+  </p>
+{% endblock %}
+
+{% block content %}
+<div id="publication-status">
+  {% include "publication/status.html" %}
+</div>
+
+<section class="card" style="margin-top:16px">
+  <h2>Actions</h2>
+  <p class="hint">
+    {{ ic('info', 'faint') }}
+    Each one shows ETHOS's own preview first, and is refused while another
+    publication holds the lock.
+  </p>
+  <div class="row" style="gap:8px;flex-wrap:wrap">
+    <sl-button variant="primary"
+               hx-post="/publication/publish/preview" hx-target="#publication-action">
+      Publish
+    </sl-button>
+    <sl-button hx-get="/publication/verify" hx-target="#publication-action">
+      Verify
+    </sl-button>
+    <sl-button hx-post="/publication/push/preview" hx-target="#publication-action">
+      Push to GitHub
+    </sl-button>
+    <sl-button variant="primary" outline
+               hx-post="/publication/publish/preview" hx-vals='{"push":"true"}'
+               hx-target="#publication-action">
+      Publish + Push
+    </sl-button>
+  </div>
+</section>
+
+<div id="publication-action"></div>
+{% endblock %}
