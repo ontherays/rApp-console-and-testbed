@@ -48,6 +48,25 @@ def clocktime(value: Any, tz: str = "Asia/Taipei") -> str:
     return localtime(value, tz, "%H:%M")
 
 
+def filesize(num: Any) -> str:
+    """Bytes as a person reads them. Presentation only: the value is ETHOS's.
+
+    Matches what `python -m publication prune` prints for the same number, so
+    the page and the command line do not describe one archive two ways.
+    """
+    if num is None:
+        return NOT_MEASURED
+    try:
+        value = float(num)
+    except (TypeError, ValueError):
+        return NOT_MEASURED
+    for unit in ("B", "kB", "MB", "GB"):
+        if value < 1024 or unit == "GB":
+            return f"{int(value)} {unit}" if unit == "B" else f"{value:.1f} {unit}"
+        value /= 1024
+    return f"{value:.1f} GB"       # pragma: no cover - the loop returns first
+
+
 def duration(seconds: Any) -> str:
     if seconds is None:
         return NOT_MEASURED
@@ -74,6 +93,7 @@ def templates() -> Jinja2Templates:
         env.env.filters["localtime"] = localtime
         env.env.filters["clocktime"] = clocktime
         env.env.filters["duration"] = duration
+        env.env.filters["filesize"] = filesize
         env.env.globals["series_for"] = series_mod.series_for
         env.env.globals["NOT_MEASURED"] = NOT_MEASURED
         _TEMPLATES = env

@@ -61,7 +61,7 @@ GROUPS: tuple[Group, ...] = (
     Group(
         "System",
         (
-            Item("Publication", "/publication", "export"),
+            Item("GitHub", "/publication", "export"),
             Item("Docs", "/docs", "docs"),
         ),
     ),

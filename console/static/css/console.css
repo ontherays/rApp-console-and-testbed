@@ -491,7 +491,7 @@ sl-details::part(header) { padding: var(--s3) var(--s4); font-size: 13.5px; font
             padding: var(--s4) var(--s3); overflow-x: auto; }
 .topo { display: block; min-width: 420px; }
 .topo.mini { min-width: 0; }
-.card-sub { display: block; font-size: 12px; color: var(--faint); margin-top: 1px; }
+.card-sub { display: block; font-size: 12px; color: var(--muted); margin-top: 1px; }
 .card > header .tile { flex: none; }
 
 @media (max-width: 1400px) {
@@ -728,4 +728,88 @@ article .table-wrap { margin: var(--s4) 0; border: 1px solid var(--line);
 @media (max-width: 720px) {
   .job-pick { grid-template-columns: auto minmax(0, 1fr); }
   .job-pick-facts { grid-column: 2; }
+}
+
+/* --- stat cards, key/value blocks and the gradient action -------------------
+   Written for the GitHub page and deliberately generic: a labelled number with
+   a caption, a two-column fact list, and one gradient button. Nothing here is
+   page-specific, so the next dashboard panel can use them rather than growing
+   its own.
+
+   `.kv` and `.preview-list` were used by that page from the day it landed and
+   had no rules at all, so every value rendered as a browser-default <dl>: the
+   pale, loosely spaced look this replaces. */
+
+.statgrid { display: grid; gap: var(--s3);
+            grid-template-columns: repeat(auto-fit, minmax(146px, 1fr)); }
+
+.stat {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: var(--s3) var(--s4);
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+}
+/* --muted, not --faint: --faint reads 2.60:1 on white, under the 4.5:1 AA
+   floor, and these labels are the only name a number has. */
+.stat .k { font-size: 11px; font-weight: 600; letter-spacing: .05em;
+           text-transform: uppercase; color: var(--muted); }
+.stat .v { font-size: 26px; line-height: 1.15; font-weight: 650; color: var(--text);
+           font-variant-numeric: tabular-nums; }
+.stat .c { font-size: 12px; color: var(--muted); line-height: 1.35; }
+/* A tone colours the number and the left edge, never the number alone: colour
+   is never the only thing carrying the meaning, the caption says it too. */
+.stat.ok { border-left: 3px solid var(--ok); }
+.stat.ok .v { color: var(--ok); }
+.stat.warn { border-left: 3px solid var(--warn); }
+.stat.warn .v { color: var(--warn); }
+.stat.bad { border-left: 3px solid var(--bad); }
+.stat.bad .v { color: var(--bad); }
+/* Zero is a fact, not an absence. A quiet number with its caption intact reads
+   as "nothing to do" rather than as a panel that failed to load. */
+.stat.zero .v { color: var(--ink-soft); font-weight: 600; }
+
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr);
+      gap: 7px var(--s4); margin: 0; font-size: 13px; align-items: baseline; }
+.kv dt { color: var(--muted); white-space: nowrap; }
+.kv dd { margin: 0; color: var(--text); font-variant-numeric: tabular-nums;
+         min-width: 0; overflow-wrap: anywhere; }
+.kv dd code { font-size: 12px; }
+
+.preview-list { margin: var(--s3) 0 0; padding-left: 18px; font-size: 13px;
+                color: var(--ink-soft); line-height: 1.7; }
+.preview-list li { overflow-wrap: anywhere; }
+
+/* A titled block inside a card: the sub-heading a <h3> used to be, with a rule
+   under it so two of them in one card read as two things. */
+.subhead { display: flex; align-items: center; gap: var(--s2);
+           font-size: 12px; font-weight: 600; letter-spacing: .04em;
+           text-transform: uppercase; color: var(--muted);
+           padding-bottom: var(--s2); margin: 0 0 var(--s3);
+           border-bottom: 1px solid var(--line); }
+.subhead .ic { width: 14px; height: 14px; color: var(--faint); }
+
+/* Two panels side by side on a wide screen, stacked below it. */
+.split { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+
+/* The console's accent blue into a deepened purple. --t-purple itself is
+   4.38:1 against white, just under AA, so the far stop is darkened rather than
+   the label being left to fail on it. */
+.btn.grad {
+  background: linear-gradient(120deg, #2563eb 0%, #6d49e8 100%);
+  border-color: transparent; color: #fff; font-weight: 600;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, .25);
+}
+.btn.grad:hover { background: linear-gradient(120deg, #1d54cc 0%, #5e3ad6 100%); }
+.btn.grad:focus-visible { outline: 2px solid #6d49e8; outline-offset: 2px; }
+.btn.tint { background: var(--t-blue-bg); border-color: #cfdffd; color: #1d4ed8; }
+.btn.tint:hover { background: #dae7ff; }
+.btn.lg { height: 40px; padding: 0 18px; font-size: 13.5px; }
+
+/* A gradient rule under a card header, the same ramp the setup card uses. */
+.gradient-rule { height: 3px; border-radius: 3px; margin: 0 0 var(--s4);
+                 background: linear-gradient(120deg, #dce8ff 0%, #f3e6ff 45%, #ffe9d2 100%); }
+
+@media (max-width: 720px) {
+  /* Two by two, rather than four columns squeezed to the minmax floor. */
+  .statgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat .v { font-size: 22px; }
 }

@@ -1,5 +1,10 @@
 {# The archive's state. Local by default: the remote is asked only on request,
-   so this panel cannot fail because GitHub is down. #}
+   so this panel cannot fail because GitHub is down.
+
+   Four numbers across the top, then the repository and the remote side by side,
+   then retention. The numbers were a <dl> with no rules behind it, which is why
+   the page read as a column of pale text; they are the first thing anyone wants
+   and they now look like it. #}
 {% from "components/macros.html" import ic %}
 
 {% if error %}
@@ -15,7 +20,7 @@
 {% else %}
 
   {% if status.lock.busy %}
-    <div class="banner warn" style="margin-bottom:16px">
+    <div class="banner warn" style="margin-bottom:var(--s4)">
       {{ ic('lock') }}
       <span>
         Publication busy: {{ status.lock.what }}, held by
@@ -25,42 +30,104 @@
     </div>
   {% endif %}
 
+  <div class="statgrid" style="margin-bottom:var(--s4)">
+    <div class="stat">
+      <span class="k">Artifacts</span>
+      <span class="v">{{ status.artifacts }}</span>
+      <span class="c">Total results</span>
+    </div>
+    <div class="stat {{ 'ok' if status.durable else 'zero' }}">
+      <span class="k">Durable</span>
+      <span class="v">{{ status.durable }}</span>
+      <span class="c">Published safely</span>
+    </div>
+    <div class="stat {{ 'warn' if status.to_publish else 'zero' }}">
+      <span class="k">Pending</span>
+      <span class="v">{{ status.to_publish }}</span>
+      <span class="c">
+        {%- if status.to_publish %}
+          {{ status.new }} new, {{ status.changed }} changed
+        {%- else %}Nothing awaiting publication{% endif %}
+      </span>
+    </div>
+    <div class="stat {{ 'bad' if status.incomplete else 'zero' }}">
+      <span class="k">Incomplete</span>
+      <span class="v">{{ status.incomplete | length }}</span>
+      <span class="c">
+        {%- if status.incomplete %}Kept locally for ever
+        {%- else %}None, every artifact is whole{% endif %}
+      </span>
+    </div>
+  </div>
+
+  <div class="split" style="margin-bottom:var(--s4)">
+    <section class="card">
+      <p class="subhead">{{ ic('file') }} Repository</p>
+      <dl class="kv">
+        <dt>Path</dt><dd><code>{{ status.repository }}</code></dd>
+        <dt>Local HEAD</dt>
+        <dd>
+          {%- if status.head %}<code>{{ status.head[:8] }}</code>
+          {%- else %}<span class="muted">nothing published yet</span>{% endif %}
+        </dd>
+        <dt>Retention</dt><dd>{{ status.retention_days | round(0) | int }} days</dd>
+      </dl>
+    </section>
+
+    <section class="card">
+      <p class="subhead">{{ ic('export') }} Remote</p>
+      {% if not status.remote.checked %}
+        <dl class="kv">
+          <dt>GitHub</dt><dd><span class="chip outline">Not asked</span></dd>
+        </dl>
+        <p class="hint">Reading this page does not depend on GitHub.</p>
+        <button class="btn btn-sm tint" style="margin-top:var(--s3)"
+                hx-get="/publication/status?remote=true"
+                hx-target="#publication-status">
+          {{ ic('export') }} Check GitHub
+        </button>
+      {% elif status.remote.established %}
+        <dl class="kv">
+          <dt>GitHub</dt>
+          <dd><span class="chip ok">{{ ic('check') }} In sync</span></dd>
+          <dt>Branch</dt>
+          <dd><code>{{ status.remote.remote }}/{{ status.remote.branch }}</code></dd>
+          <dt>Remote HEAD</dt>
+          <dd><code>{{ status.remote.head[:8] if status.remote.head else 'unknown' }}</code></dd>
+        </dl>
+        <p class="hint">{{ status.remote.message }}</p>
+      {% else %}
+        <dl class="kv">
+          <dt>GitHub</dt>
+          <dd><span class="chip warn">{{ ic('warning') }} Unknown</span></dd>
+        </dl>
+        <div class="banner warn" style="margin-top:var(--s3)">
+          {{ ic('warning') }}
+          <span>Remote synchronization unknown: {{ status.remote.reason }}</span>
+        </div>
+      {% endif %}
+    </section>
+  </div>
+
   <section class="card">
-    <h2>Status</h2>
-    <dl class="kv">
-      <dt>Artifacts</dt><dd>{{ status.artifacts }}</dd>
-      <dt>Durable</dt><dd>{{ status.durable }}</dd>
-      <dt>Pending</dt><dd>{{ status.to_publish }}
-        {%- if status.to_publish %} ({{ status.new }} new, {{ status.changed }} changed){% endif %}</dd>
-      <dt>Incomplete</dt><dd>{{ status.incomplete | length }}
-        {%- if status.incomplete %} (kept locally for ever){% endif %}</dd>
-      <dt>Repository</dt><dd><code>{{ status.repository }}</code></dd>
-      <dt>Local HEAD</dt><dd><code>{{ status.head[:8] if status.head else 'nothing published yet' }}</code></dd>
-      <dt>Retention</dt><dd>{{ status.retention_days | round(0) | int }} days</dd>
-    </dl>
-
-    <h3>Remote</h3>
-    {% if not status.remote.checked %}
-      <p class="hint">
-        Not asked. Reading this page does not depend on GitHub.
-        <sl-button size="small" hx-get="/publication/status?remote=true"
-                   hx-target="#publication-status">Check GitHub</sl-button>
-      </p>
-    {% elif status.remote.established %}
-      <p>{{ ic('check', 'good') }} {{ status.remote.message }}</p>
-    {% else %}
-      <div class="banner warn">
-        {{ ic('warning') }}
-        <span>Remote synchronization unknown: {{ status.remote.reason }}</span>
+    <p class="subhead">{{ ic('clock') }} Retention</p>
+    <div class="statgrid" style="margin-bottom:var(--s3)">
+      <div class="stat {{ 'zero' if not status.retention.eligible }}">
+        <span class="k">Eligible locally</span>
+        <span class="v">{{ status.retention.eligible }}</span>
+        <span class="c">Old enough and verified</span>
       </div>
-    {% endif %}
-
-    <h3>Retention</h3>
-    <dl class="kv">
-      <dt>Eligible locally</dt><dd>{{ status.retention.eligible }}</dd>
-      <dt>Kept</dt><dd>{{ status.retention.kept }}</dd>
-      <dt>Reclaimable</dt><dd>{{ status.retention.reclaimable_bytes }} bytes</dd>
-    </dl>
+      <div class="stat zero">
+        <span class="k">Kept</span>
+        <span class="v">{{ status.retention.kept }}</span>
+        <span class="c">Held in working storage</span>
+      </div>
+      <div class="stat zero">
+        <span class="k">Reclaimable</span>
+        <span class="v">{{ status.retention.reclaimable_bytes | filesize }}</span>
+        <span class="c">If pruned from working storage</span>
+      </div>
+    </div>
     <p class="hint">
       {{ ic('info', 'faint') }}
       Local count only, and an upper bound: a prune additionally requires GitHub

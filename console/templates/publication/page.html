@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% from "components/macros.html" import ic %}
 
-{% block title %}Publication · Testbed Console{% endblock %}
-{% block page_title %}Publication{% endblock %}
+{% block title %}GitHub · Testbed Console{% endblock %}
+{% block page_title %}GitHub{% endblock %}
 {% block page_icon %}export{% endblock %}
-{% block page_tone %}teal{% endblock %}
+{% block page_tone %}purple{% endblock %}
 {% block lede %}
   <p class="lede">
     The durable archive of results and figures, and whether GitHub has it.
@@ -14,35 +14,52 @@
 {% endblock %}
 
 {% block content %}
-<div id="publication-status">
-  {% include "publication/status.html" %}
-</div>
 
-<section class="card" style="margin-top:16px">
-  <h2>Actions</h2>
-  <p class="hint">
-    {{ ic('info', 'faint') }}
-    Each one shows ETHOS's own preview first, and is refused while another
-    publication holds the lock.
-  </p>
-  <div class="row" style="gap:8px;flex-wrap:wrap">
-    <sl-button variant="primary"
-               hx-post="/publication/publish/preview" hx-target="#publication-action">
+{# Actions first. The status below answers "what is there"; this answers "what
+   can I do about it", and on a page somebody opens to publish, that belongs
+   above the fold rather than under three panels of numbers.
+
+   `Publish + Push` carries the gradient because it is the whole workflow and
+   the one the scheduled timer runs: commit, verify that commit, push only if it
+   verified. `Publish` stops at the commit, `Push to GitHub` is the retry for a
+   commit that did not get upstream, and `Verify` writes nothing at all, so it
+   sits last and plainest. #}
+<section class="card">
+  <header>
+    <span class="tile purple">{{ ic('export') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">Actions</span>
+      <span class="card-sub">
+        Each one shows ETHOS's own preview first, and is refused while another
+        publication holds the lock.
+      </span>
+    </span>
+  </header>
+  <div class="gradient-rule"></div>
+  <div class="row" style="gap:var(--s2)">
+    <button type="button" class="btn lg grad"
+            hx-post="/publication/publish/preview" hx-vals='{"push":"true"}'
+            hx-target="#publication-action">
+      {{ ic('export') }} Publish + Push
+    </button>
+    <button type="button" class="btn lg"
+            hx-post="/publication/publish/preview" hx-target="#publication-action">
       Publish
-    </sl-button>
-    <sl-button hx-get="/publication/verify" hx-target="#publication-action">
-      Verify
-    </sl-button>
-    <sl-button hx-post="/publication/push/preview" hx-target="#publication-action">
+    </button>
+    <button type="button" class="btn lg tint"
+            hx-post="/publication/push/preview" hx-target="#publication-action">
       Push to GitHub
-    </sl-button>
-    <sl-button variant="primary" outline
-               hx-post="/publication/publish/preview" hx-vals='{"push":"true"}'
-               hx-target="#publication-action">
-      Publish + Push
-    </sl-button>
+    </button>
+    <button type="button" class="btn lg"
+            hx-get="/publication/verify" hx-target="#publication-action">
+      {{ ic('check') }} Verify
+    </button>
   </div>
 </section>
 
 <div id="publication-action"></div>
+
+<div id="publication-status">
+  {% include "publication/status.html" %}
+</div>
 {% endblock %}

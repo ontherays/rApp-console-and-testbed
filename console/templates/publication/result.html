@@ -6,10 +6,19 @@
    got. #}
 {% from "components/macros.html" import ic %}
 
-<section class="card" style="margin-top:16px"
+<section class="card"
          hx-get="/publication/status" hx-target="#publication-status"
          hx-trigger="load delay:100ms">
-  <h2>Publish</h2>
+  <header>
+    <span class="tile {{ 'teal' if result.published and result.verified else 'orange' }}">
+      {{ ic('export') }}
+    </span>
+    <span style="min-width:0">
+      <span class="card-title">Publish</span>
+      <span class="card-sub">What this run committed, verified and sent.</span>
+    </span>
+  </header>
+  <div class="gradient-rule"></div>
 
   {% if not result.published %}
     <div class="banner info">

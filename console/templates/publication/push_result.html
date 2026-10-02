@@ -1,9 +1,16 @@
 {% from "components/macros.html" import ic %}
 
-<section class="card" style="margin-top:16px"
+<section class="card"
          hx-get="/publication/status" hx-target="#publication-status"
          hx-trigger="load delay:100ms">
-  <h2>Push</h2>
+  <header>
+    <span class="tile {{ 'teal' if result.pushed else 'orange' }}">{{ ic('export') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">Push to GitHub</span>
+      <span class="card-sub">Sends the existing publication. Commits nothing.</span>
+    </span>
+  </header>
+  <div class="gradient-rule"></div>
   {% if result.pushed %}
     <p>{{ ic('check', 'good') }} {{ result.push_detail or 'pushed' }}</p>
   {% else %}

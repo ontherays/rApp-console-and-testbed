@@ -365,3 +365,119 @@ def test_a_confirmation_ethos_rejects_is_relayed_not_swallowed(client, ethos_url
 
     assert response.status_code == 428
     assert "preview first" in response.headers["X-Console-Toast"]
+
+
+# --- the page is called GitHub, the implementation is not --------------------
+
+
+def test_the_page_is_titled_github(client, ethos_url):
+    """The operator-facing name. What ETHOS calls it is a different question."""
+    body = client.get("/publication").text
+    assert "<title>GitHub · Testbed Console</title>" in body
+    assert '<h1 class="page-title">GitHub</h1>' in body
+
+
+def test_the_sidebar_calls_it_github():
+    from console.nav import GROUPS
+
+    labels = {item.label: item.href for group in GROUPS for item in group.items}
+    assert labels.get("GitHub") == "/publication"
+    assert "Publication" not in labels
+
+
+def test_the_route_and_the_endpoints_keep_their_names(client, ethos_url):
+    """Renaming the label must not rename the implementation.
+
+    The console route, ETHOS's endpoints and the page module are all still
+    `publication`; only what an operator reads changed.
+    """
+    assert client.get("/publication").status_code == 200
+    client.get("/publication")
+    assert ("GET", "/publish/status") in ethos_url.calls
+
+    import console.pages.publication as page
+
+    assert page.router is not None
+
+
+def test_the_operational_wording_still_matches_what_ethos_says(client, ethos_url):
+    """`Publication busy` is ETHOS's own phrase, and the toast uses it too.
+
+    Renaming only the banner would leave the page and the toast disagreeing
+    about the same refusal, so the operational messages keep the backend's
+    word even though the page is called GitHub.
+    """
+    ethos_url.hold_publication(holder="cli:publish:4242", what="publishing results")
+    assert "Publication busy" in client.get("/publication").text
+
+
+# --- the layout ---------------------------------------------------------------
+
+
+def test_the_four_counts_are_stat_cards_not_a_bare_list(client, ethos_url):
+    """The page used `<dl class="kv">` for these and the CSS had no `.kv` rule,
+    so they rendered as a browser-default list: the pale, loose column this
+    replaces."""
+    body = client.get("/publication").text
+    assert body.count('class="statgrid"') >= 1
+    for label in ("Artifacts", "Durable", "Pending", "Incomplete"):
+        assert f'<span class="k">{label}</span>' in body
+
+
+def test_every_class_the_page_uses_is_defined_in_the_stylesheet(client, ethos_url):
+    """The bug behind the pale look, caught mechanically.
+
+    `.kv` and `.preview-list` were used from the day the page landed and were
+    never defined, so they did nothing at all. A class that names no rule is a
+    silent styling failure, which is the hardest kind to notice.
+    """
+    import re
+    from pathlib import Path
+
+    css = (Path(__file__).resolve().parents[2]
+           / "console" / "static" / "css" / "console.css").read_text()
+    body = client.get("/publication").text
+
+    used: set[str] = set()
+    for group in re.findall(r'class="([^"{}]*)"', body):
+        used.update(name for name in group.split() if name)
+
+    # Shoelace parts and state hooks are styled by the vendored theme.
+    ignore = {"ic", "page-title", "title-ico"}
+    missing = sorted(
+        name for name in used - ignore
+        if not re.search(r"\." + re.escape(name) + r"[\s,{:.\[]", css)
+    )
+    assert missing == [], f"classes with no rule behind them: {missing}"
+
+
+def test_actions_lead_the_page_and_the_whole_workflow_is_the_primary(client, ethos_url):
+    """`Publish + Push` is what the scheduled timer runs, so it is the one the
+    page pushes forward."""
+    body = client.get("/publication").text
+    assert body.index("Publish + Push") < body.index("Artifacts")
+    assert 'class="btn lg grad"' in body
+
+
+def test_zero_states_read_as_facts_rather_than_as_missing_data(client, ethos_url):
+    ethos_url.publication["to_publish"] = 0
+    ethos_url.publication["new"] = 0
+    ethos_url.publication["changed"] = 0
+    ethos_url.publication["incomplete"] = []
+
+    body = client.get("/publication").text
+    assert "Nothing awaiting publication" in body
+    assert "None, every artifact is whole" in body
+
+
+def test_an_unchecked_remote_looks_deliberate(client, ethos_url):
+    body = client.get("/publication").text
+    assert "Not asked" in body
+    assert "Reading this page does not depend on GitHub." in body
+    assert "Check GitHub" in body
+
+
+def test_a_checked_remote_shows_the_branch_and_head(client, ethos_url):
+    body = client.get("/publication/status?remote=true").text
+    assert "In sync" in body
+    assert "origin/main" in body and "eaa4a737" in body

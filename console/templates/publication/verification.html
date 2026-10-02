@@ -1,16 +1,43 @@
 {# A read. Nothing on this panel changed anything. #}
 {% from "components/macros.html" import ic %}
 
-<section class="card" style="margin-top:16px">
-  <h2>Verification</h2>
-  <p class="hint">{{ ic('info', 'faint') }} Read-only: nothing was published, committed, pushed or removed.</p>
+<section class="card">
+  <header>
+    <span class="tile teal">{{ ic('check') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">Verification</span>
+      <span class="card-sub">Read-only: nothing was published, committed, pushed or removed.</span>
+    </span>
+  </header>
 
-  <dl class="kv">
-    <dt>Artifacts</dt><dd>{{ verification.artifacts }}</dd>
-    <dt>Durable</dt><dd>{{ verification.durable }}</dd>
-    <dt>Not durable</dt><dd>{{ verification.not_durable }}</dd>
-    <dt>Missing files</dt><dd>{{ verification.missing_files }}</dd>
-  </dl>
+  <div class="statgrid" style="margin-bottom:var(--s4)">
+    <div class="stat">
+      <span class="k">Artifacts</span>
+      <span class="v">{{ verification.artifacts }}</span>
+      <span class="c">Checked</span>
+    </div>
+    <div class="stat {{ 'ok' if verification.durable else 'zero' }}">
+      <span class="k">Durable</span>
+      <span class="v">{{ verification.durable }}</span>
+      <span class="c">Match the committed copy</span>
+    </div>
+    <div class="stat {{ 'warn' if verification.not_durable else 'zero' }}">
+      <span class="k">Not durable</span>
+      <span class="v">{{ verification.not_durable }}</span>
+      <span class="c">
+        {%- if verification.not_durable %}Need another publish
+        {%- else %}None outstanding{% endif %}
+      </span>
+    </div>
+    <div class="stat {{ 'bad' if verification.missing_files else 'zero' }}">
+      <span class="k">Missing files</span>
+      <span class="v">{{ verification.missing_files }}</span>
+      <span class="c">
+        {%- if verification.missing_files %}Absent from the repository
+        {%- else %}Nothing absent{% endif %}
+      </span>
+    </div>
+  </div>
 
   {% if verification.verified %}
     <p>{{ ic('check', 'good') }} Every published artifact matches its committed copy.</p>

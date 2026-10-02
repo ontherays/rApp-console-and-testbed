@@ -8,7 +8,8 @@ import json
 
 import pytest
 
-PAGES = ["/", "/plan", "/jobs", "/results", "/graphs", "/testbed", "/o1", "/o2", "/docs"]
+PAGES = ["/", "/plan", "/jobs", "/results", "/graphs", "/testbed", "/publication",
+         "/o1", "/o2", "/docs"]
 
 
 def test_login_is_required_and_then_works(page):
