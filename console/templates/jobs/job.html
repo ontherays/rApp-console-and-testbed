@@ -23,9 +23,19 @@
    `sse-connect` points at the console's own relay, never at ETHOS: the browser is
    on the LAN and ETHOS is on loopback holding every credential. htmx reconnects
    on its own and sends `Last-Event-ID`, which the relay forwards, so a refresh
-   loses nothing. #}
+   loses nothing.
+
+   `sse-close` is what tells it when NOT to. ETHOS ends the stream once a job is
+   terminal, which is a normal close and not a dropped connection, but a browser
+   cannot tell those apart: it would reconnect, get an empty replay, be closed
+   again, and toast "the event stream dropped" on every attempt for as long as
+   the page stayed open. `finished` is the last event on every terminal path,
+   completed, failed, aborted and interrupted alike, so closing on it ends the
+   subscription exactly when the job ends. A stream that stops WITHOUT it is
+   still a drop, and still reconnects. #}
 <div hx-ext="sse"
      sse-connect="/jobs/{{ job_id }}/stream"
+     sse-close="finished"
      id="job-live">
 
   <div id="job-snapshot"

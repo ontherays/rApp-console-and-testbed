@@ -57,6 +57,14 @@ def create_app(recorded: Path = RECORDED) -> Starlette:
     fake.add_job(SEEDED_DONE_JOB, state="completed", stop_requested=False,
                  ended="2026-09-29T09:10:00Z", outcome="the sweep finished",
                  error="")
+    # With its events, and `finished` last. ETHOS emits that on every terminal
+    # path and then ends the stream, so a seeded job without one would be a
+    # fixture the browser could never close its subscription on, which is the
+    # exact bug these tests exist to catch.
+    for line in SEEDED_LOG:
+        fake.emit(SEEDED_DONE_JOB, "log", line=line)
+    fake.emit(SEEDED_DONE_JOB, "finished", state="completed",
+              outcome="the sweep finished", error="", points=1)
 
     async def control(request: Request) -> Response:
         """Set up a state a browser test needs. Not an ETHOS endpoint."""

@@ -437,6 +437,59 @@ def test_a_broken_stream_is_reported_in_the_stream(client, ethos_url):
     assert "relay_error" in body
 
 
+# --- the stream ends when the job does ---------------------------------------
+
+
+def test_the_job_page_closes_its_stream_on_finished(client, ethos_url):
+    """The subscription ends when the job does, not when the page is closed.
+
+    ETHOS ends the stream once a job is terminal. That is a normal close and
+    not a dropped connection, but a browser cannot tell them apart: without
+    this it reconnects, gets an empty replay, is closed again, and toasts "the
+    event stream dropped" on every attempt for as long as the page is open.
+    """
+    job_id = (ethos_url._load("jobs") or {})["jobs"][0]["job_id"]
+    body = client.get(f"/jobs/{job_id}").text
+    assert 'sse-close="finished"' in body
+
+
+def test_the_close_event_is_the_one_ethos_actually_ends_with(client, ethos_url):
+    """The attribute names an event, so it has to be the event ETHOS sends.
+
+    `finished` is emitted by `JobRunner._end` for completed, failed and aborted
+    and by `reconcile` for interrupted, and it is the last event in every case.
+    The page already keys its snapshot refresh off the same one.
+    """
+    job_id = "j-terminal"
+    ethos_url.add_job(job_id, state="completed", ended="2026-09-29T09:10:00Z")
+    ethos_url.emit(job_id, "log", line="deploy   : ok")
+    ethos_url.emit(job_id, "finished", state="completed", outcome="done")
+
+    with client.stream("GET", f"/jobs/{job_id}/stream") as response:
+        body = b"".join(response.iter_bytes()).decode()
+
+    assert "event: finished" in body
+    assert body.rstrip().endswith("}"), "finished is the last thing on the wire"
+    assert body.index("event: log") < body.index("event: finished")
+
+    page = client.get(f"/jobs/{job_id}").text
+    assert 'sse-close="finished"' in page
+
+
+def test_the_stream_is_not_closed_on_any_other_event(client, ethos_url):
+    """A drop that is NOT the job finishing must still reconnect.
+
+    The attribute closes on one event name. Everything else -- state, log,
+    point_started, stop_requested, relay_error -- leaves the subscription
+    alone, which is what keeps a running job live.
+    """
+    job_id = (ethos_url._load("jobs") or {})["jobs"][0]["job_id"]
+    body = client.get(f"/jobs/{job_id}").text
+    assert body.count("sse-close=") == 1
+    for event in ("state", "log", "point_started", "stop_requested", "relay_error"):
+        assert f'sse-close="{event}"' not in body
+
+
 # --- the UE panel (B11) -------------------------------------------------------
 
 
