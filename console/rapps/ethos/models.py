@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, ClassVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from console.rapps.ethos.metrics import NOT_MEASURED
 
@@ -829,6 +829,19 @@ class CoreState(Loose):
     activity: CoreActivity = Field(default_factory=CoreActivity)
     stale: CoreStale = Field(default_factory=CoreStale)
     error: str | None = None
+
+    @field_validator("health", "activity", "stale", mode="before")
+    @classmethod
+    def _null_is_an_empty_block(cls, value: Any) -> Any:
+        """ETHOS sends null for a block it did not fill in.
+
+        `health` and `activity` are null whenever the core host was not read:
+        switching disabled, or an unreachable host. That is ETHOS being honest
+        (D2, a null is "not read"), and the console's job is to render it as
+        unknown, not to refuse the response. Before this, a testbed with one
+        core 500'd the whole Test Plan.
+        """
+        return {} if value is None else value
     checked_at: str | None = None
 
     @property

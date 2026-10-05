@@ -569,3 +569,68 @@ def test_the_job_page_shows_the_stage_and_its_duration(client, ethos_url):
     assert "switching core to free5GC" in page.text
     assert "restoring Open5GS" in page.text
     assert "16.0 s" in page.text and "20.0 s" in page.text
+
+
+# --- the shape ETHOS sends when it has not read the host ---------------------
+#
+# Found by running the branch against a real ETHOS with switching disabled,
+# which no fixture covered: every recording had a successful status read, so
+# `health` and `activity` were never null and the model never had to take one.
+
+DISABLED = {
+    "enabled": False, "core": None, "selected": None, "agrees": None,
+    "disagreement": None, "health": None, "health_source": None,
+    "status": None, "profile": None, "profiles": {}, "activity": None,
+    "stale": {"is_stale": False, "reason": "", "remedy": ""}, "error": None,
+}
+
+
+def test_a_core_with_switching_disabled_parses():
+    """ETHOS sends null for what it did not read. Null is a value, not a gap."""
+    state = CoreState.model_validate(DISABLED)
+    assert state.enabled is False
+    assert state.health.ok is None          # coerced to the empty model
+    assert state.activity.checked is False
+    assert state.blocker == ""              # and it blocks nothing
+
+
+def test_an_unreachable_core_host_parses_too():
+    state = CoreState.model_validate({**DISABLED, "enabled": True,
+                                      "error": "ssh: no route to host"})
+    assert state.health.ok is None
+    assert "no route to host" in state.blocker
+
+
+def test_the_summary_takes_the_same_shape():
+    """The strip reads `core` out of the summary, so it meets this shape too."""
+    from console.rapps.ethos.models import StatusSummary
+
+    summary = StatusSummary.model_validate({"core": DISABLED})
+    assert summary.core.health.ok is None
+    assert summary.core.stale.is_stale is False
+
+
+def test_the_strip_renders_a_disabled_core_without_falling_over(fake):
+    from console.capabilities import Capabilities
+    from console.status import build_status
+
+    recorded = fake._load("status_summary")
+    recorded["core"] = DISABLED
+    fake.answer("GET", "/status/summary", 200, recorded)
+
+    status = run_async(build_status(_client(fake), Capabilities()))
+    core = next(item for item in status.items if item.label == "Core")
+    assert core.value == "not switched"
+    assert status.core_stale is None
+
+
+def test_the_plan_page_renders_with_switching_disabled(client, ethos_url):
+    """The 500 this was found by: GET /plan on a testbed with one core."""
+    ethos_url.answer("GET", "/core", 200, DISABLED)
+    summary = ethos_url._load("status_summary")
+    summary["core"] = DISABLED
+    ethos_url.answer("GET", "/status/summary", 200, summary)
+
+    page = client.get("/plan")
+    assert page.status_code == 200
+    assert "ETHOS does not switch cores" in page.text
