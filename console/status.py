@@ -42,6 +42,10 @@ class Item:
     href: str | None = None
     """Where the item leads, when there is somewhere useful. A running job's
     item links to that job's page, which is the thing an operator wants next."""
+    when: str | None = None
+    """The instant this item's value refers to, when it refers to one. Shown
+    beside the value in the display zone, with the UTC original in the
+    tooltip, so a time on the strip reads the same as a time in a banner."""
 
 
 @dataclass
@@ -61,15 +65,24 @@ class Status:
 
 
 def _now_text() -> str:
-    return datetime.now(timezone.utc).strftime("%H:%M:%SZ")
+    """This read's instant, in UTC, for the template to localise (GL-06).
+
+    Never formatted here. The strip used to print "08:24:17Z" while a banner
+    two lines down printed "since 16:27", which is the same moment written
+    two ways on one screen.
+    """
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace(
+        "+00:00", "Z"
+    )
 
 
 def _clock(value: str | None, fallback: str) -> str:
-    """The part's own timestamp, shortened for the hover, or this request's."""
-    if not value:
-        return fallback
-    text = str(value)
-    return text[11:19] + "Z" if len(text) >= 19 and text[10:11] == "T" else text
+    """The part's own timestamp, or this request's when it carries none.
+
+    Returned as the raw instant: the template formats it, so every time on
+    every page goes through one helper.
+    """
+    return str(value) if value else fallback
 
 
 def _lock_item(summary: StatusSummary, checked: str) -> Item:
@@ -212,33 +225,99 @@ def _core_item(summary: StatusSummary, checked: str) -> Item:
     return Item("Core", name or "", OK, detail, at)
 
 
-def _freshness_item(summary: StatusSummary, checked: str) -> Item:
-    """The newest thing any data source has said.
+#: How old the newest measurement may be before the strip stops calling it
+#: current. A sweep publishes a point every few seconds while it runs, so
+#: anything inside SIX HOURS is this working session or the last one. Up to a
+#: WEEK is an ordinary gap: overnight, a weekend, a quiet few days, and the
+#: number is still worth reading as long as you know its age. Past a week the
+#: only reason there is a figure at all is the 30-day lookback, and a graph
+#: drawn from it is history rather than the state of the testbed.
+FRESH_OK_S = 6 * 3600
+FRESH_WARN_S = 7 * 24 * 3600
 
-    Three sources, reported together because the strip has one slot: the newest
-    of them is the honest headline, and the hover names each one. A source that
-    has never landed anything stays absent rather than reading as stale.
+
+def _age(last_point: str | None, now: datetime | None = None) -> float | None:
+    """Seconds since *last_point*, or None if it cannot be read."""
+    if not last_point:
+        return None
+    try:
+        when = datetime.fromisoformat(str(last_point).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    return ((now or datetime.now(timezone.utc)) - when).total_seconds()
+
+
+def _age_text(seconds: float | None) -> str:
+    """An age a person reads: "1 h 24 min ago"."""
+    if seconds is None:
+        return ""
+    seconds = max(0.0, seconds)
+    if seconds < 90:
+        return "just now"
+    minutes = int(seconds // 60)
+    if minutes < 60:
+        return f"{minutes} min ago"
+    hours, minutes = divmod(minutes, 60)
+    if hours < 24:
+        return f"{hours} h {minutes} min ago" if minutes else f"{hours} h ago"
+    days, hours = divmod(hours, 24)
+    return f"{days} d {hours} h ago" if hours else f"{days} d ago"
+
+
+def _newest_data_item(summary: StatusSummary, checked: str) -> Item:
+    """When measurement data last landed in InfluxDB.
+
+    Not when the page was loaded and not when the testbed was last looked at:
+    the newest `_time` ETHOS can find, within a 30-day lookback, across three
+    independent sources. Results (`ethos_iperf_v2` in the results bucket) is
+    the one that moves during a sweep; O1 PM and O2 power are separate
+    pipelines and one being silent says nothing about the others.
+
+    It was called "Freshness", which named the quality rather than the thing,
+    so nobody could tell what it was measuring without reading the code.
     """
     part = summary.freshness
     at = _clock(part.checked_at, checked)
     if part.error:
-        return Item("Freshness", "unknown", UNKNOWN, part.error, at)
+        return Item("Newest data", "unknown", UNKNOWN, part.error, at)
 
-    sources = (("results", part.results), ("O1 PM", part.o1_pm), ("O2 power", part.o2_power))
-    details = []
+    sources = (
+        ("iperf results", part.results),
+        ("O1 PM", part.o1_pm),
+        ("O2 power", part.o2_power),
+    )
+    details: list[str] = []
     newest: str | None = None
     for name, source in sources:
         if source.error:
             details.append(f"{name}: {source.error}")
             continue
         if source.last_point:
-            details.append(f"{name}: {source.last_point[:19]}Z")
+            details.append(f"{name}: {_age_text(_age(source.last_point))}")
             newest = max(newest or "", source.last_point)
         else:
-            details.append(f"{name}: nothing in the window")
-    value = newest[11:16] + "Z" if newest and len(newest) >= 16 else "none"
+            details.append(f"{name}: nothing in the last 30 days")
+
+    if not newest:
+        return Item(
+            "Newest data", "none", UNKNOWN,
+            "no measurement in the last 30 days. " + "; ".join(details), at,
+        )
+
+    seconds = _age(newest)
+    state = OK if (seconds or 0) < FRESH_OK_S else (
+        WARN if (seconds or 0) < FRESH_WARN_S else BAD
+    )
     return Item(
-        "Freshness", value, OK if newest else UNKNOWN, "; ".join(details), at
+        "Newest data",
+        _age_text(seconds),
+        state,
+        "the newest measurement ETHOS can find in InfluxDB, over a 30-day "
+        "lookback. " + "; ".join(details),
+        at,
+        when=newest,
     )
 
 
@@ -273,7 +352,7 @@ async def build_status(client: EthosClient, caps: Capabilities) -> Status:
             + [
                 Item(label, "unknown", UNKNOWN, ethos_detail, checked)
                 for label in (
-                    "Lock", "Deployed", "Job", "UE", "iperf 5201", "Core", "Freshness"
+                    "Lock", "Deployed", "Job", "UE", "iperf 5201", "Core", "Newest data"
                 )
             ],
         )
@@ -289,7 +368,7 @@ async def build_status(client: EthosClient, caps: Capabilities) -> Status:
             + [
                 Item(label, "unknown", UNKNOWN, exc.message, checked)
                 for label in (
-                    "Lock", "Deployed", "Job", "UE", "iperf 5201", "Core", "Freshness"
+                    "Lock", "Deployed", "Job", "UE", "iperf 5201", "Core", "Newest data"
                 )
             ],
         )
@@ -309,6 +388,6 @@ async def build_status(client: EthosClient, caps: Capabilities) -> Status:
             _ue_item(summary, checked),
             _iperf_item(summary, checked),
             _core_item(summary, checked),
-            _freshness_item(summary, checked),
+            _newest_data_item(summary, checked),
         ],
     )

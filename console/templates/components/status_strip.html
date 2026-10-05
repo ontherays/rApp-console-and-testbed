@@ -1,7 +1,7 @@
 {# The status strip (ST-01…04). Every item carries its own state and its own
    "checked" time, so one failed probe shows as unknown without breaking the
    rest, and the strip never claims a state it did not read. #}
-{% from "components/macros.html" import dot %}
+{% from "components/macros.html" import dot, when %}
 
 {% if not status.ethos_up %}
   <div class="banner bad" style="margin-top:12px">
@@ -27,11 +27,13 @@
   {% for item in status.items %}
     <span class="item">
       {{ dot(item.state) }}
-      <sl-tooltip hoist content="{{ item.detail }}{% if item.checked_at %} · checked {{ item.checked_at }}{% endif %}">
-        <span>{{ item.label }}: <b>{{ item.value }}</b></span>
+      <sl-tooltip hoist content="{{ item.detail }}{% if item.checked_at %} · checked {{ item.checked_at | localtime }} ({{ item.checked_at | isoutc }}){% endif %}">
+        <span>{{ item.label }}:
+          {%- if item.when %} <b>{{ item.when | clocktime }}</b> ({{ item.value }})
+          {%- else %} <b>{{ item.value }}</b>{% endif %}</span>
       </sl-tooltip>
     </span>
   {% endfor %}
   <span class="spacer"></span>
-  <span class="item faint nowrap"><svg class="ic" aria-hidden="true"><use href="#icon-clock"/></svg> {{ status.as_of }}</span>
+  <span class="item faint nowrap"><svg class="ic" aria-hidden="true"><use href="#icon-clock"/></svg> {{ when(status.as_of) }}</span>
 </div>

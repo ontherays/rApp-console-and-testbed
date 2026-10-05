@@ -23,6 +23,7 @@
 {% endblock %}
 
 {% block content %}
+{% include "components/testbed_held.html" %}
 {% if load_error %}
   <div class="banner bad">{{ ic('warning') }}{{ load_error }}</div>
 {% endif %}

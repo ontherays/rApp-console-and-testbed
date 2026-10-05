@@ -123,18 +123,22 @@ def _job_tile(summary, error: str | None) -> dict:
 
 
 def _freshness_tile(summary, error: str | None) -> dict:
-    """When each data source last said anything (B6).
+    """The newest measurement in InfluxDB, over a 30-day lookback (B6).
 
-    Three sources in one tile because they answer one question, and each is named
-    in the note. A source that has never landed a point says so rather than
-    reading as stale: never and old are different.
+    Three sources in one tile because they answer one question, and each is
+    named in the note. A source that has never landed a point says so rather
+    than reading as stale: never and old are different.
+
+    Named for what it measures. "Data freshness" described the quality of the
+    answer rather than the thing being measured, so it was impossible to tell
+    from the page which timestamp it came from.
     """
     if summary is None:
-        return {"icon": "clock", "tone": "slate", "label": "Data freshness",
+        return {"icon": "clock", "tone": "slate", "label": "Newest data",
                 "value": ",", "note": error or "not read", "note_icon": "info"}
     part = summary.freshness
     if part.error:
-        return {"icon": "clock", "tone": "slate", "label": "Data freshness",
+        return {"icon": "clock", "tone": "slate", "label": "Newest data",
                 "value": ",", "note": part.error, "note_icon": "info"}
 
     landed: list[str] = []
@@ -150,10 +154,13 @@ def _freshness_tile(summary, error: str | None) -> dict:
 
     now = datetime.now(timezone.utc)
     value, unit, tone = _age(newest_point, now)
-    note = f"newest: {', '.join(landed)}" if landed else "nothing has landed"
+    note = (
+        f"newest point in InfluxDB, from {', '.join(landed)}"
+        if landed else "nothing in the last 30 days"
+    )
     if missing:
         note += f" · nothing yet from {', '.join(missing)}"
-    return {"icon": "clock", "tone": tone, "label": "Data freshness",
+    return {"icon": "clock", "tone": tone, "label": "Newest data",
             "value": value, "unit": unit, "note": note, "note_icon": "info"}
 
 
@@ -296,6 +303,13 @@ async def overview(request: Request, period: str = DEFAULT_PERIOD, kind: str = D
             "measured_days": len(measured_days),
             "rows": rows,
             "tick_bar": tick_bar,
+            # The same banner the Jobs page shows. The lock part of the summary
+            # is already here; this only names it the way the component wants.
+            "lock": summary.lock if summary is not None else None,
+            "lock_text": holders.describe(
+                summary.lock if summary is not None else None,
+                tz=request.app.state.settings.tz,
+            ),
         },
     )
 

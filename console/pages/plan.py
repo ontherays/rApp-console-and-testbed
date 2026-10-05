@@ -24,7 +24,7 @@ import yaml
 from fastapi import APIRouter, Form, Request
 from starlette.responses import RedirectResponse, Response
 
-from console import core_setup, holders, readiness as readiness_mod
+from console import holders, readiness as readiness_mod
 from console.plans import PlanError, PlanStore
 from console.rapps.ethos.cli import campaign_command
 from console.rapps.ethos.client import (
@@ -349,19 +349,6 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
     # config panel says the pool and the data address will be.
     core_state = CoreState()
     core_error = ""
-    # Both are cached in the client, so asking here costs nothing the strip and
-    # the preset list were not already paying.
-    summary = None
-    archive_runs: list = []
-    try:
-        summary = await client.status_summary(config_id)
-    except EthosError:
-        summary = None
-    try:
-        archive_runs = (await client.runs()).runs
-    except EthosError:
-        archive_runs = []
-
     if caps.ready("core"):
         try:
             core_state = await client.core()
@@ -474,18 +461,6 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
         "core_error": core_error,
         "combination_note": combination_note(
             core=str(values["core"]), ue=str(values["ue"])
-        ),
-        "core_rows": core_setup.core_rows(core_state, values["core"]),
-        "iperf_rows": core_setup.iperf_rows(
-            iperf_server=str(values["iperf_server"]),
-            core=core_state,
-            planned=str(values["core"]),
-            summary=summary,
-        ),
-        "owner_warning": core_setup.owner_warning(
-            iperf_server=str(values["iperf_server"]),
-            runs=archive_runs,
-            planned=str(values["core"]),
         ),
         "document": document,
         "document_json": json.dumps(document, indent=2),

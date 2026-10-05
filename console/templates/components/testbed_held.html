@@ -1,0 +1,24 @@
+{# The testbed is busy, said the same way wherever it matters.
+
+   One component, three pages: Jobs (a second job cannot start), Overview (the
+   first place anybody looks) and the Test Plan (RUN will be refused). It used
+   to exist only on Jobs and on Testbed, so the Test Plan offered a RUN button
+   that could not work and said nothing about why. #}
+{% from "components/macros.html" import ic %}
+{% if lock and lock.held %}
+  <div class="banner {{ 'warn' if lock.is_cli else 'info' }}" style="margin-bottom:16px">
+    {{ ic('lock') }}
+    <span>
+      {# `lock_text` is holders.describe(), which already ends with the local
+         "since HH:MM". The tooltip carries the exact UTC instant so this time
+         reads the same way as every other one on the page. #}
+      The testbed is held by
+      <strong{% if lock.since %} title="{{ lock.since | isoutc }}"{% endif %}>{{ lock_text }}</strong>.
+      {% if lock.is_cli %}
+        A campaign is running from a shell, so a job cannot start until it finishes.
+      {% elif lock.is_job and lock.job_id %}
+        <a href="/jobs/{{ lock.job_id }}">Watch it</a>.
+      {% endif %}
+    </span>
+  </div>
+{% endif %}

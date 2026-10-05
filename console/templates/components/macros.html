@@ -54,7 +54,13 @@
 {% endmacro %}
 
 {% macro ago(iso) %}
-  {%- if iso -%}<time datetime="{{ iso }}" data-ago="1" title="{{ iso }} (UTC)">{{ iso }}</time>
+  {#- The relative age is written by JS (console.js replaces the text of any
+      time[data-ago]). What the SERVER renders is the fallback, and it used to
+      be the raw ISO string, so a page seen before the script ran, or with it
+      broken, showed "2026-10-05T00:53:49Z" where everything else showed a
+      local clock. The fallback is now the same local time the rest of the
+      page uses; the exact UTC instant stays in the tooltip. -#}
+  {%- if iso -%}<time datetime="{{ iso }}" data-ago="1" title="{{ iso | isoutc }}">{{ iso | localtime }}</time>
   {%- else -%}<span class="faint">{{ NOT_MEASURED }}</span>{%- endif -%}
 {% endmacro %}
 
@@ -189,4 +195,16 @@
     {% endfor %}
     </tbody>
   </table>
+{% endmacro %}
+
+{# One time, everywhere: the display zone on the face, the exact UTC instant in
+   the tooltip. Times used to be written three ways (a raw "08:24:17Z" on the
+   status strip, a local "16:27" in a banner), so two numbers on one screen
+   described the same moment and looked like different ones. #}
+{% macro when(value, prefix='') %}
+  {%- if value -%}
+    <span title="{{ value | isoutc }}">{{ prefix }}{{ value | clocktime }}</span>
+  {%- else -%}
+    <span class="faint">{{ NOT_MEASURED }}</span>
+  {%- endif -%}
 {% endmacro %}

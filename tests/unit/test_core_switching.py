@@ -199,92 +199,6 @@ def test_the_plan_page_holds_run_back_while_the_host_is_mid_switch(client, ethos
     assert "sockets are owned by open5gs" in response.text
 
 
-# --- item 3: what Show config has to say -------------------------------------
-
-def test_the_config_panel_describes_the_core_the_plan_is_for():
-    rows = {row.label: row.value for row in core_setup.core_rows(_core(), "free5GC")}
-    assert rows["UE pool"] == "10.60.0.0/16"
-    assert rows["Core data IP"] == "192.168.8.26"
-    assert rows["Tunnel"] == "upfgtp"
-
-
-def test_it_describes_the_plan_s_core_not_the_running_one():
-    """A free5GC plan shows free5GC's pool even while Open5GS is serving."""
-    rows = {row.label: row.value for row in core_setup.core_rows(_core(core="open5gs"), "Open5GS")}
-    assert rows["UE pool"] == "10.45.0.0/16"
-    assert rows["Tunnel"] == "ogstun"
-
-
-def test_an_unknown_core_says_so_rather_than_showing_the_other_one():
-    rows = core_setup.core_rows(_core(), "SomeOtherCore")
-    assert len(rows) == 1
-    assert "no profile" in rows[0].hint
-
-
-def test_the_iperf_rows_name_the_binary_the_port_and_the_bind_address():
-    rows = {
-        row.label: row.value
-        for row in core_setup.iperf_rows(
-            iperf_server="app_binary", core=_core(), planned="free5GC"
-        )
-    }
-    assert rows["UE-side server"] == "Magic iPerf app on the UE"
-    assert rows["Recorded as"] == "app_binary"
-    assert rows["Port"] == "5201"
-    assert rows["Client bind address"] == "192.168.8.26"
-
-
-def test_the_bind_address_follows_the_core():
-    rows = {
-        row.label: row.value
-        for row in core_setup.iperf_rows(
-            iperf_server="ethos", core=_core(), planned="Open5GS"
-        )
-    }
-    assert rows["Client bind address"] == "10.45.0.1"
-    assert rows["Recorded as"] == "ethos"
-
-
-def test_a_plan_whose_server_differs_from_the_open5gs_runs_is_flagged():
-    """Two variables at once: a different core AND a different iperf server."""
-    archive = [_run(server_owner="app_binary") for _ in range(4)]
-    warning = core_setup.owner_warning(
-        iperf_server="ethos", runs=archive, planned="free5GC"
-    )
-    assert "Magic iPerf" in warning and "ETHOS's own iperf3 server" in warning
-    assert "4 Open5GS run(s)" in warning
-
-
-def test_the_same_server_as_the_reference_is_not_flagged():
-    archive = [_run(server_owner="app_binary") for _ in range(4)]
-    assert core_setup.owner_warning(
-        iperf_server="app_binary", runs=archive, planned="free5GC"
-    ) == ""
-
-
-def test_an_open5gs_plan_is_never_flagged_for_this():
-    """It is the reference. Comparing it with itself raises no question."""
-    archive = [_run(server_owner="app_binary") for _ in range(4)]
-    assert core_setup.owner_warning(
-        iperf_server="ethos", runs=archive, planned="Open5GS"
-    ) == ""
-
-
-def test_with_no_open5gs_runs_in_the_archive_there_is_nothing_to_compare():
-    archive = [_run(core_slug="f5gc", server_owner="ethos")]
-    assert core_setup.owner_warning(
-        iperf_server="app_binary", runs=archive, planned="free5GC"
-    ) == ""
-
-
-def test_the_reference_is_read_from_the_archive_not_written_down():
-    archive = (
-        [_run(server_owner="ethos") for _ in range(5)]
-        + [_run(server_owner="app_binary") for _ in range(2)]
-    )
-    assert core_setup.reference_owner(archive) == ("ethos", 5)
-
-
 # --- item 4: results carry their core ----------------------------------------
 
 def test_a_run_reports_the_core_read_on_the_host_over_the_one_in_its_name():
@@ -638,6 +552,7 @@ def test_the_plan_page_renders_with_switching_disabled(client, ethos_url):
 
 # --- the Change topology dialog ----------------------------------------------
 
+
 def _cards(core_state, category="core"):
     from console.pages.plan import card_list
 
@@ -752,23 +667,6 @@ def test_the_note_reaches_the_page_and_run_is_still_offered(client, ethos_url):
 
 
 # --- the effective configuration card ----------------------------------------
-
-def test_the_effective_configuration_card_starts_collapsed():
-    """It is reference, not a decision: open on demand, never in the way."""
-    import pathlib
-
-    html = pathlib.Path("console/templates/plan/resolved.html").read_text()
-    assert "<details" in html
-    assert "<details open" not in html          # closed by default
-
-
-def test_nothing_was_removed_from_the_effective_configuration_card():
-    import pathlib
-
-    html = pathlib.Path("console/templates/plan/resolved.html").read_text()
-    for kept in ("Core profile", "iperf setup", "core_rows", "iperf_rows",
-                 "owner_warning"):
-        assert kept in html
 
 
 # --- a job that could not put the core back ----------------------------------

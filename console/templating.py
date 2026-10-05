@@ -48,6 +48,23 @@ def clocktime(value: Any, tz: str = "Asia/Taipei") -> str:
     return localtime(value, tz, "%H:%M")
 
 
+def isoutc(value: Any) -> str:
+    """The same instant as a full ISO-8601 UTC string, for a tooltip.
+
+    Every time on every page is shown in the display zone (GL-06); this is
+    the unambiguous original behind it, so nobody has to guess what a bare
+    "16:27" was in UTC when reading a log beside it.
+    """
+    if not value:
+        return ""
+    parsed = _parse_utc(str(value))
+    if parsed is None:
+        return str(value)
+    return parsed.astimezone(ZoneInfo("UTC")).isoformat(timespec="seconds").replace(
+        "+00:00", "Z"
+    )
+
+
 def filesize(num: Any) -> str:
     """Bytes as a person reads them. Presentation only: the value is ETHOS's.
 
@@ -92,6 +109,7 @@ def templates() -> Jinja2Templates:
         env = Jinja2Templates(directory=str(here))
         env.env.filters["localtime"] = localtime
         env.env.filters["clocktime"] = clocktime
+        env.env.filters["isoutc"] = isoutc
         env.env.filters["duration"] = duration
         env.env.filters["filesize"] = filesize
         env.env.globals["series_for"] = series_mod.series_for
