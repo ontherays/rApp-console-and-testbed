@@ -10,6 +10,19 @@
   </div>
 {% endif %}
 
+{# A core a dead campaign left on free5GC. A WARNING, not an action: the
+   console never switches a core, and whoever is reading this may be the
+   person using free5GC on purpose. The command is there to be read. #}
+{% if status.core_stale %}
+  <div class="banner warn" style="margin-top:12px">
+    <svg class="ic" aria-hidden="true"><use href="#icon-warning"/></svg>
+    <span>
+      {{ status.core_stale.reason }}. Nothing has been changed. To put it back,
+      run <code class="mono">{{ status.core_stale.remedy }}</code> on the core host.
+    </span>
+  </div>
+{% endif %}
+
 <div class="strip">
   {% for item in status.items %}
     <span class="item">

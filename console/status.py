@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from console import holders
 from console.capabilities import Capabilities
 from console.rapps.ethos.client import EthosClient, EthosError
-from console.rapps.ethos.models import StatusSummary
+from console.rapps.ethos.models import CoreStale, StatusSummary
 
 OK = "ok"
 WARN = "warn"
@@ -54,6 +54,10 @@ class Status:
     job_state: str | None = None
     """The latest job, so any page can raise the finished toast (RN-11) when a
     job the browser saw running has reached a terminal state."""
+    core_stale: CoreStale | None = None
+    """Set when ETHOS reports a core a dead campaign left behind. A banner on
+    every page, because the person who can fix it is whoever next opens one,
+    and the fix is a command on the core host rather than anything here."""
 
 
 def _now_text() -> str:
@@ -296,6 +300,7 @@ async def build_status(client: EthosClient, caps: Capabilities) -> Status:
         as_of=checked,
         job_id=summary.latest_job.job_id,
         job_state=summary.latest_job.state,
+        core_stale=summary.core.stale if summary.core.stale.is_stale else None,
         items=[
             ethos_item,
             _lock_item(summary, checked),

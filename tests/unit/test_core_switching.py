@@ -398,3 +398,102 @@ def test_the_strip_warns_rather_than_going_red_for_someone_else_s_campaign(fake)
     core = next(item for item in status.items if item.label == "Core")
     assert core.state == "warn"
     assert "no core-switch" in core.detail
+
+
+# --- a core left behind: warn, never act -------------------------------------
+
+def _stale(**overrides) -> CoreState:
+    base = {
+        "is_stale": True,
+        "reason": ("the core host is still on free5gc and no ETHOS job is running, "
+                   "so a campaign was interrupted before it could put open5gs back"),
+        "remedy": "sudo core-switch open5gs",
+    }
+    base.update(overrides)
+    return _core(core="free5gc", selected="free5gc", stale=base,
+                 health={"ok": True, "failing": [], "ngap_peers": [],
+                         "summary": "free5gc owns N2, N3 and N4"})
+
+
+def test_a_core_left_on_free5gc_is_reported_as_stale():
+    state = _stale()
+    assert state.stale.is_stale is True
+    assert state.stale.remedy == "sudo core-switch open5gs"
+
+
+def test_a_stale_core_does_not_block_a_run():
+    """It is a warning. The host is healthy, just on the wrong core, and the
+    campaign about to start will switch it anyway."""
+    assert _stale().blocker == ""
+
+
+def test_a_core_where_it_belongs_is_not_stale():
+    assert _core().stale.is_stale is False
+    assert _core().stale.reason == ""
+
+
+def test_the_console_offers_no_way_to_act_on_a_stale_core():
+    """The remedy is a command to read, not a button.
+
+    And it is rendered from ETHOS's own `remedy` field rather than written
+    into the template: the console does not hold its own idea of what fixes
+    the testbed.
+    """
+    import pathlib
+
+    banner = pathlib.Path("console/templates/components/status_strip.html").read_text()
+    assert "core_stale.remedy" in banner        # shown, from the endpoint
+    assert "core-switch" not in banner          # not the console's own words
+    assert "hx-post" not in banner              # never offered as an action
+
+
+def test_the_strip_raises_a_banner_for_a_stale_core(fake):
+    from console.capabilities import Capabilities
+    from console.status import build_status
+
+    recorded = fake._load("status_summary")
+    recorded["core"] = _stale().model_dump()
+    fake.answer("GET", "/status/summary", 200, recorded)
+
+    status = run_async(build_status(_client(fake), Capabilities()))
+    assert status.core_stale is not None
+    assert "sudo core-switch open5gs" in status.core_stale.remedy
+    assert "interrupted" in status.core_stale.reason
+
+
+def test_the_strip_raises_no_banner_when_the_core_is_fine(fake):
+    from console.capabilities import Capabilities
+    from console.status import build_status
+
+    status = run_async(build_status(_client(fake), Capabilities()))
+    assert status.core_stale is None
+
+
+def test_a_down_ethos_raises_no_stale_banner(fake):
+    """One unreachable thing should not produce two alarms about it."""
+    from console.capabilities import Capabilities
+    from console.status import build_status
+
+    fake.down = True
+    status = run_async(build_status(_client(fake), Capabilities()))
+    assert status.core_stale is None
+
+
+def test_the_banner_is_rendered_on_every_page_through_the_strip(client, ethos_url):
+    summary = ethos_url._load("status_summary")
+    summary["core"] = _stale().model_dump()
+    ethos_url.answer("GET", "/status/summary", 200, summary)
+
+    page = client.get("/partials/status")
+    assert page.status_code == 200
+    assert "sudo core-switch open5gs" in page.text
+    assert "interrupted" in page.text
+
+
+def test_the_page_says_plainly_that_nothing_was_changed(client, ethos_url):
+    summary = ethos_url._load("status_summary")
+    summary["core"] = _stale().model_dump()
+    ethos_url.answer("GET", "/status/summary", 200, summary)
+
+    text = client.get("/partials/status").text
+    assert "nothing has been changed" in text.lower()

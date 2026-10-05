@@ -169,6 +169,11 @@
       "amf_n2": "192.168.8.26:38412",
       "subscriber_db": "open5gs"
     },
+    "stale": {
+      "is_stale": false,
+      "reason": "",
+      "remedy": ""
+    },
     "error": null,
     "checked_at": "2026-09-29T01:30:48Z"
   }

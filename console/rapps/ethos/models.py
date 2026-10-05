@@ -745,6 +745,20 @@ class CoreActivity(Loose):
     reason: str = ""
 
 
+class CoreStale(Loose):
+    """A core a dead campaign left on the wrong side, as ETHOS reports it.
+
+    `remedy` is a command for a person to run. The console shows it and does
+    nothing with it: switching a core back from a web page would stop whatever
+    somebody is in the middle of, and the console does not act on the testbed
+    at all (SE-06).
+    """
+
+    is_stale: bool = False
+    reason: str = ""
+    remedy: str = ""
+
+
 class CoreState(Loose):
     """`GET /core` (B18): which core is running, and what that implies.
 
@@ -764,6 +778,7 @@ class CoreState(Loose):
     profile: CoreProfile | None = None
     profiles: dict[str, CoreProfile] = Field(default_factory=dict)
     activity: CoreActivity = Field(default_factory=CoreActivity)
+    stale: CoreStale = Field(default_factory=CoreStale)
     error: str | None = None
     checked_at: str | None = None
 
