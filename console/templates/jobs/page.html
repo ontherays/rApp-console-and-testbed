@@ -20,19 +20,7 @@
 
 {% block content %}
 
-{% if lock and lock.held %}
-  <div class="banner {{ 'warn' if lock.is_cli else 'info' }}" style="margin-bottom:16px">
-    {{ ic('lock') }}
-    <span>
-      The testbed is held by <strong>{{ lock_text }}</strong>.
-      {% if lock.is_cli %}
-        A campaign is running from a shell, so a job cannot start until it finishes.
-      {% elif lock.is_job and lock.job_id %}
-        <a href="/jobs/{{ lock.job_id }}">Watch it</a>.
-      {% endif %}
-    </span>
-  </div>
-{% endif %}
+{% include "components/testbed_held.html" %}
 
 {% if jobs_error %}
   <div class="banner bad" style="margin-bottom:16px">{{ ic('warning') }}{{ jobs_error }}</div>

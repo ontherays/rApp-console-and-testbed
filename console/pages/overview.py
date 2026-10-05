@@ -296,6 +296,13 @@ async def overview(request: Request, period: str = DEFAULT_PERIOD, kind: str = D
             "measured_days": len(measured_days),
             "rows": rows,
             "tick_bar": tick_bar,
+            # The same banner the Jobs page shows. The lock part of the summary
+            # is already here; this only names it the way the component wants.
+            "lock": summary.lock if summary is not None else None,
+            "lock_text": holders.describe(
+                summary.lock if summary is not None else None,
+                tz=request.app.state.settings.tz,
+            ),
         },
     )
 
