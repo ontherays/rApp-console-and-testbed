@@ -159,6 +159,42 @@ UNVERIFIED_COMBINATIONS: dict[tuple[str, str], str] = {
 }
 
 
+#: config_id field 5, as ETHOS spells each core. Used only to CHECK that the
+#: id ETHOS generated is the core the page is showing; the console never
+#: assembles a config_id from it.
+CORE_SLUGS: dict[str, str] = {"Open5GS": "o5gs", "free5GC": "f5gc"}
+
+
+def core_mismatch(values: dict[str, Any], config_id: str | None) -> str:
+    """"" when the plan document agrees with the page, else why it does not.
+
+    The last line of defence for the one error that cannot be seen afterwards:
+    a run measured on one core and recorded as the other. The page shows a
+    core, the config_id carries one, and RUN must not proceed unless they are
+    the same thing. Checked rather than corrected, because a console that
+    quietly rewrote the plan would be the same bug with better manners.
+
+    No config_id yet is not a mismatch: there is nothing to disagree with, and
+    the readiness gate already refuses a plan that has none.
+    """
+    if not config_id:
+        return ""
+    shown = str(values.get("core") or "")
+    slug = CORE_SLUGS.get(shown)
+    if slug is None:
+        return f"the page is showing a core ETHOS has no id for ({shown or 'none'})"
+    fields = str(config_id).split("_")
+    carried = fields[4] if len(fields) > 4 else ""
+    if carried == slug:
+        return ""
+    other = {v: k for k, v in CORE_SLUGS.items()}.get(carried, carried or "nothing")
+    return (
+        f"this plan says {shown} but the configuration ETHOS generated is for "
+        f"{other} ({config_id}). Nothing has been started. Reopen Change "
+        f"topology, set the core again, and let the plan re-resolve."
+    )
+
+
 def combination_note(*, core: str, ue: str) -> str:
     """A caution for this core and UE together, or "" when there is none."""
     return UNVERIFIED_COMBINATIONS.get((str(core or ""), str(ue or "")), "")
@@ -597,6 +633,18 @@ async def plan_run(request: Request):
     """
     values = await _values_from_request(request)
     context = await _build(request, values)
+    mismatch = core_mismatch(values, context.get("config_id"))
+    if mismatch:
+        return render(
+            request,
+            "plan/resolved.html",
+            {**context, "run_error": mismatch},
+            status_code=409,
+            headers={
+                "X-Console-Toast": mismatch,
+                "X-Console-Toast-Variant": "danger",
+            },
+        )
     if not context["can_run"]:
         return render(
             request,
@@ -654,6 +702,21 @@ async def plan_start(request: Request):
     token = str(form.get("preview_token") or "")
     values = await _values_from_request(request)
     context = await _build(request, values)
+
+    # Checked again here, not only at preview: this is the request that starts
+    # a campaign, and it is the last moment the two can still be compared.
+    mismatch = core_mismatch(values, context.get("config_id"))
+    if mismatch:
+        return render(
+            request,
+            "plan/resolved.html",
+            {**context, "run_error": mismatch},
+            status_code=409,
+            headers={
+                "X-Console-Toast": mismatch,
+                "X-Console-Toast-Variant": "danger",
+            },
+        )
 
     if not token:
         return render(

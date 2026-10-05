@@ -744,3 +744,117 @@ def test_the_command_comes_from_ethos_not_from_the_template():
     html = pathlib.Path("console/templates/jobs/snapshot.html").read_text()
     assert "core_restore_remedy" in html
     assert "sudo core-switch" not in html
+
+
+# --- the core must survive the dialog ----------------------------------------
+#
+# The bug: a preset card carried the core the page was rendered with, and
+# applying one wrote it back over a core chosen in the Custom tab. Presets are
+# the first tab and the obvious way to pick a topology, so free5GC "did not
+# stick" for anyone who used them.
+
+def test_a_preset_sets_the_topology_and_nothing_else():
+    """It is a gNB stack and a split. Everything else on the card is for the
+    diagram, and is frozen at the moment the drawer was rendered."""
+    import pathlib
+    import re
+
+    js = pathlib.Path("console/static/js/console.js").read_text()
+    body = js[js.index("function applyPreset"):]
+    body = body[:body.index("\n  }")]
+    fields = re.search(r"const fields = \{(.*?)\};", body, re.S).group(1)
+    assigned = set(re.findall(r"(\w+):", fields)) | set(
+        re.findall(r"fields\.(\w+) =", body)
+    )
+    assert assigned == {"gnb_stack", "split_kind", "cu_vendor", "du_vendor"}, assigned
+    for never in ("core", "ue", "ru", "l1_backend", "server"):
+        assert f"{never}: wanted." not in fields, f"a preset must not apply {never}"
+
+
+def test_the_preset_payload_still_carries_a_core_for_its_diagram():
+    """Removing it from the payload would blank the card. It is display only."""
+    from console.topology import build_presets
+
+    class NoProfiles:
+        available = False
+
+    presets = build_presets(NoProfiles(), {"ue": "Samsung", "ru": "Pegatron",
+                                           "l1_backend": "software-PHY",
+                                           "core": "free5GC", "server": "joule"}, [])
+    assert presets and presets[0].selection["core"] == "free5GC"
+
+
+# --- the guard ---------------------------------------------------------------
+
+def test_a_plan_whose_config_id_is_for_the_other_core_is_refused():
+    from console.pages.plan import core_mismatch
+
+    said = core_mismatch(
+        {"core": "free5GC"}, "ocudu-mono_swphy_pega_samsung_o5gs_joule"
+    )
+    assert said
+    assert "free5GC" in said and "Open5GS" in said
+    assert "Nothing has been started" in said
+
+
+def test_an_agreeing_plan_passes_the_guard():
+    from console.pages.plan import core_mismatch
+
+    assert core_mismatch(
+        {"core": "free5GC"}, "ocudu-mono_swphy_pega_samsung_f5gc_joule"
+    ) == ""
+    assert core_mismatch(
+        {"core": "Open5GS"}, "ocudu-mono_swphy_pega_samsung_o5gs_joule"
+    ) == ""
+
+
+def test_no_config_id_yet_is_not_a_mismatch():
+    from console.pages.plan import core_mismatch
+
+    assert core_mismatch({"core": "free5GC"}, None) == ""
+    assert core_mismatch({"core": "free5GC"}, "") == ""
+
+
+def test_a_core_ethos_has_no_id_for_is_refused_rather_than_guessed():
+    from console.pages.plan import core_mismatch
+
+    said = core_mismatch({"core": "Nokia5GC"}, "a_b_c_d_o5gs_f")
+    assert "no id for" in said
+
+
+def test_run_refuses_when_ethos_generated_an_id_for_the_other_core(client, ethos_url):
+    """The console must not preview, let alone start, a plan it cannot
+    describe honestly. Nothing is corrected: it stops and says so."""
+    ethos_url.answer("GET", "/core", 200, _core().model_dump())
+    ethos_url.answer("POST", "/testdef/generate", 200, {
+        "test_definition": {"config_id": "ocudu-mono_swphy_pega_samsung_o5gs_joule"},
+    })
+
+    form = {"core": "free5GC", "ue": "Samsung", "rates": "100", "direction": "DL",
+            "duration": "10s", "repeats": "1", "gnb_stack": "OCUDU",
+            "gnb_split": "monolithic", "l1_backend": "software-PHY",
+            "ru": "Pegatron", "server": "joule", "iperf_server": "app_binary"}
+
+    response = client.post("/plan/run", data=form)
+
+    assert response.status_code == 409
+    assert "free5GC" in response.text and "Open5GS" in response.text
+    assert "Nothing has been started" in response.text
+    assert ("POST", "/jobs/preview") not in ethos_url.calls
+
+
+def test_start_refuses_the_same_mismatch(client, ethos_url):
+    ethos_url.answer("GET", "/core", 200, _core().model_dump())
+    ethos_url.answer("POST", "/testdef/generate", 200, {
+        "test_definition": {"config_id": "ocudu-mono_swphy_pega_samsung_o5gs_joule"},
+    })
+
+    response = client.post("/plan/start", data={
+        "core": "free5GC", "ue": "Samsung", "rates": "100", "direction": "DL",
+        "duration": "10s", "repeats": "1", "gnb_stack": "OCUDU",
+        "gnb_split": "monolithic", "l1_backend": "software-PHY", "ru": "Pegatron",
+        "server": "joule", "iperf_server": "app_binary", "preview_token": "t",
+    })
+
+    assert response.status_code == 409
+    assert ("POST", "/jobs") not in ethos_url.calls
