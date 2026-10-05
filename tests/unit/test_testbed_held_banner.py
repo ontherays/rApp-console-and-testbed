@@ -49,22 +49,29 @@ def test_a_free_testbed_says_nothing(client, ethos_url, path):
     assert "The testbed is held by" not in client.get(path).text, path
 
 
+def _banner(html: str) -> str:
+    """Just the banner, to the end of its own div."""
+    start = html.index('<div class="banner', html.index("The testbed is held by") - 400)
+    return " ".join(html[start:html.index("</div>", start) + 6].split())
+
+
 def test_all_three_pages_render_the_same_component(client, ethos_url):
     """One wording, not three that drift apart."""
     _summary(ethos_url, HELD)
-    banners = []
-    for path in PAGES:
-        text = client.get(path).text
-        start = text.index("The testbed is held by")
-        banners.append(" ".join(text[start:start + 260].split()))
+    banners = [_banner(client.get(path).text) for path in PAGES]
     assert banners[0] == banners[1] == banners[2], banners
 
 
 def test_the_since_time_is_local_with_utc_in_the_tooltip(client, ethos_url):
+    """And said once: holders.describe already ends with "since HH:MM", so the
+    banner must not add a second one."""
     _summary(ethos_url, HELD)
     text = client.get("/").text
-    assert "14:30" in text                       # 06:30:29Z in Asia/Taipei
-    assert 'title="2026-10-05T06:30:29Z"' in text
+
+    banner = _banner(text)
+    assert "since 14:30" in banner               # 06:30:29Z in Asia/Taipei
+    assert banner.count("since 14:30") == 1      # holders.describe says it once
+    assert 'title="2026-10-05T06:30:29Z"' in banner
 
 
 def test_a_cli_holder_is_worded_as_a_warning_and_offers_no_link(client, ethos_url):
