@@ -21,9 +21,9 @@ import httpx
 # The endpoints that do not exist yet. A console that gates on capability must
 # see the real difference between "routed but 501" and "not routed at all".
 #
-# B1, B2, B5, B6 and B11 have landed, so the lock, jobs, readiness, the summary
-# and the UEs are answered below from recordings of the real API rather than
-# refused here.
+# B1, B2, B5, B6, B11 and B18 have landed, so the lock, jobs, readiness, the
+# summary, the UEs and the core host are answered below from recordings of the
+# real API rather than refused here.
 NOT_ROUTED = (
     "/catalogue",
     "/runs.csv",
@@ -353,7 +353,7 @@ class FakeEthos:
         )
 
     def _new_endpoints(self, request: httpx.Request, path: str) -> httpx.Response | None:
-        """B1, B2, B5, B6 and B11, from the recorded shapes.
+        """B1, B2, B5, B6, B11 and B18, from the recorded shapes.
 
         An act (starting a job, stopping one, a UE action) is refused with 409
         while `hold_lock` is in force, which is what ETHOS does and what the pages
@@ -371,6 +371,9 @@ class FakeEthos:
                     422, json={"detail": "config_id is required"}, request=request
                 )
             return httpx.Response(200, json=self._load("readiness"), request=request)
+
+        if path == "/core" and method == "GET":
+            return httpx.Response(200, json=self._load("core"), request=request)
 
         if path == "/status/summary" and method == "GET":
             return httpx.Response(200, json=self._load("status_summary"), request=request)

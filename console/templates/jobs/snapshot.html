@@ -92,12 +92,13 @@
   </header>
   <div class="table-wrap">
     <table class="data">
-      <thead><tr><th>step</th><th>state</th><th>detail</th><th>started</th><th>ended</th></tr></thead>
+      <thead><tr><th>step</th><th>state</th><th>took</th><th>detail</th><th>started</th><th>ended</th></tr></thead>
       <tbody>
       {% for step in job.steps %}
         <tr>
-          <td>{{ step.name }}</td>
+          <td>{{ step.label }}</td>
           <td>{{ chip(step.state, 'green' if step.state == 'done' else 'blue') }}</td>
+          <td class="nowrap tabular">{{ step.took }}</td>
           <td>{{ step.detail or '' }}</td>
           <td class="nowrap">{{ step.started | clocktime if step.started else NOT_MEASURED }}</td>
           <td class="nowrap">{{ step.ended | clocktime if step.ended else NOT_MEASURED }}</td>

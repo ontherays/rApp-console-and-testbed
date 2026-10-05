@@ -4,7 +4,7 @@ Repo: `~/ravi-ethos-rApp`. Companion to `01-requirements.md` and `02-design.md`.
 
 The console only presents. Everything that keeps the testbed safe or makes a
 result trustworthy is built here, in ETHOS, so the CLI gets the same behaviour.
-Each change is numbered B1–B15; the build plan schedules them.
+Each change is numbered B1 to B18; the build plan schedules them.
 
 ## Conventions for every new endpoint
 
@@ -273,3 +273,68 @@ regenerated from its own snapshot is NOT filtered: it reproduces an archived
 figure, and quarantining something today must not change what a figure drawn in
 September comes back as.
 
+
+## B18, The core host, read-only
+
+**Why.** Open5GS and free5GC share one machine (192.168.8.26) and take turns:
+`core-switch` stops one and starts the other, and only one owns N2, N3 and N4
+at a time. The console already offers the core as a selection, but it had no
+way to know which one was actually running, and the two are not
+interchangeable: they hand out UE addresses from different pools (10.45.0.0/16
+against 10.60.0.0/16), answer iperf on different addresses, and carry user
+traffic over different tunnel interfaces. A plan's configuration is not fully
+stated until it says which core it is for, and a result is not attributable
+until it says which core served it.
+
+The console cannot learn any of that itself. It holds no credential, runs no
+SSH and may never invoke `core-switch` (SE-06).
+
+**Behaviour.** `GET /core`, read-only. There is deliberately **no switch
+endpoint**: a core is switched by the campaign that needs it, before it
+deploys, and put back when that campaign ends (ETHOS design decision D3b). A
+second way to move it, driven from a LAN-facing web process while a sweep is
+mid-ladder, is what the design rules out.
+
+It returns:
+
+- `enabled`: whether this ETHOS may switch cores at all
+  (`ETHOS_CORE_SWITCH_ENABLED`). False is an answer, not a failure.
+- `core`, `selected`, `agrees`, `disagreement`: which core owns the sockets,
+  which one was last asked for, and a sentence when the two disagree. A split
+  is a half-finished switch, and no run may be measured during one.
+- `health`: `{ok, failing, ngap_peers, summary}`. Derived from the status dump
+  in one round trip, not from `core-switch health`, which retries for up to a
+  minute before giving up. `health_source` says which it was. `ok` is
+  three-valued: null means the host did not answer, which is not the same as a
+  host that answered badly.
+- `status`: the whole `core-switch status` dump, verbatim, for the console to
+  show and for a run manifest to keep.
+- `profile` and `profiles`: `ue_pool`, `core_data_ip`, `tunnel_iface`,
+  `amf_n2`, `subscriber_db`, per core. **Served even when the host cannot be
+  reached**: they are local data, and a down core host must not blank the
+  plan's configuration panel.
+- `activity`: `{checked, findings, reason}`, signs that somebody other than
+  ETHOS has been on the core host. `checked` false means nobody looked, which
+  the page shows as unknown rather than as all clear.
+- `error`: why the host could not be read, when it could not.
+
+`GET /status/summary` gains a `core` part with the same shape, cached with the
+other slow probes, so the status strip costs no extra call.
+
+**What the console does with it.** Shows the core, its health and its NGAP
+peers on the strip and on the Test Plan; holds RUN back while the host is
+half-switched or not serving, but **never** because the plan names the other
+core, since switching to it is the job's own first step; and puts the core
+profile and the iperf setup in the plan's Show config panel.
+
+**Still outstanding (a `core-switch` change on the core host, not an ETHOS
+one).** `activity` can only report what the host prints. Three optional keys
+would make it real: `core_started` (when the running core's AMF started),
+`last_switch` (the newest entry in `/var/log/core-switch.log`) and
+`foreign_procs` (campaign-shaped processes on the core host that are not
+ETHOS's). Until the host prints them, `checked` stays false and the console
+says so.
+
+**Runs.** Each run archives the `core-switch status` read before it, in the
+manifest's `core_switch`. A run with none carries the `core_unknown` quality
+flag and is shown as unknown, never as Open5GS.

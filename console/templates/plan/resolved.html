@@ -12,6 +12,7 @@
 {% if not initial %}
   {% with oob=True %}{% include "plan/vendors.html" %}{% endwith %}
   {% with oob=True %}{% include "plan/topology_summary.html" %}{% endwith %}
+  {% with oob=True %}{% include "plan/core.html" %}{% endwith %}
   {% with oob=True %}{% include "plan/readiness.html" %}{% endwith %}
   <span id="run-button" hx-swap-oob="true">{% include "plan/run_button.html" %}</span>
 {% endif %}
@@ -71,6 +72,64 @@
     The CLI writes the same run records this console reads, so its results appear
     under Results as each point finishes. It takes the same testbed lock as RUN,
     so the two refuse each other rather than colliding.
+  </p>
+</div>
+
+{# Item 3: the configuration a number depends on but the plan document does not
+   spell out. The core profile decides which addresses mean "attached" and
+   where iperf is served; the iperf setup decides which binary reports the
+   rate. Both differ between the two cores, so both belong here rather than in
+   somebody's memory of how the last sweep was run. #}
+<div class="card" style="margin-top:16px">
+  <header>
+    <span class="tile purple">{{ ic('core') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">Effective configuration</span>
+      <span class="card-sub">What this plan's core and traffic setup resolve to</span>
+    </span>
+  </header>
+
+  {% if owner_warning %}
+    <p class="hint" style="margin:0 0 10px">{{ ic('warning') }} {{ owner_warning }}</p>
+  {% endif %}
+
+  <div class="grid cols-2">
+    <div>
+      <span class="card-title" style="font-size:13px">Core profile</span>
+      <dl class="kv" style="margin-top:8px">
+        {% for row in core_rows %}
+          <dt>
+            {% if row.hint %}
+              <sl-tooltip hoist content="{{ row.hint }}">
+                <span class="faint" tabindex="0" style="cursor:help">{{ row.label }}</span>
+              </sl-tooltip>
+            {% else %}{{ row.label }}{% endif %}
+          </dt>
+          <dd class="mono">{{ row.shown }}</dd>
+        {% endfor %}
+      </dl>
+    </div>
+    <div>
+      <span class="card-title" style="font-size:13px">iperf setup</span>
+      <dl class="kv" style="margin-top:8px">
+        {% for row in iperf_rows %}
+          <dt>
+            {% if row.hint %}
+              <sl-tooltip hoist content="{{ row.hint }}">
+                <span class="faint" tabindex="0" style="cursor:help">{{ row.label }}</span>
+              </sl-tooltip>
+            {% else %}{{ row.label }}{% endif %}
+          </dt>
+          <dd class="mono">{{ row.shown }}</dd>
+        {% endfor %}
+      </dl>
+    </div>
+  </div>
+
+  <p class="hint">
+    The core profile is ETHOS's (GET /core); the iperf rows are this plan's own
+    choices. Each run records both, so a result can be read back without this
+    page.
   </p>
 </div>
 

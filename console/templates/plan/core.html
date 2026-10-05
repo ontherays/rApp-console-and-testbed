@@ -1,0 +1,90 @@
+{# The core host as ETHOS reports it (B18), above the readiness panel.
+
+   Read-only, deliberately. There is no switch button here: a core is switched
+   by the campaign that needs it and put back when that campaign ends, so one
+   thing moves it rather than two. See docs/03-ethos-backend-changes.md, B18.
+
+   The plan's core and the running core are different facts and are shown as
+   two rows, because they disagree in the ordinary case: a free5GC plan written
+   while the host runs Open5GS is exactly what RUN is for. #}
+{% from "components/macros.html" import dot, ic %}
+<div class="card" {% if oob %}hx-swap-oob="true" id="core-panel"{% endif %}>
+  <header>
+    <span class="tile {{ 'teal' if core_state.settled else 'slate' }}">{{ ic('core') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">5G core</span>
+      <span class="card-sub">
+        {% if core_state.enabled %}Open5GS and free5GC take turns on one host{%
+        else %}ETHOS does not switch cores on this testbed{% endif %}
+      </span>
+    </span>
+  </header>
+
+  {% if core_error %}
+    <p class="hint" style="margin:0">{{ ic('warning') }} {{ core_error }}</p>
+  {% elif not core_state.enabled %}
+    <p class="muted" style="margin:0">
+      Core switching is off, so every run uses whichever core the host is
+      already running and no run records which one that was.
+    </p>
+  {% else %}
+    <dl class="kv">
+      <dt>This plan</dt>
+      <dd>
+        {{ values.core }}
+        {% if core_state.core and values.core | lower != core_state.core %}
+          <span class="hint">ETHOS switches the host to it before the runs, and
+          back to Open5GS when they finish</span>
+        {% endif %}
+      </dd>
+
+      <dt>Running now</dt>
+      <dd>
+        {% if core_state.known %}
+          {{ core_state.profile.display if core_state.profile else core_state.core }}
+          {# `selected` carries the host's own `(default)` marker, so the
+             split is ETHOS's verdict rather than a string comparison here. #}
+          {% if core_state.disagreement %}
+            {{ dot('bad') }} selected {{ core_state.selected }}
+          {% endif %}
+        {% else %}
+          <span class="muted">{{ NOT_MEASURED }}</span>
+        {% endif %}
+      </dd>
+
+      <dt>Health</dt>
+      <dd>
+        {% if core_state.health.ok is none %}
+          {{ dot('unknown') }} <span class="muted">{{ NOT_MEASURED }}</span>
+        {% elif core_state.health.ok %}
+          {{ dot('ok') }} {{ core_state.health.summary }}
+        {% else %}
+          {{ dot('bad') }} {{ core_state.health.summary }}
+        {% endif %}
+      </dd>
+
+      <dt>NGAP peers</dt>
+      <dd class="mono">{{ core_state.health.peer_text }}</dd>
+    </dl>
+
+    {% if core_state.disagreement %}
+      <p class="hint" style="margin:10px 0 0">
+        {{ ic('warning') }} {{ core_state.disagreement }}. A run started now
+        could not be attributed to either core, so RUN is held back until the
+        switch finishes.
+      </p>
+    {% endif %}
+
+    {# Item 5: a warning, never a block. Somebody else working on the same
+       testbed is normal here; not knowing about it is what costs a sweep. #}
+    {% for finding in core_state.activity.findings %}
+      <p class="hint" style="margin:10px 0 0">{{ ic('info', 'faint') }} {{ finding }}</p>
+    {% endfor %}
+    {% if not core_state.activity.checked %}
+      <p class="hint" style="margin:10px 0 0">
+        {{ ic('info', 'faint') }} Other people's activity on the core host was
+        not checked: {{ core_state.activity.reason }}
+      </p>
+    {% endif %}
+  {% endif %}
+</div>

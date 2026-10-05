@@ -63,6 +63,17 @@
       </select>
     </div>
     <div class="field" style="margin:0">
+      <label for="core">Core</label>
+      <select id="core" name="core">
+        <option value="">any</option>
+        {% for value in facets.core %}
+          <option value="{{ value }}" {{ 'selected' if filters.core == value }}>
+            {{ 'Open5GS' if value == 'open5gs' else ('free5GC' if value == 'free5gc' else value) }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="margin:0">
       <label for="rate">Offered</label>
       <select id="rate" name="rate">
         <option value="">any</option>
@@ -143,6 +154,7 @@
           {{ sort_link('time', 'time') }}
           {{ sort_link('stack', 'topology') }}
           <th>dir</th>
+          <th>core</th>
           {{ sort_link('offered', 'offered', True) }}
           {{ sort_link('achieved', 'achieved', True) }}
           {{ sort_link('loss', 'loss %', True) }}
@@ -160,6 +172,18 @@
           <td class="nowrap">{{ ago(run.t_created) }}</td>
           <td>{{ stack_chip(run.config_id, series_for(run.config_id)) }}</td>
           <td>{{ run.direction or NOT_MEASURED }}</td>
+          {# The core is a fact about the run, not about the testbed: two of
+             them take turns on one host. `core_confirmed` false means it was
+             read off the config_id rather than off the host, which is what
+             was ASKED for, not what served it. #}
+          <td class="nowrap">
+            {% if run.core %}
+              <span title="{{ 'read on the host before this run' if run.core_confirmed
+                              else 'from the config_id; no core-switch status was archived' }}">
+                {{ run.core_label }}{% if not run.core_confirmed %}<span class="faint">?</span>{% endif %}
+              </span>
+            {% else %}<span class="faint">{{ NOT_MEASURED }}</span>{% endif %}
+          </td>
           <td class="num">{{ num(run.offered_mbps, 0) }}</td>
           <td class="num">{{ num(run.achieved_over_tx_mbps, 2) }}</td>
           <td class="num">{{ num(run.loss_pct, 2) }}</td>

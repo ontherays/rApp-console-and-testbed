@@ -1,8 +1,8 @@
 """What ETHOS can answer right now, and which backend change adds the rest.
 
 The lock, jobs, readiness, the status summary, standalone UE control, figures on
-request and job quarantine have landed (B1, B2, B5, B6, B9, B11, B16), and the
-pages that needed them are live. What is still outstanding is the catalogue (B4)
+request, job quarantine and the core host have landed (B1, B2, B5, B6, B9, B11,
+B16, B18), and the pages that needed them are live. What is still outstanding is the catalogue (B4)
 and server-side results queries (B10).
 
 The table stays even for a change that has landed, and that is deliberate. It is
@@ -103,6 +103,14 @@ FEATURES: tuple[Feature, ...] = (
         change="B17",
         what="publishing results to the durable archive and pushing them to GitHub",
         cli="python -m publication status",
+    ),
+    Feature(
+        key="core",
+        probe=("GET", "/core"),
+        change="B18",
+        what="which 5G core is running, its profile, and the core-switch state",
+        cli="sudo core-switch status, on the core host",
+        slow=True,
     ),
     Feature(
         key="runs_csv",

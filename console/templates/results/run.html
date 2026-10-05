@@ -74,7 +74,29 @@
           <dt>iperf server</dt><dd>
             {{ 'Magic iPerf app (app_binary)' if run.server_owner == 'app_binary' else (run.server_owner or DASH) }}
             {% if run.server_version %}<span class="muted mono">{{ run.server_version }}</span>{% endif %}</dd>
+          {# Which core served this run, as read on the host before it. Two of
+             them take turns on one machine, so this is provenance, not
+             decoration. No status archived means unknown, never Open5GS. #}
+          <dt>core</dt><dd>
+            {% if run.core %}
+              {{ run.core_label }}
+              {% if run.core_confirmed %}
+                <span class="muted">confirmed on the host</span>
+              {% else %}
+                <span class="muted">from the config_id; no core-switch status was archived</span>
+              {% endif %}
+            {% else %}<span class="muted">{{ NOT_MEASURED }}</span>{% endif %}</dd>
+          {% if run.core_peers %}
+            <dt>NGAP peers</dt><dd class="mono">{{ run.core_peers | join(', ') }}</dd>
+          {% endif %}
         </dl>
+
+        {% if run.core_switch %}
+          <details style="margin-top:10px">
+            <summary class="hint">core-switch status, as the host printed it</summary>
+            <pre class="cmd">{{ run.core_switch.text or NOT_MEASURED }}</pre>
+          </details>
+        {% endif %}
       </div>
       <div class="card span-6">
         <header><span class="card-title">Identity and timing</span></header>

@@ -78,5 +78,115 @@
     "uptime_s": 2595.6,
     "error": "",
     "checked_at": "2026-09-29T01:30:51Z"
+  },
+  "core": {
+    "enabled": true,
+    "profiles": {
+      "open5gs": {
+        "name": "open5gs",
+        "display": "Open5GS v2.7.7",
+        "status": "wired",
+        "switch_arg": "open5gs",
+        "host": "192.168.8.26",
+        "ue_pool": "10.45.0.0/16",
+        "core_data_ip": "10.45.0.1",
+        "tunnel_iface": "ogstun",
+        "amf_n2": "192.168.8.26:38412",
+        "subscriber_db": "open5gs"
+      },
+      "free5gc": {
+        "name": "free5gc",
+        "display": "free5GC v4.2.3-3-g68ffe2c",
+        "status": "wired",
+        "switch_arg": "free5gc",
+        "host": "192.168.8.26",
+        "ue_pool": "10.60.0.0/16",
+        "core_data_ip": "192.168.8.26",
+        "tunnel_iface": "upfgtp",
+        "amf_n2": "192.168.8.26:38412",
+        "subscriber_db": "free5gc"
+      }
+    },
+    "status": {
+      "core": "open5gs",
+      "selected": "open5gs",
+      "n2_38412_sctp": "open5gs:open5gs-amfd:907285",
+      "n3_2152_udp": "open5gs:open5gs-upfd:907348",
+      "n4_8805_udp": "open5gs:open5gs-upfd:907348",
+      "ngap_peers_established": "192.168.8.13:15880",
+      "ogstun": "UP,10.45.0.1/16",
+      "upfgtp": "absent",
+      "gtp5g_loaded": null,
+      "gtp5g_version": "0.10.2",
+      "kernel": "6.8.0-136-generic",
+      "timestamp": "2026-10-05T12:06:02+08:00",
+      "raw": {
+        "core": "open5gs",
+        "selected": "open5gs",
+        "n2_38412_sctp": "open5gs:open5gs-amfd:907285",
+        "n3_2152_udp": "open5gs:open5gs-upfd:907348",
+        "n4_8805_udp": "open5gs:open5gs-upfd:907348",
+        "ngap_peers_established": "192.168.8.13:15880",
+        "ogstun": "UP,10.45.0.1/16",
+        "upfgtp": "absent",
+        "gtp5g_loaded": "",
+        "gtp5g_version": "0.10.2",
+        "gtp5g_dkms": "gtp5g/0.10.2, 6.8.0-136-generic, x86_64: installed;gtp5g/0.10.2, 6.8.0-138-generic, x86_64: installed",
+        "kernel": "6.8.0-136-generic",
+        "nat_10_45_open5gs": "present",
+        "nat_10_60_free5gc": "absent",
+        "mangle_mss_ogstun": "present",
+        "mangle_mss_upfgtp": "absent",
+        "route_gnb": "192.168.204.50 via 192.168.8.35 dev ens1f3 src 192.168.8.26 uid 0",
+        "open5gs_version": "v2.7.7",
+        "free5gc_version": "v4.2.3-3-g68ffe2c",
+        "free5gc_units": "inactive/inactive",
+        "open5gs_procs": "nrf scp udr udm ausf pcf bsf nssf amf smf upf",
+        "ens1f3_ring": "rx=200,tx=511",
+        "irqbalance": "inactive",
+        "core_started": "2026-10-05T01:15:13+08:00",
+        "last_switch": "2026-10-05T01:15:15+08:00",
+        "foreign_procs": "",
+        "timestamp": "2026-10-05T12:06:02+08:00"
+      },
+      "text": "core=open5gs\nselected=open5gs\nn2_38412_sctp=open5gs:open5gs-amfd:907285\nn3_2152_udp=open5gs:open5gs-upfd:907348\nn4_8805_udp=open5gs:open5gs-upfd:907348\nngap_peers_established=192.168.8.13:15880\nogstun=UP,10.45.0.1/16\nupfgtp=absent\ngtp5g_loaded=\ngtp5g_version=0.10.2\ngtp5g_dkms=gtp5g/0.10.2, 6.8.0-136-generic, x86_64: installed;gtp5g/0.10.2, 6.8.0-138-generic, x86_64: installed\nkernel=6.8.0-136-generic\nnat_10_45_open5gs=present\nnat_10_60_free5gc=absent\nmangle_mss_ogstun=present\nmangle_mss_upfgtp=absent\nroute_gnb=192.168.204.50 via 192.168.8.35 dev ens1f3 src 192.168.8.26 uid 0 \nopen5gs_version=v2.7.7\nfree5gc_version=v4.2.3-3-g68ffe2c\nfree5gc_units=inactive/inactive\nopen5gs_procs=nrf scp udr udm ausf pcf bsf nssf amf smf upf\nens1f3_ring=rx=200,tx=511\nirqbalance=inactive\ncore_started=2026-10-05T01:15:13+08:00\nlast_switch=2026-10-05T01:15:15+08:00\nforeign_procs=\ntimestamp=2026-10-05T12:06:02+08:00"
+    },
+    "core": "open5gs",
+    "selected": "open5gs",
+    "agrees": true,
+    "disagreement": null,
+    "health": {
+      "ok": true,
+      "failing": [],
+      "ngap_peers": [
+        "192.168.8.13:15880"
+      ],
+      "summary": "open5gs owns N2, N3 and N4"
+    },
+    "health_source": "status",
+    "activity": {
+      "checked": true,
+      "findings": [],
+      "reason": ""
+    },
+    "profile": {
+      "name": "open5gs",
+      "display": "Open5GS v2.7.7",
+      "status": "wired",
+      "switch_arg": "open5gs",
+      "host": "192.168.8.26",
+      "ue_pool": "10.45.0.0/16",
+      "core_data_ip": "10.45.0.1",
+      "tunnel_iface": "ogstun",
+      "amf_n2": "192.168.8.26:38412",
+      "subscriber_db": "open5gs"
+    },
+    "stale": {
+      "is_stale": false,
+      "reason": "",
+      "remedy": ""
+    },
+    "error": null,
+    "checked_at": "2026-09-29T01:30:48Z"
   }
 }

@@ -24,7 +24,7 @@ import yaml
 from fastapi import APIRouter, Form, Request
 from starlette.responses import RedirectResponse, Response
 
-from console import holders, readiness as readiness_mod
+from console import core_setup, holders, readiness as readiness_mod
 from console.plans import PlanError, PlanStore
 from console.rapps.ethos.cli import campaign_command
 from console.rapps.ethos.client import (
@@ -32,6 +32,7 @@ from console.rapps.ethos.client import (
     EthosRefused,
     EthosStateChanged,
 )
+from console.rapps.ethos.models import CoreState
 from console.rapps.ethos.plan import TrafficPlan
 from console.rapps.ethos.profiles import OPTION_REASONS, load_profiles
 from console.topology import build_presets, diagram
@@ -293,6 +294,32 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
         except EthosError as exc:
             readiness_error = exc.message
 
+    # The core host, from ETHOS and only from ETHOS (SE-06). It decides two
+    # things on this page: whether RUN is offered at all, and what the Show
+    # config panel says the pool and the data address will be.
+    core_state = CoreState()
+    core_error = ""
+    # Both are cached in the client, so asking here costs nothing the strip and
+    # the preset list were not already paying.
+    summary = None
+    archive_runs: list = []
+    try:
+        summary = await client.status_summary(config_id)
+    except EthosError:
+        summary = None
+    try:
+        archive_runs = (await client.runs()).runs
+    except EthosError:
+        archive_runs = []
+
+    if caps.ready("core"):
+        try:
+            core_state = await client.core()
+        except EthosError as exc:
+            core_error = exc.message
+    else:
+        core_error = caps.why("core")
+
     if readiness is not None:
         checks = readiness_mod.rows(readiness, lock, tz=settings.tz)
     elif config_id is None:
@@ -318,6 +345,12 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
         run_reason = readiness_error or "readiness has not been judged for this plan"
     elif first_blocker is not None:
         run_reason = f"{first_blocker.label}: {first_blocker.reason}"
+    elif core_state.blocker:
+        # Not "the host is on the other core": ETHOS switches it as part of the
+        # job, and refusing that would refuse every free5GC run started from
+        # Open5GS. This is the host being unhealthy or half-switched, which is
+        # a state no run may be measured in whichever core it is for.
+        run_reason = f"Core: {core_state.blocker}"
     else:
         run_reason = ""
 
@@ -387,6 +420,20 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
         "can_run": can_run,
         "run_reason": run_reason,
         "run_ready": run_ready,
+        "core_state": core_state,
+        "core_error": core_error,
+        "core_rows": core_setup.core_rows(core_state, values["core"]),
+        "iperf_rows": core_setup.iperf_rows(
+            iperf_server=str(values["iperf_server"]),
+            core=core_state,
+            planned=str(values["core"]),
+            summary=summary,
+        ),
+        "owner_warning": core_setup.owner_warning(
+            iperf_server=str(values["iperf_server"]),
+            runs=archive_runs,
+            planned=str(values["core"]),
+        ),
         "document": document,
         "document_json": json.dumps(document, indent=2),
         "document_yaml": yaml.safe_dump(document, sort_keys=False, allow_unicode=True),

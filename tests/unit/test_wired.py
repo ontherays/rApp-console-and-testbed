@@ -160,7 +160,9 @@ def test_the_strip_reads_every_part_from_the_summary(fake):
 
     status = run_async(build_status(_client(fake), Capabilities()))
     labels = [item.label for item in status.items]
-    assert labels == ["ETHOS", "Lock", "Deployed", "Job", "UE", "iperf 5201", "Freshness"]
+    assert labels == [
+        "ETHOS", "Lock", "Deployed", "Job", "UE", "iperf 5201", "Core", "Freshness",
+    ]
     for item in status.items:
         assert item.checked_at
 

@@ -26,6 +26,7 @@ import httpx
 
 from console.rapps.ethos.models import (
     Catalogue,
+    CoreState,
     DeployStatus,
     EthosHealth,
     FigureResult,
@@ -394,6 +395,22 @@ class EthosClient:
             return StatusSummary.model_validate(body)
 
         return await self._cached(f"summary:{config_id or ''}", self.status_cache_s, fetch)
+
+    # --- the core host (B18) -------------------------------------------------
+
+    async def core(self) -> CoreState:
+        """Which core is running, its profile, and who else has been on the host.
+
+        Read-only, and the only way the console learns any of it: it holds no
+        credential, never SSHes and never runs core-switch (SE-06). Cached
+        with the other status reads because every page asks for it and a core
+        changes about once a sweep.
+        """
+
+        async def fetch() -> CoreState:
+            return CoreState.model_validate(await self.call("GET", "/core", slow=True))
+
+        return await self._cached("core", self.status_cache_s, fetch)
 
     # --- jobs (B2) -----------------------------------------------------------
 

@@ -48,6 +48,31 @@
   </div>
 {% endif %}
 
+{# Open5GS against free5GC is what core switching is for. It is also where two
+   variables are easiest to move at once, so the differences are named before
+   the table rather than left in the numbers. #}
+{% if cores is defined and cores.is_cross_core %}
+  <div class="banner {{ 'info' if cores.comparable else 'warn' }}">
+    <svg class="ic" aria-hidden="true"><use href="#icon-{{ 'check' if cores.comparable else 'warning' }}"/></svg>
+    <span>
+      {% for name in cores.cores %}
+        {{ 'Open5GS' if name == 'open5gs' else ('free5GC' if name == 'free5gc' else name) }}
+        ({{ cores.by_core[name] | length }} run(s)){% if not loop.last %} against {% endif %}
+      {% endfor %}.
+      {% if cores.comparable %}
+        Everything else that changes the number is the same on both sides.
+      {% else %}
+        {% if cores.differences %}{{ cores.differences | join('; ') }}.{% endif %}
+        {% if cores.unknown %}
+          {{ cores.unknown | length }} run(s) carry no confirmed core and are on
+          neither side: a run whose core was never read is not assumed to be
+          Open5GS.
+        {% endif %}
+      {% endif %}
+    </span>
+  </div>
+{% endif %}
+
 <div class="card flush">
   <div class="table-wrap">
   <table class="data">
