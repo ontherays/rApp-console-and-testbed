@@ -178,10 +178,14 @@ def test_the_strip_shows_the_core_and_its_peers(fake):
     from console.capabilities import Capabilities
     from console.status import build_status
 
+    # the peer comes from the recording, not from here: a gNB reconnects on a
+    # new ephemeral port every time, so pinning one would fail on a re-record
+    expected = fake._load("status_summary")["core"]["health"]["ngap_peers"]
     status = run_async(build_status(_client(fake), Capabilities()))
     core = next(item for item in status.items if item.label == "Core")
     assert core.state == "ok"
-    assert "192.168.8.13:16561" in core.detail
+    for peer in expected:
+        assert peer in core.detail
 
 
 def test_the_plan_page_holds_run_back_while_the_host_is_mid_switch(client, ethos_url):
