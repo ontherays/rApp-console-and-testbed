@@ -27,6 +27,10 @@ class Filters:
 
     config_id: str = ""
     direction: str = ""
+    #: Which 5G core served the run (RS-02, extended for core switching). Not
+    #: the same as picking a config_id: a core is comparable across topologies
+    #: and a config_id is not.
+    core: str = ""
     campaign_id: str = ""
     server_owner: str = ""
     band: str = ""
@@ -45,6 +49,7 @@ class Filters:
         for name in (
             "config_id",
             "direction",
+            "core",
             "campaign_id",
             "server_owner",
             "band",
@@ -81,6 +86,8 @@ def _matches(run: Run, filters: Filters) -> bool:
     if filters.config_id and run.config_id != filters.config_id:
         return False
     if filters.direction and (run.direction or "") != filters.direction:
+        return False
+    if filters.core and (run.core or "") != filters.core:
         return False
     if filters.campaign_id and (run.campaign_id or "") != filters.campaign_id:
         return False
@@ -184,6 +191,7 @@ def facets(runs: Iterable[Run]) -> dict[str, list[str]]:
     found: dict[str, set[str]] = {
         "config_id": set(),
         "direction": set(),
+        "core": set(),
         "campaign_id": set(),
         "server_owner": set(),
         "band": set(),
@@ -197,6 +205,8 @@ def facets(runs: Iterable[Run]) -> dict[str, list[str]]:
             found["config_id"].add(run.config_id)
         if run.direction:
             found["direction"].add(run.direction)
+        if run.core:
+            found["core"].add(run.core)
         if run.campaign_id:
             found["campaign_id"].add(run.campaign_id)
         if run.server_owner:
@@ -247,6 +257,8 @@ CSV_COLUMNS: tuple[str, ...] = (
     "rx_duration_s",
     "rx_tx_ratio",
     "server_owner",
+    "core",
+    "core_confirmed",
     "traffic_mode",
     "traffic_receiver_role",
     "band",

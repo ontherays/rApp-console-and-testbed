@@ -1,0 +1,92 @@
+{
+  "enabled": true,
+  "profiles": {
+    "open5gs": {
+      "name": "open5gs",
+      "display": "Open5GS v2.7.7",
+      "status": "wired",
+      "switch_arg": "open5gs",
+      "host": "192.168.8.26",
+      "ue_pool": "10.45.0.0/16",
+      "core_data_ip": "10.45.0.1",
+      "tunnel_iface": "ogstun",
+      "amf_n2": "192.168.8.26:38412",
+      "subscriber_db": "open5gs"
+    },
+    "free5gc": {
+      "name": "free5gc",
+      "display": "free5GC v4.2.3-3-g68ffe2c",
+      "status": "wired",
+      "switch_arg": "free5gc",
+      "host": "192.168.8.26",
+      "ue_pool": "10.60.0.0/16",
+      "core_data_ip": "192.168.8.26",
+      "tunnel_iface": "upfgtp",
+      "amf_n2": "192.168.8.26:38412",
+      "subscriber_db": "free5gc"
+    }
+  },
+  "status": {
+    "core": "open5gs",
+    "selected": "open5gs(default)",
+    "n2_38412_sctp": "open5gs:open5gs-amfd:891361",
+    "n3_2152_udp": "open5gs:open5gs-upfd:891424",
+    "n4_8805_udp": "open5gs:open5gs-upfd:891424",
+    "ngap_peers_established": "192.168.8.13:16561",
+    "ogstun": "UP,10.45.0.1/16",
+    "upfgtp": "absent",
+    "gtp5g_loaded": null,
+    "gtp5g_version": null,
+    "kernel": "6.8.0-138-generic",
+    "timestamp": "2026-10-05T09:12:03+08:00",
+    "raw": {
+      "core": "open5gs",
+      "selected": "open5gs(default)",
+      "n2_38412_sctp": "open5gs:open5gs-amfd:891361",
+      "n3_2152_udp": "open5gs:open5gs-upfd:891424",
+      "n4_8805_udp": "open5gs:open5gs-upfd:891424",
+      "ngap_peers_established": "192.168.8.13:16561",
+      "ogstun": "UP,10.45.0.1/16",
+      "upfgtp": "absent",
+      "gtp5g_loaded": "",
+      "nat_10_45_open5gs": "present",
+      "nat_10_60_free5gc": "absent",
+      "free5gc_units": "inactive/inactive",
+      "open5gs_procs": "open5gs-amfd open5gs-upfd open5gs-smfd",
+      "kernel": "6.8.0-138-generic",
+      "timestamp": "2026-10-05T09:12:03+08:00"
+    },
+    "text": "core=open5gs\nselected=open5gs(default)\nn2_38412_sctp=open5gs:open5gs-amfd:891361\nn3_2152_udp=open5gs:open5gs-upfd:891424\nn4_8805_udp=open5gs:open5gs-upfd:891424\nngap_peers_established=192.168.8.13:16561\nogstun=UP,10.45.0.1/16\nupfgtp=absent\ngtp5g_loaded=\nnat_10_45_open5gs=present\nnat_10_60_free5gc=absent\nfree5gc_units=inactive/inactive\nopen5gs_procs=open5gs-amfd open5gs-upfd open5gs-smfd\nkernel=6.8.0-138-generic\ntimestamp=2026-10-05T09:12:03+08:00"
+  },
+  "core": "open5gs",
+  "selected": "open5gs(default)",
+  "agrees": true,
+  "disagreement": null,
+  "health": {
+    "ok": true,
+    "failing": [],
+    "ngap_peers": [
+      "192.168.8.13:16561"
+    ],
+    "summary": "open5gs owns N2, N3 and N4"
+  },
+  "health_source": "status",
+  "activity": {
+    "checked": false,
+    "findings": [],
+    "reason": "this host's core-switch does not report last_switch, core_started or foreign_procs, so nobody else's activity was looked for"
+  },
+  "profile": {
+    "name": "open5gs",
+    "display": "Open5GS v2.7.7",
+    "status": "wired",
+    "switch_arg": "open5gs",
+    "host": "192.168.8.26",
+    "ue_pool": "10.45.0.0/16",
+    "core_data_ip": "10.45.0.1",
+    "tunnel_iface": "ogstun",
+    "amf_n2": "192.168.8.26:38412",
+    "subscriber_db": "open5gs"
+  },
+  "error": null
+}

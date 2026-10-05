@@ -17,6 +17,7 @@ from console.rapps.ethos.query import (
     select,
     sweep,
 )
+from console.core_setup import compare_cores
 from console.templating import render
 
 router = APIRouter()
@@ -29,6 +30,7 @@ def _filters(request: Request) -> Filters:
     return Filters(
         config_id=q.get("config_id", ""),
         direction=q.get("direction", ""),
+        core=q.get("core", ""),
         campaign_id=q.get("campaign_id", ""),
         server_owner=q.get("server_owner", ""),
         band=q.get("band", ""),
@@ -197,6 +199,7 @@ async def campaign_sweep(request: Request, campaign_id: str):
             "consistent": consistent,
             "cell_configs": configs,
             "plot_links": plot_links(runs),
+            "cores": compare_cores(runs),
             "error": error,
         },
     )

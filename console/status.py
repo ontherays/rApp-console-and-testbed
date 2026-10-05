@@ -1,7 +1,9 @@
 """The status strip, from ETHOS's own summary (B6).
 
 Requirements ST-01 asks for six indicators, and `GET /status/summary` answers all
-of them in one call. That matters more than saving a request: ETHOS gathers each
+of them in one call. A seventh was added with core switching (B18): two 5G cores
+take turns on one host, so which one is serving is not decoration, it decides
+whether a run may start at all. That matters more than saving a request: ETHOS gathers each
 part separately, so one failing probe never fails the response, and the console
 renders that same way. A part that carries an error shows the error against its
 own item and nothing else on the strip changes (ST-01).
@@ -176,6 +178,36 @@ def _iperf_item(summary: StatusSummary, checked: str) -> Item:
     )
 
 
+def _core_item(summary: StatusSummary, checked: str) -> Item:
+    """Which 5G core is serving, and whether it is settled.
+
+    Two cores take turns on one host, so this is not decoration: a run
+    measured while the host is half-switched is a number attributed to the
+    wrong core, and that is the one error the archive cannot repair later.
+    """
+    part = summary.core
+    at = _clock(part.checked_at, checked)
+    if not part.enabled:
+        return Item("Core", "not switched", OK, "ETHOS does not switch cores here", at)
+    if part.error:
+        return Item("Core", "unknown", UNKNOWN, part.error, at)
+    if not part.known:
+        return Item("Core", "unknown", UNKNOWN, "the host named no core", at)
+
+    name = (part.profile.display if part.profile else None) or part.core
+    if part.disagreement:
+        return Item("Core", f"{part.core}, mid-switch", BAD, part.disagreement, at)
+    if part.health.ok is False:
+        return Item("Core", f"{name}, not serving", BAD, part.health.summary, at)
+    if part.health.ok is None:
+        return Item("Core", name or "unknown", UNKNOWN, "health was not reported", at)
+
+    detail = f"{part.health.summary}; NGAP: {part.health.peer_text}"
+    if part.activity.findings:
+        return Item("Core", name or "", WARN, f"{detail}; {part.activity.findings[0]}", at)
+    return Item("Core", name or "", OK, detail, at)
+
+
 def _freshness_item(summary: StatusSummary, checked: str) -> Item:
     """The newest thing any data source has said.
 
@@ -236,7 +268,9 @@ async def build_status(client: EthosClient, caps: Capabilities) -> Status:
             items=[ethos_item]
             + [
                 Item(label, "unknown", UNKNOWN, ethos_detail, checked)
-                for label in ("Lock", "Deployed", "Job", "UE", "iperf 5201", "Freshness")
+                for label in (
+                    "Lock", "Deployed", "Job", "UE", "iperf 5201", "Core", "Freshness"
+                )
             ],
         )
 
@@ -250,7 +284,9 @@ async def build_status(client: EthosClient, caps: Capabilities) -> Status:
             items=[ethos_item]
             + [
                 Item(label, "unknown", UNKNOWN, exc.message, checked)
-                for label in ("Lock", "Deployed", "Job", "UE", "iperf 5201", "Freshness")
+                for label in (
+                    "Lock", "Deployed", "Job", "UE", "iperf 5201", "Core", "Freshness"
+                )
             ],
         )
 
@@ -267,6 +303,7 @@ async def build_status(client: EthosClient, caps: Capabilities) -> Status:
             _job_item(summary, checked),
             _ue_item(summary, checked),
             _iperf_item(summary, checked),
+            _core_item(summary, checked),
             _freshness_item(summary, checked),
         ],
     )

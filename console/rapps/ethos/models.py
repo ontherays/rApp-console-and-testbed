@@ -13,7 +13,7 @@ are both absences, and neither is a zero.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -249,6 +249,10 @@ class Run(Loose):
     rx_duration_s: float | None = None
     rx_tx_ratio: float | None = None
     server_owner: str | None = None
+    #: `core-switch status` as read on the host before this run, verbatim
+    #: (ETHOS B18). None means it was never read, and the run then carries the
+    #: `core_unknown` quality flag: it is NOT taken for Open5GS.
+    core_switch: dict[str, Any] | None = None
     server_version: str | None = None
     client_version: str | None = None
     traffic_mode: str | None = None
@@ -287,6 +291,41 @@ class Run(Loose):
         head ``oai-mixoaiocu`` starts with "oai" and was once filed as a pure-OAI
         run because of it."""
         return (self.config_id or "").split("_", 1)[0]
+
+    #: config_id field 5, in the core profiles' spelling.
+    CORE_BY_SLUG: ClassVar[dict[str, str]] = {"o5gs": "open5gs", "f5gc": "free5gc"}
+
+    @property
+    def core(self) -> str | None:
+        """Which 5G core served this run, or None if nothing says.
+
+        The archived `core_switch` wins: it was read on the host moments
+        before the run. The config_id is the fallback, one step weaker since
+        it records what was ASKED for. Neither present means None, and None is
+        shown as unknown, never as Open5GS: two cores take turns on one host,
+        and assuming the default is how a free5GC number ends up in an Open5GS
+        series.
+        """
+        archived = (self.core_switch or {}).get("core")
+        if archived:
+            return str(archived)
+        fields = (self.config_id or "").split("_")
+        return self.CORE_BY_SLUG.get(fields[4]) if len(fields) > 4 else None
+
+    @property
+    def core_confirmed(self) -> bool:
+        """Was the core read on the host for THIS run, rather than inferred?"""
+        return bool((self.core_switch or {}).get("core"))
+
+    @property
+    def core_label(self) -> str:
+        return {"open5gs": "Open5GS", "free5gc": "free5GC"}.get(self.core or "", "")
+
+    @property
+    def core_peers(self) -> list[str]:
+        """The gNBs attached to the core when this run was created."""
+        peers = ((self.core_switch or {}).get("ngap_peers_established") or "").split()
+        return peers
 
     @property
     def has_delivered(self) -> bool:
@@ -662,6 +701,117 @@ class ApiPart(SummaryPart):
     uptime_s: float | None = None
 
 
+class CoreHealth(Loose):
+    """Whether the core host is serving, and what says otherwise.
+
+    `ok` is three-valued. None means the host did not answer, which is not the
+    same as a host answering that it is broken, and the two must not render
+    the same way (GL-09).
+    """
+
+    ok: bool | None = None
+    failing: list[str] = Field(default_factory=list)
+    ngap_peers: list[str] = Field(default_factory=list)
+    summary: str = ""
+
+    @property
+    def peer_text(self) -> str:
+        return ", ".join(self.ngap_peers) if self.ngap_peers else "no gNB attached"
+
+
+class CoreProfile(Loose):
+    """What one core differs in: its pool, its data address, its tunnel."""
+
+    name: str = ""
+    display: str = ""
+    status: str = ""
+    host: str | None = None
+    ue_pool: str | None = None
+    core_data_ip: str | None = None
+    tunnel_iface: str | None = None
+    amf_n2: str | None = None
+    subscriber_db: str | None = None
+
+
+class CoreActivity(Loose):
+    """Signs somebody other than ETHOS has been on the core host.
+
+    `checked` False is the important state: it means nobody looked, which the
+    page must show as unknown rather than as all clear.
+    """
+
+    checked: bool = False
+    findings: list[str] = Field(default_factory=list)
+    reason: str = ""
+
+
+class CoreState(Loose):
+    """`GET /core` (B18): which core is running, and what that implies.
+
+    The console never runs core-switch and never reaches the core host. This
+    is the whole of what it knows, and the page shows nothing the endpoint did
+    not say.
+    """
+
+    enabled: bool = False
+    core: str | None = None
+    selected: str | None = None
+    agrees: bool | None = None
+    disagreement: str | None = None
+    health: CoreHealth = Field(default_factory=CoreHealth)
+    health_source: str | None = None
+    status: dict[str, Any] | None = None
+    profile: CoreProfile | None = None
+    profiles: dict[str, CoreProfile] = Field(default_factory=dict)
+    activity: CoreActivity = Field(default_factory=CoreActivity)
+    error: str | None = None
+    checked_at: str | None = None
+
+    @property
+    def known(self) -> bool:
+        """Did the host answer at all? A core of None is not Open5GS."""
+        return self.core is not None and self.error is None
+
+    @property
+    def settled(self) -> bool:
+        """Green and not mid-switch: the only state a run may start in.
+
+        `disagreement` is checked as well as `agrees`, so a host that reports
+        a split is never settled even if `agrees` somehow says otherwise. The
+        conservative reading is the right one: the cost of holding a run back
+        for a minute is nothing beside a run attributed to the wrong core.
+        """
+        return bool(
+            self.known and self.agrees and not self.disagreement and self.health.ok
+        )
+
+    @property
+    def blocker(self) -> str:
+        """Why a run must not start, or "" when it may.
+
+        Only the host's own condition, never which core the plan wants: a plan
+        for free5GC started while the host runs Open5GS is the ordinary case,
+        and ETHOS switches it as part of the job.
+        """
+        if not self.enabled:
+            return ""
+        if self.error:
+            return f"the core host could not be read: {self.error}"
+        if not self.known:
+            return "the core host did not say which core it is running"
+        if self.disagreement:
+            return self.disagreement
+        if self.health.ok is False:
+            return self.health.summary or "the core is not serving"
+        if self.health.ok is None:
+            return "the core host did not report its health"
+        return ""
+
+    def profile_for(self, name: str | None) -> CoreProfile | None:
+        """The profile of a core by name, for a plan that names one."""
+        return self.profiles.get(str(name or "").strip().lower())
+
+
 class StatusSummary(Loose):
     lock: LockPart = Field(default_factory=LockPart)
     deployed: DeployedPart = Field(default_factory=DeployedPart)
@@ -670,6 +820,7 @@ class StatusSummary(Loose):
     iperf_server: IperfPart = Field(default_factory=IperfPart)
     freshness: FreshnessPart = Field(default_factory=FreshnessPart)
     api: ApiPart = Field(default_factory=ApiPart)
+    core: CoreState = Field(default_factory=CoreState)
 
 
 class UeEntry(Loose):
