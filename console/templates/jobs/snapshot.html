@@ -52,6 +52,25 @@
   {% if job.error %}
     <div class="banner bad">{{ ic('warning') }}<span>{{ job.error }}</span></div>
   {% endif %}
+  {# The job succeeded and the testbed did not. These are different questions,
+     so this is its own banner and the loudest one: a `completed` job is the
+     last place anybody would look for a core left on the wrong side. The
+     command is ETHOS's `remedy`, never written out here. #}
+  {% if job.core_restore_failed %}
+    <div class="banner bad">
+      {{ ic('warning') }}
+      <span>
+        <strong>The 5G core was not switched back.</strong>
+        This job's measurements are unaffected and it is recorded as
+        {{ job.state }}, but the shared core host is still running the core
+        this job used. Until it is put back, nothing else on the testbed has
+        the core it expects.
+        <br>
+        Run <code class="mono">{{ job.core_restore_remedy }}</code> on the core host.
+        <span class="faint">ETHOS reported: {{ job.core_restore_error }}</span>
+      </span>
+    </div>
+  {% endif %}
   {% if job.deployed_at_interrupt %}
     <div class="banner warn">
       {{ ic('warning') }}

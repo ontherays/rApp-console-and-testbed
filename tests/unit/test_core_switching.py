@@ -769,3 +769,80 @@ def test_nothing_was_removed_from_the_effective_configuration_card():
     for kept in ("Core profile", "iperf setup", "core_rows", "iperf_rows",
                  "owner_warning"):
         assert kept in html
+
+
+# --- a job that could not put the core back ----------------------------------
+
+def _job(**overrides) -> dict:
+    body = {
+        "job_id": "j-restore01", "state": "completed", "source": "api", "plan": {},
+        "config_id": "ocudu-mono_swphy_pega_samsung_f5gc_joule",
+        "steps": [], "points": [], "run_ids": [],
+        "outcome": "the sweep finished and the testbed was restored",
+        "core_restore_error": "", "core_restore_remedy": "",
+    }
+    body.update(overrides)
+    return body
+
+
+FAILED_RESTORE = {
+    "core_restore_error": "ssh: connection reset by peer",
+    "core_restore_remedy": "sudo core-switch open5gs",
+}
+
+
+def test_the_job_model_carries_a_failed_restore():
+    from console.rapps.ethos.models import Job
+
+    job = Job.model_validate(_job(**FAILED_RESTORE))
+    assert job.core_restore_failed is True
+    assert job.core_restore_remedy == "sudo core-switch open5gs"
+
+
+def test_a_job_whose_restore_worked_reports_nothing():
+    from console.rapps.ethos.models import Job
+
+    assert Job.model_validate(_job()).core_restore_failed is False
+
+
+def test_an_older_job_without_the_fields_reports_nothing():
+    from console.rapps.ethos.models import Job
+
+    body = _job()
+    del body["core_restore_error"], body["core_restore_remedy"]
+    assert Job.model_validate(body).core_restore_failed is False
+
+
+def test_the_job_page_warns_prominently_and_names_the_command(client, ethos_url):
+    ethos_url.answer("GET", "/jobs/j-restore01", 200, _job(**FAILED_RESTORE))
+
+    page = client.get("/jobs/j-restore01")
+    assert page.status_code == 200
+    assert "sudo core-switch open5gs" in page.text
+    assert "connection reset by peer" in page.text
+    assert "banner bad" in page.text          # the loudest banner the page has
+
+
+def test_the_job_still_reads_as_completed(client, ethos_url):
+    """The measurements stand. It is the testbed that needs attention."""
+    ethos_url.answer("GET", "/jobs/j-restore01", 200, _job(**FAILED_RESTORE))
+
+    page = client.get("/jobs/j-restore01")
+    assert "completed" in page.text
+    assert "failed</" not in page.text.replace("FAILED", "")
+
+
+def test_a_healthy_job_page_shows_no_such_banner(client, ethos_url):
+    ethos_url.answer("GET", "/jobs/j-restore01", 200, _job())
+
+    page = client.get("/jobs/j-restore01")
+    assert "core-switch open5gs" not in page.text
+
+
+def test_the_command_comes_from_ethos_not_from_the_template():
+    """The console holds no idea of its own about what fixes the testbed."""
+    import pathlib
+
+    html = pathlib.Path("console/templates/jobs/snapshot.html").read_text()
+    assert "core_restore_remedy" in html
+    assert "sudo core-switch" not in html
