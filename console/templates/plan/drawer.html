@@ -64,5 +64,11 @@
     </sl-tab-panel>
   </sl-tab-group>
 
-  <button class="btn primary" slot="footer" data-drawer-close="topology-drawer">Done</button>
+  {# type="button" is load-bearing: this sits inside #plan-form, and a button
+     with no type is a SUBMIT button. Clicking Done navigated to
+     /plan?...&core=free5GC..., which ignores the query string and re-renders
+     the defaults, so every choice made in the dialog was discarded at the
+     moment the operator confirmed it. #}
+  <button type="button" class="btn primary" slot="footer"
+          data-drawer-close="topology-drawer">Done</button>
 </sl-drawer>

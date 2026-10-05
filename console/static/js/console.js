@@ -126,8 +126,17 @@
     if (preset) applyPreset(preset.dataset.preset);
   });
 
-  // A preset sets the form's own fields and lets the form ask ETHOS, exactly as
-  // picking each component by hand would. It decides nothing itself.
+  // A preset is a TOPOLOGY: a gNB stack and a split, which is all
+  // PRESET_SELECTIONS defines. It sets those fields and lets the form ask
+  // ETHOS, exactly as picking them by hand would. It decides nothing itself.
+  //
+  // It must NOT touch the core, the UE, the RU, the L1 backend or the server.
+  // Those travel on the preset only so its card can draw a diagram, and they
+  // are frozen at the moment the drawer was rendered: the drawer is not
+  // re-rendered on change, so every card still carries the values the page
+  // loaded with. Applying them silently undid a core chosen in the Custom tab
+  // (free5GC back to Open5GS), which is how a run gets measured on one core
+  // and labelled the other.
   function applyPreset(raw) {
     let wanted;
     try {
@@ -141,11 +150,6 @@
     const fields = {
       gnb_stack: wanted.gnb_stack,
       split_kind: wanted.gnb_split === "monolithic" ? "monolithic" : "CU+DU",
-      ue: wanted.ue,
-      ru: wanted.ru,
-      l1_backend: wanted.l1_backend,
-      core: wanted.core,
-      server: wanted.server,
     };
     if (wanted.gnb_split === "OCUDU-CU+OAI-DU") {
       fields.cu_vendor = "OCUDU";
