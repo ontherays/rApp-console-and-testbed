@@ -42,11 +42,11 @@ def _core(**overrides) -> CoreState:
         "health": {"ok": True, "failing": [], "ngap_peers": ["192.168.8.13:16561"],
                    "summary": "open5gs owns N2, N3 and N4"},
         "profiles": {
-            "open5gs": {"name": "open5gs", "display": "Open5GS v2.7.7",
+            "open5gs": {"name": "open5gs", "display": "Open5GS v2.7.7", "status": "wired",
                         "ue_pool": "10.45.0.0/16", "core_data_ip": "10.45.0.1",
                         "tunnel_iface": "ogstun", "amf_n2": "192.168.8.26:38412",
                         "subscriber_db": "open5gs"},
-            "free5gc": {"name": "free5gc", "display": "free5GC v4.2.3",
+            "free5gc": {"name": "free5gc", "display": "free5GC v4.2.3", "status": "wired",
                         "ue_pool": "10.60.0.0/16", "core_data_ip": "192.168.8.26",
                         "tunnel_iface": "upfgtp", "amf_n2": "192.168.8.26:38412",
                         "subscriber_db": "free5gc"},
@@ -634,3 +634,138 @@ def test_the_plan_page_renders_with_switching_disabled(client, ethos_url):
     page = client.get("/plan")
     assert page.status_code == 200
     assert "ETHOS does not switch cores" in page.text
+
+
+# --- the Change topology dialog ----------------------------------------------
+
+def _cards(core_state, category="core"):
+    from console.pages.plan import card_list
+
+    class Option:
+        def __init__(self, value, display):
+            self.id = value
+            self.slug = value
+            self.display = display
+            self.status = "supported"
+
+    class Catalogue:
+        def category(self, name):
+            return {
+                "core": [Option("Open5GS", "Open5GS"), Option("free5GC", "free5GC")],
+                "ue": [Option("Samsung", "Samsung"), Option("MTK", "MTK"),
+                       Option("TM500", "TM500")],
+            }.get(name, [])
+
+    return {c[0]: c for c in card_list(Catalogue(), category, core_state=core_state)}
+
+
+def _reason(cards, value):
+    return cards[value][2]
+
+
+def _blurb(cards, value):
+    return cards[value][3]
+
+
+def test_free5gc_is_selectable_once_ethos_can_switch_and_the_profile_is_wired():
+    cards = _cards(_core())
+    assert _reason(cards, "free5GC") == ""          # no reason means not disabled
+
+
+def test_the_free5gc_card_says_what_selecting_it_costs():
+    cards = _cards(_core())
+    assert _blurb(cards, "free5GC") == (
+        "Stops Open5GS on the shared hpe for this job and restores it afterwards."
+    )
+    assert "Not verified" not in _blurb(cards, "free5GC")
+
+
+def test_free5gc_stays_disabled_while_switching_is_off():
+    """Selecting it would label runs free5GC and measure Open5GS."""
+    cards = _cards(CoreState())                      # enabled false
+    reason = _reason(cards, "free5GC")
+    assert reason
+    assert "ETHOS_CORE_SWITCH_ENABLED" in reason
+
+
+def test_free5gc_stays_disabled_when_its_profile_is_not_wired():
+    state = _core()
+    state.profiles["free5gc"].status = "todo"
+    cards = _cards(state)
+    assert "wired" in _reason(cards, "free5GC")
+
+
+def test_free5gc_is_disabled_when_the_core_host_could_not_be_read():
+    """Unknown is not permission: ETHOS may not be able to switch at all."""
+    cards = _cards(_core(error="ssh: no route to host"))
+    assert _reason(cards, "free5GC")
+
+
+def test_open5gs_is_never_disabled_whatever_the_core_state():
+    for state in (_core(), CoreState(), _core(error="down")):
+        assert _reason(_cards(state), "Open5GS") == ""
+
+
+def test_the_dialog_preselects_open5gs_for_a_new_plan():
+    from console.pages.plan import DEFAULTS
+
+    assert DEFAULTS["core"] == "Open5GS"
+
+
+# --- no combination is blocked by the core -----------------------------------
+
+@pytest.mark.parametrize("ue", ["Samsung", "MTK"])
+def test_both_handsets_stay_selectable_whichever_core_is_chosen(ue):
+    """The catalogue has no ue x core rule, and the console must not invent one."""
+    for state in (_core(), _core(core="free5gc")):
+        assert _reason(_cards(state, "ue"), ue) == ""
+
+
+def test_the_unverified_mtk_combination_is_a_note_not_a_block():
+    from console.pages.plan import combination_note
+
+    note = combination_note(core="free5GC", ue="MTK")
+    assert note == "MTK attach not yet verified on free5GC"
+
+
+@pytest.mark.parametrize(
+    "core, ue",
+    [("Open5GS", "MTK"), ("Open5GS", "Samsung"), ("free5GC", "Samsung")],
+)
+def test_the_verified_combinations_carry_no_note(core, ue):
+    from console.pages.plan import combination_note
+
+    assert combination_note(core=core, ue=ue) == ""
+
+
+def test_the_note_reaches_the_page_and_run_is_still_offered(client, ethos_url):
+    ethos_url.answer("GET", "/core", 200, _core().model_dump())
+    page = client.post(
+        "/plan/resolve",
+        data={"core": "free5GC", "ue": "MTK", "rates": "100", "direction": "DL",
+              "duration": "10s", "repeats": "1", "gnb_stack": "OCUDU",
+              "gnb_split": "monolithic", "l1_backend": "software-PHY",
+              "ru": "Pegatron", "server": "joule", "iperf_server": "app_binary"},
+    )
+    assert page.status_code == 200
+    assert "MTK attach not yet verified on free5GC" in page.text
+
+
+# --- the effective configuration card ----------------------------------------
+
+def test_the_effective_configuration_card_starts_collapsed():
+    """It is reference, not a decision: open on demand, never in the way."""
+    import pathlib
+
+    html = pathlib.Path("console/templates/plan/resolved.html").read_text()
+    assert "<details" in html
+    assert "<details open" not in html          # closed by default
+
+
+def test_nothing_was_removed_from_the_effective_configuration_card():
+    import pathlib
+
+    html = pathlib.Path("console/templates/plan/resolved.html").read_text()
+    for kept in ("Core profile", "iperf setup", "core_rows", "iperf_rows",
+                 "owner_warning"):
+        assert kept in html

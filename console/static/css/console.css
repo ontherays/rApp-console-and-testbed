@@ -813,3 +813,14 @@ article .table-wrap { margin: var(--s4) 0; border: 1px solid var(--line);
   .statgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stat .v { font-size: 22px; }
 }
+
+/* The Effective configuration card's header doubles as its disclosure control,
+   so the card looks the same open or closed and the whole row is the target. */
+.card-head-summary { display: flex; align-items: center; gap: var(--s3);
+  cursor: pointer; list-style: none; }
+.card-head-summary::-webkit-details-marker { display: none; }
+.card-head-summary::after { content: ""; margin-left: auto; width: 8px; height: 8px;
+  border-right: 2px solid var(--faint); border-bottom: 2px solid var(--faint);
+  transform: rotate(45deg); transition: transform .15s ease; flex: none; }
+details[open] > .card-head-summary::after { transform: rotate(-135deg); }
+.card-head-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

@@ -81,13 +81,20 @@
    rate. Both differ between the two cores, so both belong here rather than in
    somebody's memory of how the last sweep was run. #}
 <div class="card" style="margin-top:16px">
-  <header>
-    <span class="tile purple">{{ ic('core') }}</span>
-    <span style="min-width:0">
-      <span class="card-title">Effective configuration</span>
-      <span class="card-sub">What this plan's core and traffic setup resolve to</span>
-    </span>
-  </header>
+  {# Collapsed by default: this is reference an operator opens when a number
+     looks wrong, not a decision on the way to RUN. Nothing is removed by
+     closing it, and the summary line names what is inside. #}
+  <details>
+    <summary class="card-head-summary">
+      <span class="tile purple">{{ ic('core') }}</span>
+      <span style="min-width:0">
+        <span class="card-title">Effective configuration</span>
+        <span class="card-sub">
+          The core profile and iperf setup this plan resolves to{% if owner_warning %},
+          and one caution{% endif %}
+        </span>
+      </span>
+    </summary>
 
   {% if owner_warning %}
     <p class="hint" style="margin:0 0 10px">{{ ic('warning') }} {{ owner_warning }}</p>
@@ -131,6 +138,7 @@
     choices. Each run records both, so a result can be read back without this
     page.
   </p>
+  </details>
 </div>
 
 <div class="card" style="margin-top:16px">
