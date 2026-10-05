@@ -582,6 +582,21 @@ class Job(Loose):
     error: str = ""
     stop_requested: bool = False
     deployed_at_interrupt: dict[str, Any] | None = None
+    #: Why the switch back to Open5GS failed, when it did, and the command
+    #: that puts it right. Both from ETHOS; the console holds no idea of its
+    #: own about what fixes the testbed.
+    core_restore_error: str = ""
+    core_restore_remedy: str = ""
+
+    @property
+    def core_restore_failed(self) -> bool:
+        """Did this job leave the shared core on the wrong side?
+
+        A job can be `completed` and still have done this: the measurements
+        are unaffected, the testbed is not, and the two are different
+        questions. The page asks this one separately for that reason.
+        """
+        return bool(self.core_restore_error)
 
     @property
     def finished(self) -> bool:
