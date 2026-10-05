@@ -74,7 +74,9 @@ BLURBS: dict[tuple[str, str], str] = {
     ("ue", "Pegatron-Dongle"): "USB dongle UE, driven over SSH",
     ("ue", "TM500"): "UE emulated by the VIAVI instrument",
     ("core", "Open5GS"): "The core the testbed normally runs",
-    ("core", "free5GC"): "An alternative 5G core",
+    ("core", "free5GC"): (
+        "Stops Open5GS on the shared hpe for this job and restores it afterwards."
+    ),
     ("server", "joule"): "StarlingX worker, DU on socket 1",
     ("server", "DGX-Spark"): "GB10 ARM host for Aerial",
 }
@@ -105,7 +107,9 @@ def topology_label(selection: dict[str, Any]) -> str:
     return f"{stack} {split}"
 
 
-def card_list(catalogue, category: str) -> list[tuple[str, str, str, str, object]]:
+def card_list(
+    catalogue, category: str, core_state: CoreState | None = None
+) -> list[tuple[str, str, str, str, object]]:
     """(value, label, reason, blurb, vendor mark) for the picker's cards."""
     return [
         (
@@ -115,11 +119,54 @@ def card_list(catalogue, category: str) -> list[tuple[str, str, str, str, object
             BLURBS.get((category, value), ""),
             mark_for(category, value),
         )
-        for value, label, reason in option_list(catalogue, category)
+        for value, label, reason in option_list(catalogue, category, core_state)
     ]
 
 
-def option_list(catalogue, category: str) -> list[tuple[str, str, str]]:
+def core_reason(core_state: CoreState | None) -> str:
+    """Why free5GC cannot be picked right now, or "" when it can.
+
+    Not a fixed table: whether the testbed can run free5GC is a live fact
+    about ETHOS and the core host, and `GET /core` is the only thing that
+    knows it. Two conditions, both necessary: ETHOS is allowed to switch, and
+    the profile is wired rather than a placeholder.
+
+    A core host that could not be read is a refusal, not a permission:
+    selecting free5GC would then label runs free5GC and measure whatever is
+    actually running.
+    """
+    if core_state is None or not core_state.enabled:
+        return (
+            "ETHOS is not allowed to switch cores here "
+            "(ETHOS_CORE_SWITCH_ENABLED is off), so only Open5GS can run."
+        )
+    if core_state.error:
+        return f"the core host could not be read: {core_state.error}"
+    profile = core_state.profile_for("free5gc")
+    if profile is None or profile.status != "wired":
+        return (
+            "ETHOS has no wired free5GC profile "
+            f"(status {getattr(profile, 'status', None) or 'unknown'})."
+        )
+    return ""
+
+
+#: Combinations that run but have not been proven end to end. A NOTE, never a
+#: block: nothing in the catalogue ties a handset to a core, and inventing a
+#: rule here would refuse a test somebody needs in order to remove the note.
+UNVERIFIED_COMBINATIONS: dict[tuple[str, str], str] = {
+    ("free5GC", "MTK"): "MTK attach not yet verified on free5GC",
+}
+
+
+def combination_note(*, core: str, ue: str) -> str:
+    """A caution for this core and UE together, or "" when there is none."""
+    return UNVERIFIED_COMBINATIONS.get((str(core or ""), str(ue or "")), "")
+
+
+def option_list(
+    catalogue, category: str, core_state: CoreState | None = None
+) -> list[tuple[str, str, str]]:
     """(value, label, reason-it-is-disabled) for one catalogue category.
 
     The label is always what is shown (GL-05). A reason comes from
@@ -133,6 +180,9 @@ def option_list(catalogue, category: str) -> list[tuple[str, str, str]]:
     for option in catalogue.category(category):
         value = option.id or option.slug or ""
         reason = OPTION_REASONS.get((category, value), "")
+        if (category, value) == ("core", "free5GC"):
+            # Live, from GET /core, rather than the B4 stand-in's fixed prose.
+            reason = core_reason(core_state)
         if not reason and (option.status or "") == "experimental":
             reason = ""  # experimental is selectable; it is a warning, not a block
         out.append((value, option.display, reason))
@@ -387,12 +437,12 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
         "catalogue": catalogue,
         "catalogue_error": catalogue_error,
         "options": {
-            category: option_list(catalogue, category)
+            category: option_list(catalogue, category, core_state)
             for category in ("gnb_stack", "l1_backend", "ru", "ue", "core", "server")
         },
         "cards": {
             **{
-                category: card_list(catalogue, category)
+                category: card_list(catalogue, category, core_state)
                 for category in ("gnb_stack", "l1_backend", "ru", "ue", "core", "server")
             },
             "split": list(SPLIT_CARDS_WITH_MARK),
@@ -422,6 +472,9 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
         "run_ready": run_ready,
         "core_state": core_state,
         "core_error": core_error,
+        "combination_note": combination_note(
+            core=str(values["core"]), ue=str(values["ue"])
+        ),
         "core_rows": core_setup.core_rows(core_state, values["core"]),
         "iperf_rows": core_setup.iperf_rows(
             iperf_server=str(values["iperf_server"]),

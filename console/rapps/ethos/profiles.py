@@ -144,6 +144,12 @@ def load_profiles(path: Path | None) -> Profiles:
 # Reasons an option cannot be deployed today. Every one of these was checked
 # against the deploy profiles and the chart values on this host; none is a guess.
 # They disappear as B4 supplies ETHOS's own reason per option.
+#
+# `("core", "free5GC")` used to live here as "Not verified on this testbed yet".
+# It does not any more: whether free5GC can be selected is a LIVE fact about
+# ETHOS and the core host, and `GET /core` (B18) is the only thing that knows
+# it. See `console.pages.plan.core_reason`. A fixed string here would have gone
+# on greying the tile out after the testbed could run it.
 OPTION_REASONS: dict[tuple[str, str], str] = {
     ("ru", "Foxconn"): "No chart configuration for this RU yet.",
     ("ru", "TM500"): "No chart configuration for this RU yet.",
@@ -158,5 +164,4 @@ OPTION_REASONS: dict[tuple[str, str], str] = {
     ("server", "DGX-Spark"): (
         "ARM host: Intel RAPL does not apply, so energy capture is phase 2."
     ),
-    ("core", "free5GC"): "Not verified on this testbed yet.",
 }

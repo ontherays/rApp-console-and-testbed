@@ -75,6 +75,16 @@
       </p>
     {% endif %}
 
+    {# A combination that runs but has not been proven end to end. A NOTE:
+       nothing ties a handset to a core, and disabling the tile would refuse
+       the very test that would remove the note. #}
+    {% if combination_note %}
+      <p class="hint" style="margin:10px 0 0">
+        {{ ic('info', 'faint') }} {{ combination_note }}. It will run; the
+        result is what tells us whether it works.
+      </p>
+    {% endif %}
+
     {# Item 5: a warning, never a block. Somebody else working on the same
        testbed is normal here; not knowing about it is what costs a sweep. #}
     {% for finding in core_state.activity.findings %}
