@@ -13,9 +13,12 @@ are both absences, and neither is a zero.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from console.rapps.ethos.metrics import NOT_MEASURED
 
 
 class Loose(BaseModel):
@@ -500,11 +503,52 @@ class Preview(Loose):
 
 
 class JobStep(Loose):
+    """One stage of a campaign, as ETHOS recorded it.
+
+    The state words are ETHOS's; the label and the duration string are this
+    page's, because how long a stage took is a thing to read rather than a
+    measurement (GL-05, GL-09).
+    """
+
     name: str = ""
     state: str = ""
     started: str | None = None
     ended: str | None = None
     detail: str = ""
+    elapsed_s: float | None = None
+
+    @property
+    def label(self) -> str:
+        """The stage in words. Switching names the core it is switching TO.
+
+        A job that sits in one stage for 20 seconds looks stuck unless the
+        page says what it is waiting for, and "switching_core" is not that.
+        """
+        if self.name == "switching_core":
+            target = self.detail.split("->")[-1].split(";")[0].strip() if "->" in self.detail else ""
+            pretty = CORE_LABELS.get(target, target)
+            return f"switching core to {pretty}" if pretty else "switching core"
+        if self.name == "restoring_core":
+            return f"restoring {CORE_LABELS['open5gs']}"
+        return self.name.replace("_", " ")
+
+    @property
+    def took(self) -> str:
+        """How long the stage took, or n/a while it is still running.
+
+        `elapsed_s` is ETHOS's when it sends one; an older build does not, and
+        the two stamps are still there to subtract.
+        """
+        if self.elapsed_s is not None:
+            return f"{self.elapsed_s:.1f} s"
+        if not self.started or not self.ended:
+            return NOT_MEASURED
+        try:
+            start = datetime.fromisoformat(self.started.replace("Z", "+00:00"))
+            end = datetime.fromisoformat(self.ended.replace("Z", "+00:00"))
+        except ValueError:
+            return NOT_MEASURED
+        return f"{(end - start).total_seconds():.1f} s"
 
 
 class JobPoint(Loose):
@@ -699,6 +743,11 @@ class ApiPart(SummaryPart):
     version: str | None = None
     started: str | None = None
     uptime_s: float | None = None
+
+
+#: How each core is spelled on screen. The console shows the label, never the
+#: slug the config_id carries (GL-05).
+CORE_LABELS: dict[str, str] = {"open5gs": "Open5GS", "free5gc": "free5GC"}
 
 
 class CoreHealth(Loose):

@@ -18,6 +18,7 @@ from tests.conftest import RECORDED, run_async
 
 from console import core_setup
 from console.rapps.ethos.client import EthosClient
+from console.rapps.ethos.metrics import NOT_MEASURED
 from console.rapps.ethos.models import CoreState, Run
 from tests.fake_ethos import FakeEthos
 
@@ -497,3 +498,70 @@ def test_the_page_says_plainly_that_nothing_was_changed(client, ethos_url):
 
     text = client.get("/partials/status").text
     assert "nothing has been changed" in text.lower()
+
+
+# --- the job view names the two core stages ----------------------------------
+
+def _step(name, started="2026-10-05T01:00:00Z", ended="", elapsed=None, **kw):
+    from console.rapps.ethos.models import JobStep
+
+    body = {"name": name, "state": "done" if ended else "running",
+            "started": started, "ended": ended, "detail": kw.pop("detail", "")}
+    if elapsed is not None:
+        body["elapsed_s"] = elapsed
+    return JobStep.model_validate(body)
+
+
+def test_a_core_stage_gets_a_readable_label_not_a_slug():
+    """GL-05: the page shows the label, never the wire word."""
+    assert _step("switching_core").label == "switching core"
+    assert _step("restoring_core").label == "restoring Open5GS"
+
+
+def test_the_label_names_the_core_being_switched_to_when_the_detail_says():
+    step = _step("switching_core", detail="open5gs -> free5gc; tearing the gNB down first")
+    assert step.label == "switching core to free5GC"
+
+
+def test_an_ordinary_stage_keeps_its_own_name():
+    assert _step("deploying").label == "deploying"
+    assert _step("tearing_down").label == "tearing down"
+
+
+def test_a_finished_stage_shows_how_long_it_took():
+    step = _step("switching_core", ended="2026-10-05T01:00:16Z", elapsed=16.0)
+    assert step.took == "16.0 s"
+
+
+def test_elapsed_comes_from_ethos_but_is_computed_when_it_is_absent():
+    """An older ETHOS does not send elapsed_s. The two stamps are still there."""
+    step = _step("restoring_core", started="2026-10-05T01:00:00Z",
+                 ended="2026-10-05T01:00:21Z")
+    assert step.took == "21.0 s"
+
+
+def test_a_running_stage_reports_no_duration_rather_than_zero():
+    assert _step("switching_core").took == NOT_MEASURED
+
+
+def test_the_job_page_shows_the_stage_and_its_duration(client, ethos_url):
+    job = {
+        "job_id": "j-core01", "state": "completed", "source": "api", "plan": {},
+        "config_id": "ocudu-mono_swphy_pega_samsung_f5gc_joule",
+        "steps": [
+            {"name": "switching_core", "state": "done",
+             "started": "2026-10-05T01:00:00Z", "ended": "2026-10-05T01:00:16Z",
+             "elapsed_s": 16.0, "detail": "open5gs -> free5gc"},
+            {"name": "restoring_core", "state": "done",
+             "started": "2026-10-05T01:05:00Z", "ended": "2026-10-05T01:05:20Z",
+             "elapsed_s": 20.0, "detail": "open5gs"},
+        ],
+        "points": [], "run_ids": [],
+    }
+    ethos_url.answer("GET", "/jobs/j-core01", 200, job)
+
+    page = client.get("/jobs/j-core01")
+    assert page.status_code == 200
+    assert "switching core to free5GC" in page.text
+    assert "restoring Open5GS" in page.text
+    assert "16.0 s" in page.text and "20.0 s" in page.text
