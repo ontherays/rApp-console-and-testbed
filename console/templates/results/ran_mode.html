@@ -1,0 +1,148 @@
+{% from "components/macros.html" import chip %}
+{# What the DGX Spark was running, from ran-ctl. Absent for every joule run. #}
+{% macro verify_row(name, value, note='') %}
+  {% set failed = value is sameas false %}
+  <dt class="mono">{{ name }}</dt>
+  <dd>
+    {% if value is none %}
+      <span class="muted">{{ NOT_MEASURED }}</span>
+    {% elif failed %}
+      {{ chip('failed', 'bad', 'cross') }}
+    {% else %}
+      {{ chip('passed', 'ok', 'check') }}
+    {% endif %}
+    {% if note %}<span class="muted">· {{ note }}</span>{% endif %}
+  </dd>
+{% endmacro %}
+
+{% set verify = (ran_mode.get('verify') or {}) %}
+{% set checks = (verify.get('checks') or {}) %}
+{% set faults = (verify.get('faults') or []) %}
+
+<div class="grid cols-12">
+  <div class="card span-6"><div>
+    <h3>RAN mode</h3>
+    <dl class="facts">
+      <dt>mode</dt>
+      <dd class="mono">{{ ran_mode.get('mode') or NOT_MEASURED }}</dd>
+
+      <dt>recovery cycle</dt>
+      <dd>
+        {% if ran_mode.get('recovery_cycle') %}
+          {{ chip('one recovery cycle ran', 'warn', 'warning') }}
+        {% elif ran_mode.get('recovery_cycle') is sameas false %}
+          {{ chip('not needed', 'ok', 'check') }}
+        {% else %}
+          <span class="muted">{{ NOT_MEASURED }}</span>
+        {% endif %}
+      </dd>
+
+      <dt>CN5G on the Spark</dt>
+      <dd>
+        {% if ran_mode.get('cn5g_running') %}
+          {{ chip('running', 'bad', 'warning') }}
+          <span class="muted">· its containers are unpinned across every core</span>
+        {% elif ran_mode.get('cn5g_running') is sameas false %}
+          {{ chip('down', 'ok', 'check') }}
+        {% else %}
+          <span class="muted">{{ NOT_MEASURED }}</span>
+        {% endif %}
+      </dd>
+
+      <dt>phase</dt>
+      <dd class="mono">{{ ran_mode.get('phase') or NOT_MEASURED }}</dd>
+    </dl>
+  </div></div>
+
+  <div class="card span-6"><div>
+    <h3>Verify</h3>
+    {% if verify %}
+      <dl class="facts">
+        {{ verify_row('L1 is ready', (checks.get('l1_ready') or 0) > 0) }}
+        {% if 'num_tlvs' in checks %}
+          {{ verify_row('numTLVs', checks.get('num_tlvs') == '31',
+                        'read ' ~ (checks.get('num_tlvs') or NOT_MEASURED) ~ '; 29 is a pre-fix binary') }}
+        {% else %}
+          {{ verify_row('create_cell_configs', (checks.get('cell_configs_ok') or 0) > 0,
+                        "check 2': OAI does not print numTLVs=31") }}
+        {% endif %}
+        {{ verify_row('FATAL exit', (checks.get('fatal_exit') or 0) == 0,
+                      'unit status will not tell you this') }}
+        {{ verify_row('No packet received', (checks.get('no_packet_received') or 0) == 0) }}
+        {{ verify_row('SFN mismatch', (checks.get('sfn_mismatch') or 0) == 0) }}
+        {{ verify_row('NG Setup', (checks.get('ng_setup') or 0) > 0) }}
+        {% if 'f1_setup' in checks %}
+          {{ verify_row('F1 Setup', (checks.get('f1_setup') or 0) > 0) }}
+        {% endif %}
+        {% if checks.get('sem_idx_rx') is not none %}
+          {{ verify_row('sem_idx_rx', checks.get('sem_idx_rx') != 0,
+                        'printed only on a receive timeout') }}
+        {% endif %}
+      </dl>
+      {% if faults %}
+        <p class="muted" style="margin:12px 0 0">
+          Faults: <span class="mono">{{ faults | join(', ') }}</span>
+        </p>
+      {% endif %}
+      <p class="muted" style="margin:8px 0 0">
+        Scoped to this run's own journal window
+        (<span class="mono">{{ verify.get('scoping') or 'unknown' }}</span>).
+      </p>
+    {% else %}
+      <p class="muted">No verify was recorded for this run.</p>
+    {% endif %}
+  </div></div>
+
+  <div class="card span-12"><div>
+    <h3>Identity</h3>
+    <dl class="facts">
+      {% for container, image in (ran_mode.get('image_ids') or {}).items() %}
+        <dt class="mono">{{ container }}</dt>
+        <dd class="mono">{% if image %}{{ image }}{% else %}<span class="muted">{{ NOT_MEASURED }}</span>{% endif %}</dd>
+      {% endfor %}
+      {% for unit, invocation in (ran_mode.get('invocation_ids') or {}).items() %}
+        <dt class="mono">invocation · {{ unit }}</dt>
+        <dd class="mono">{{ invocation }}</dd>
+      {% endfor %}
+      {% for path, digest in (ran_mode.get('config_sha256') or {}).items() %}
+        <dt class="mono">sha256 · {{ path }}</dt>
+        <dd class="mono">{{ digest }}</dd>
+      {% endfor %}
+    </dl>
+    <p class="muted" style="margin:12px 0 0">
+      The image id is the one the running container was created from, so a later
+      <span class="mono">docker tag</span> cannot rewrite what this run used.
+    </p>
+  </div></div>
+
+  {% if ran_mode.get('drift') %}
+    <div class="card span-12"><div>
+      <h3>Drift</h3>
+      <dl class="facts">
+        {% for finding in ran_mode.get('drift') %}
+          <dt class="mono">{{ finding.get('kind') }}</dt>
+          <dd>
+            <span class="mono">{{ finding.get('path') or '' }}</span>
+            {% if finding.get('blocks_start') %}
+              {{ chip('blocks a start', 'bad', 'warning') }}
+            {% else %}
+              {{ chip('reported', 'warn') }}
+            {% endif %}
+            {% if finding.get('detail') %}<span class="muted">· {{ finding.get('detail') }}</span>{% endif %}
+          </dd>
+        {% endfor %}
+      </dl>
+    </div></div>
+  {% endif %}
+
+  <div class="card span-12"><div>
+    <h3>Journal</h3>
+    <p class="muted">
+      The bounded excerpt is archived beside the run on the ETHOS host:
+      <span class="mono">{{ ran_mode.get('logs_ref') or 'not archived for this run' }}</span>.
+      The Aerial L1 stamps its own lines in UTC while journald stamps them in
+      UTC too, so the two agree; <span class="mono">journalctl --since</span>
+      takes local time, which is why the archive records the clock.
+    </p>
+  </div></div>
+</div>

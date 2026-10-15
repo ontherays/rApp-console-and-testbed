@@ -53,6 +53,7 @@
   <sl-tab slot="nav" panel="cell">Cell config</sl-tab>
   <sl-tab slot="nav" panel="config">Config</sl-tab>
   <sl-tab slot="nav" panel="raw">Raw</sl-tab>
+  {% if run.ran_mode %}<sl-tab slot="nav" panel="ran_mode">RAN mode</sl-tab>{% endif %}
   {% if run.radio_ref %}<sl-tab slot="nav" panel="samples">Samples</sl-tab>{% endif %}
 
   <sl-tab-panel name="summary">
@@ -232,6 +233,12 @@
       <p class="muted">No cell config was read for this run.</p>
     {% endif %}
   </sl-tab-panel>
+
+  {% if run.ran_mode %}
+  <sl-tab-panel name="ran_mode">
+    {% with ran_mode = run.ran_mode %}{% include "results/ran_mode.html" %}{% endwith %}
+  </sl-tab-panel>
+  {% endif %}
 
   <sl-tab-panel name="config">
     <p class="muted">
