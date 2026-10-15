@@ -58,6 +58,10 @@ class FakeEthos:
         #: can prove the relay forwarded the browser's header.
         self.resumed_from: str | None = None
         self.started_plans: list[dict[str, Any]] = []
+        #: Runs created for a deploy with no campaign, and the deploys that
+        #: followed, so a test can assert the order and the run_id travelled.
+        self.created_runs: list[dict[str, Any]] = []
+        self.deployed: list[dict[str, Any]] = []
         #: Figures this fake has drawn, by id, and the bodies it was asked for.
         self.figures: dict[str, dict[str, Any]] = {}
         self.plot_requests: list[dict[str, Any]] = []
@@ -380,6 +384,73 @@ class FakeEthos:
 
         if path == "/jobs/preview" and method == "POST":
             return httpx.Response(200, json=self._load("job_preview"), request=request)
+
+        # --- Deploy RAN: a Spark mode with no campaign behind it ------------
+        if path == "/deploy/preview" and method == "POST":
+            body = json.loads(request.content or b"{}")
+            config_id = str(body.get("config_id") or "")
+            mode = "ocudu-mono" if "-mono_" in config_id else "ocudu-f1"
+            named = body.get("run_id") or "<run_id>"
+            return httpx.Response(200, json={
+                "action": "deploy",
+                "summary": [
+                    f"deploy profile {mode}-aerial (wired) on the DGX Spark",
+                    f"  mechanism ran-ctl, mode {mode} -- no helm, no chart: the "
+                    f"units are already on the host",
+                    f"  it would send: sudo /usr/local/bin/ran-ctl start {mode} {named}",
+                    "  gates, in the order the deploy applies them:",
+                    "    1. lease free        -- free",
+                    "    2. the Spark's CN5G is down -- down",
+                    "    3. no blocking drift -- none",
+                ],
+                "preview_token": "deploy-token-1",
+                "expires_in_s": 300,
+                "state": {"releases": [], "running_pods": [], "node_free": True},
+            }, request=request)
+
+        if path == "/runs" and method == "POST":
+            if self.locked_by:
+                return self._locked(request)
+            body = json.loads(request.content or b"{}")
+            config_id = str(body.get("config_id") or "")
+            if not config_id:
+                return httpx.Response(
+                    422, json={"detail": "config_id is required"}, request=request
+                )
+            self.created_runs.append(body)
+            run_id = (
+                f"20261015T1200Z-{config_id}-noTraffic-"
+                f"{len(self.created_runs):03d}"
+            )
+            return httpx.Response(201, json={"run": {
+                "run_id": run_id, "config_id": config_id,
+                "direction": body.get("direction", "none"), "status": "defined",
+            }}, request=request)
+
+        if path == "/deploy" and method == "POST":
+            if self.locked_by:
+                return self._locked(request)
+            body = json.loads(request.content or b"{}")
+            if not body.get("confirm") or not body.get("preview_token"):
+                return httpx.Response(
+                    428,
+                    json={"detail": {"error": "confirmation_required",
+                                     "action": "deploy"}},
+                    request=request,
+                )
+            if not body.get("run_id"):
+                return httpx.Response(
+                    422,
+                    json={"detail": "a ran-ctl deploy needs a run_id"},
+                    request=request,
+                )
+            self.deployed.append(body)
+            return httpx.Response(200, json={"deployment": {
+                "outcome": "deployed", "ok": True,
+                "config_id": body.get("config_id"),
+                "run_id": body.get("run_id"),
+                "reason": "ocudu-mono reached phase 'up'",
+            }}, request=request)
 
         if path == "/jobs" and method == "POST":
             if self.locked_by:

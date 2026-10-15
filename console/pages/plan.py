@@ -448,6 +448,21 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
     # blocked would refuse plans ETHOS would have run.
     can_run = bool(run_ready and readiness is not None and not run_reason)
 
+    # Deploy RAN: a mode on the Spark with no campaign behind it. Offered only
+    # for a ran-ctl profile -- joule's helm profiles keep RUN as their only way
+    # in, because a chart deploy with no run to attribute it to is the second
+    # way to occupy the testbed that `testbed.py` deliberately does not offer.
+    ran_ctl = bool(profile is not None and profile.is_ran_ctl)
+    deploy_ran_reason = _deploy_ran_blocker(
+        ran_ctl=ran_ctl,
+        deployable=deployable,
+        deploy_reason=deploy_reason,
+        config_id=config_id,
+        lock=lock,
+        checks=checks,
+    )
+    can_deploy_ran = bool(ran_ctl and not deploy_ran_reason)
+
     command = campaign_command(
         ethos_repo=settings.ethos_repo,
         topology=profile.name if profile and profile.deployable else None,
@@ -515,6 +530,9 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
         "can_run": can_run,
         "run_reason": run_reason,
         "run_ready": run_ready,
+        "ran_ctl": ran_ctl,
+        "can_deploy_ran": can_deploy_ran,
+        "deploy_ran_reason": deploy_ran_reason,
         "core_state": core_state,
         "core_error": core_error,
         "combination_note": combination_note(
@@ -525,6 +543,42 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
         "document_yaml": yaml.safe_dump(document, sort_keys=False, allow_unicode=True),
         "command": command,
     }
+
+
+def _deploy_ran_blocker(
+    *,
+    ran_ctl: bool,
+    deployable: bool | None,
+    deploy_reason: str,
+    config_id: str | None,
+    lock: Any,
+    checks: list,
+) -> str:
+    """Why Deploy RAN is not offered, or "" when it is.
+
+    Three gates, in the order an operator would ask them: is this a Spark
+    selection ETHOS says it can deploy, is the testbed free, and is the Spark's
+    own lease free. ETHOS refuses on all three anyway -- this is so the button
+    says which before it is pressed, never instead of the refusal.
+
+    The lease comes from readiness's own `ran_ctl` check, which is one
+    `ran-ctl status`, so the button and the readiness panel cannot disagree
+    about the same condition.
+    """
+    if not ran_ctl:
+        return ""                      # not offered at all; no reason to show
+    if not config_id:
+        return "This selection has no config_id yet."
+    if deployable is None:
+        return deploy_reason or "ETHOS did not say whether this can be deployed."
+    if not deployable:
+        return deploy_reason or "ETHOS cannot deploy this combination."
+    if lock is not None and getattr(lock, "held", False):
+        return "a campaign holds the testbed, and a deploy would change it"
+    for row in checks:
+        if row.id == "ran_ctl" and row.status == readiness_mod.FAIL:
+            return row.reason
+    return ""
 
 
 async def _presets(request: Request, values: dict[str, Any]) -> list:
@@ -700,6 +754,130 @@ async def plan_run(request: Request):
         request,
         "plan/confirm.html",
         {**context, "preview": preview},
+    )
+
+
+@router.post("/plan/deploy")
+async def plan_deploy(request: Request):
+    """Deploy RAN, step one: ask ETHOS what bringing this mode up would do.
+
+    Sends nothing to the Spark beyond one read-only `ran-ctl status`. What
+    comes back is ETHOS's own text -- the mechanism, the mode, the gates with
+    their current answers, and the exact command -- and a token bound to the
+    request AND to the Spark state it was read against.
+
+    The gate is re-checked here as well as on the button: a stale page or a
+    second tab must not be able to post a deploy ETHOS has no way to honour.
+    """
+    values = await _values_from_request(request)
+    context = await _build(request, values)
+    if not context["can_deploy_ran"]:
+        reason = context["deploy_ran_reason"] or "This selection has no RAN mode to deploy."
+        return render(
+            request,
+            "plan/resolved.html",
+            {**context, "run_error": reason},
+            status_code=409,
+            headers={
+                "X-Console-Toast": reason,
+                "X-Console-Toast-Variant": "warning",
+            },
+        )
+
+    client = request.app.state.client
+    try:
+        preview = await client.deploy_preview(context["config_id"])
+    except EthosRefused as exc:
+        return _refused(request, context, exc)
+    except EthosError as exc:
+        return render(
+            request,
+            "plan/resolved.html",
+            {**context, "run_error": exc.message},
+            status_code=exc.status or 502,
+            headers={
+                "X-Console-Toast": exc.message,
+                "X-Console-Toast-Variant": "danger",
+            },
+        )
+
+    return render(
+        request,
+        "plan/confirm_deploy.html",
+        {**context, "preview": preview},
+    )
+
+
+@router.post("/plan/deploy/start")
+async def plan_deploy_start(request: Request):
+    """Deploy RAN, step two: the operator has seen the preview and confirmed.
+
+    The run comes first and ETHOS mints it: a ran-ctl deploy refuses without a
+    run_id, because the Spark's lease is taken in the run's name and the
+    mode's record is archived on it. Direction `none` -- nothing is measured
+    here, and the run_id says `noTraffic`.
+
+    Then ETHOS's own `POST /deploy`, the route a campaign uses, so a deploy
+    from this button passes the same gates as one inside a sweep.
+    """
+    form = await request.form()
+    token = str(form.get("preview_token") or "")
+    values = await _values_from_request(request)
+    context = await _build(request, values)
+
+    if not context["can_deploy_ran"]:
+        reason = context["deploy_ran_reason"] or "This selection has no RAN mode to deploy."
+        return render(
+            request,
+            "plan/resolved.html",
+            {**context, "run_error": reason},
+            status_code=409,
+            headers={"X-Console-Toast": reason, "X-Console-Toast-Variant": "warning"},
+        )
+    if not token:
+        return render(
+            request,
+            "plan/resolved.html",
+            {**context,
+             "run_error": "That confirmation had no token; ask for the preview again."},
+            status_code=422,
+        )
+
+    client = request.app.state.client
+    try:
+        run_id = await client.create_run(context["config_id"])
+        if not run_id:
+            raise EthosError("ETHOS created no run for this deploy")
+        await client.deploy_ran(context["config_id"], run_id, token)
+    except EthosRefused as exc:
+        return _refused(request, context, exc)
+    except EthosStateChanged as exc:
+        message = (
+            "The Spark changed after that preview, so the confirmation no "
+            f"longer describes it: {exc.message}"
+        )
+        return render(
+            request,
+            "plan/resolved.html",
+            {**context, "run_error": message},
+            status_code=412,
+            headers={"X-Console-Toast": message, "X-Console-Toast-Variant": "warning"},
+        )
+    except EthosError as exc:
+        return render(
+            request,
+            "plan/resolved.html",
+            {**context, "run_error": exc.message},
+            status_code=exc.status or 502,
+            headers={"X-Console-Toast": exc.message, "X-Console-Toast-Variant": "danger"},
+        )
+
+    client.invalidate()
+    # The run page is where the RAN mode tab lives: the verify, the image ids,
+    # the config sha256s and the recovery cycle are all on it.
+    return Response(
+        status_code=204,
+        headers={"HX-Redirect": f"/results/runs/{run_id}", "HX-Trigger": "ran-deployed"},
     )
 
 

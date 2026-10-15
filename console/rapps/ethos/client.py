@@ -342,6 +342,54 @@ class EthosClient:
         key = f"deploy_status:{config_id or ''}"
         return await self._cached(key, self.status_cache_s, fetch)
 
+    async def deploy_preview(self, config_id: str, run_id: str | None = None) -> Preview:
+        """What deploying this Spark mode would do, and the token that allows it.
+
+        Sends nothing to the testbed: ETHOS reads `ran-ctl status` once and
+        describes the gates and the command it would send. The token is bound
+        to the request AND to the Spark state it was computed against, so a
+        lease taken in between makes the confirm a 412 rather than a surprise.
+        """
+        body: dict[str, Any] = {"config_id": config_id}
+        if run_id:
+            body["run_id"] = run_id
+        return Preview.model_validate(
+            await self.call("POST", "/deploy/preview", json=body, slow=True)
+        )
+
+    async def create_run(self, config_id: str) -> str:
+        """A run for a deploy with no campaign, and its run_id.
+
+        A ran-ctl deploy refuses without one: the Spark's lease is taken in
+        the run's name, and the mode's record -- image ids, verify, config
+        sha256s -- is archived on it. Direction `none`, because nothing is
+        measured; the run_id renders `noTraffic`, exactly as a condition-C
+        baseline does. ETHOS mints it; the console never builds an id.
+        """
+        body = await self.call(
+            "POST", "/runs",
+            json={"config_id": config_id, "direction": "none"},
+            slow=True,
+        )
+        run = body.get("run", body) if isinstance(body, dict) else {}
+        return str(run.get("run_id") or "")
+
+    async def deploy_ran(
+        self, config_id: str, run_id: str, preview_token: str
+    ) -> dict[str, Any]:
+        """Deploy the Spark mode the operator has just seen the preview of.
+
+        ETHOS's own `POST /deploy`, the route a campaign uses, so a deploy
+        from this button and a deploy inside a sweep go through one path and
+        one set of gates.
+        """
+        return await self.call(
+            "POST", "/deploy",
+            json={"config_id": config_id, "run_id": run_id,
+                  "confirm": True, "preview_token": preview_token},
+            slow=True,
+        )
+
     async def ran_stop(self, config_id: str, run_id: str) -> dict[str, Any]:
         """Stop the RAN mode this run holds: ETHOS's own teardown route.
 

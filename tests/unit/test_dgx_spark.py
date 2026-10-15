@@ -217,3 +217,132 @@ def test_a_spark_run_carries_every_field_the_panel_draws() -> None:
     assert run.ran_mode["mode"] == "ocudu-f1"
     assert run.ran_mode["verify"]["checks"]["num_tlvs"] == "31"
     assert run.ran_mode["drift"][0]["blocks_start"] is True
+
+
+# --- 10e, Deploy RAN: a Spark mode with no campaign behind it ---------------
+
+from pathlib import Path                                            # noqa: E402
+
+from console.rapps.ethos.profiles import load_profiles              # noqa: E402
+
+RECORDED_PROFILES = Path(__file__).resolve().parents[1] / "recorded" / "deploy_profiles.yaml"
+
+SPARK_SELECTION = {
+    "gnb_stack": "OCUDU", "gnb_split": "monolithic", "ue": "Samsung",
+    "ru": "Pegatron", "core": "Open5GS", "server": "DGX-Spark",
+    "l1_backend": AERIAL_L1,
+}
+
+
+def spark_form(**over) -> dict:
+    form = {
+        "gnb_stack": "OCUDU", "split_kind": "monolithic",
+        "cu_vendor": "OCUDU", "du_vendor": "OCUDU",
+        "l1_backend": AERIAL_L1, "ru": "Pegatron", "ue": "Samsung",
+        "core": "Open5GS", "server": "DGX-Spark",
+        "direction": "DL", "rates": "100", "duration": "30s", "repeats": "1",
+        "iperf_server": "app_binary", "label": "",
+    }
+    form.update(over)
+    return form
+
+
+def test_a_ran_ctl_profile_is_deployable_without_releases() -> None:
+    """It installs no chart, so requiring one made every Spark mode read as
+    an unfilled placeholder."""
+    profiles = load_profiles(RECORDED_PROFILES)
+    profile = profiles.resolve(SPARK_SELECTION)
+    assert profile.name == "ocudu-mono-aerial"
+    assert profile.is_ran_ctl is True
+    assert profile.releases == ()
+    deployable, reason = profiles.deployable(SPARK_SELECTION)
+    assert deployable is True
+    assert "RAN mode on the DGX Spark" in reason
+
+
+def test_a_joule_profile_still_needs_its_releases() -> None:
+    profiles = load_profiles(RECORDED_PROFILES)
+    profile = profiles.resolve(selection())
+    assert profile.is_ran_ctl is False
+    assert profile.releases
+
+
+def test_the_plan_page_offers_deploy_ran_for_a_spark_selection(client) -> None:
+    body = client.post("/plan/resolve", data=spark_form()).text
+    assert "Deploy RAN" in body
+    assert "/plan/deploy" in body
+
+
+def test_the_plan_page_offers_no_deploy_ran_for_joule(client) -> None:
+    """Joule's helm profiles keep RUN as their only way in."""
+    body = client.post("/plan/resolve", data=spark_form(
+        l1_backend="software-PHY", server="joule")).text
+    assert "Deploy RAN" not in body
+
+
+def test_deploy_ran_is_disabled_while_the_testbed_is_held(client, ethos_url) -> None:
+    ethos_url.hold_lock("CLI campaign", "a sweep", "2026-10-15T09:00:00Z")
+    body = client.post("/plan/resolve", data=spark_form()).text
+    assert "Deploy RAN" in body
+    assert "a campaign holds the testbed" in body
+
+
+def test_deploy_ran_previews_before_it_acts(client, ethos_url) -> None:
+    """The button asks ETHOS what it would do; nothing is deployed yet."""
+    response = client.post("/plan/deploy", data=spark_form())
+    assert response.status_code == 200, response.text
+    assert "Deploy this RAN mode?" in response.text
+    assert "ran-ctl start ocudu-mono" in response.text
+    assert ethos_url.created_runs == []
+    assert ethos_url.deployed == []
+
+
+def test_confirming_creates_the_run_then_deploys(client, ethos_url) -> None:
+    """A ran-ctl deploy refuses without a run_id, so the run comes first."""
+    response = client.post(
+        "/plan/deploy/start",
+        data={**spark_form(), "preview_token": "deploy-token-1"},
+    )
+    assert response.status_code == 204, response.text
+
+    assert len(ethos_url.created_runs) == 1
+    created = ethos_url.created_runs[0]
+    assert created["config_id"].endswith("_dgxspark")
+    assert created["direction"] == "none"
+
+    assert len(ethos_url.deployed) == 1
+    sent = ethos_url.deployed[0]
+    assert sent["confirm"] is True
+    assert sent["preview_token"] == "deploy-token-1"
+    assert sent["run_id"].endswith("-noTraffic-001")
+    assert sent["config_id"] == created["config_id"]
+
+    assert response.headers["HX-Redirect"] == f"/results/runs/{sent['run_id']}"
+
+
+def test_confirming_without_a_token_sends_nothing(client, ethos_url) -> None:
+    response = client.post("/plan/deploy/start", data=spark_form())
+    assert response.status_code == 422
+    assert ethos_url.created_runs == []
+    assert ethos_url.deployed == []
+
+
+def test_a_held_testbed_refuses_the_confirm_too(client, ethos_url) -> None:
+    """The disabled button is the brace; this is the belt."""
+    ethos_url.hold_lock("CLI campaign", "a sweep", "2026-10-15T09:00:00Z")
+    response = client.post(
+        "/plan/deploy/start",
+        data={**spark_form(), "preview_token": "deploy-token-1"},
+    )
+    assert response.status_code == 409
+    assert ethos_url.deployed == []
+
+
+def test_a_joule_selection_cannot_deploy_ran_even_by_posting(client, ethos_url) -> None:
+    """No button, and the route refuses the post a second tab could make."""
+    response = client.post(
+        "/plan/deploy",
+        data=spark_form(l1_backend="software-PHY", server="joule"),
+    )
+    assert response.status_code == 409
+    assert ethos_url.deployed == []

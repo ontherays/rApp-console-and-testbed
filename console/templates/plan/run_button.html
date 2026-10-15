@@ -17,3 +17,26 @@
     </button>
   </sl-tooltip>
 {% endif %}
+
+{# Deploy RAN. Only for a ran-ctl profile: a mode on the Spark with no
+   campaign behind it, which is what step 10 of the go-live runbook asks for.
+   Joule's helm profiles get no such button -- a chart deploy with no run to
+   attribute it to is the second way to occupy the testbed that the Testbed
+   page deliberately does not offer.
+
+   Same shape as RUN: this asks for ETHOS's preview, and only the dialog that
+   comes back can start anything (GL-07). #}
+{% if ran_ctl %}
+  {% if can_deploy_ran %}
+    <button class="btn" type="button"
+            hx-post="/plan/deploy" hx-include="#plan-form" hx-target="#plan-dialog">
+      <svg class="ic" aria-hidden="true"><use href="#icon-l1"/></svg>Deploy RAN
+    </button>
+  {% else %}
+    <sl-tooltip hoist content="{{ deploy_ran_reason }}">
+      <button class="btn" type="button" disabled>
+        <svg class="ic" aria-hidden="true"><use href="#icon-l1"/></svg>Deploy RAN
+      </button>
+    </sl-tooltip>
+  {% endif %}
+{% endif %}
