@@ -39,6 +39,9 @@ ACTIONS: dict[str, str] = {
     "attach": "Attach",
     "detach": "Detach",
     "iperf/stop": "Stop the iperf app",
+    # Manual recovery only. Attach and detach during a test are flight mode;
+    # ETHOS refuses this one while anything holds the testbed or the Spark.
+    "reboot": "Reboot the handset",
 }
 
 
@@ -107,7 +110,70 @@ async def testbed(request: Request):
             "lock_text": holders.describe(lock, tz=settings.tz),
             "deployed": deployed,
             "deploy_error": deploy_error,
+            "reboot_blocked": reboot_blocked(lock, deployed),
+            "spark": spark_view(deployed),
         },
+    )
+
+
+def reboot_blocked(lock, deployed) -> str:
+    """Why a handset reboot is not offered, or "" when it is.
+
+    Two holders, not one: the testbed lock covers a joule campaign, and the
+    Spark's lease covers a RAN mode on the other host. ETHOS refuses on both
+    counts anyway (409); this is so the button says why before it is pressed.
+    """
+    if lock is not None and getattr(lock, "held", True):
+        return "a campaign holds the testbed: a reboot would end its run"
+    ran_mode = getattr(deployed, "ran_mode", None) or {}
+    holder = ran_mode.get("holder")
+    if holder:
+        return f"a RAN mode on the DGX Spark is held by {holder}"
+    return ""
+
+
+def spark_view(deployed) -> dict | None:
+    """The Spark's phase and lease, for the deploy tile. None for joule."""
+    ran_mode = getattr(deployed, "ran_mode", None)
+    if not ran_mode:
+        return None
+    return {
+        "mode": ran_mode.get("mode"),
+        "phase": ran_mode.get("phase"),
+        "holder": ran_mode.get("holder"),
+        "lease_stale": ran_mode.get("lease_stale"),
+        "recovery_cycle": ran_mode.get("recovery_cycle"),
+        "reason": ran_mode.get("reason") or "",
+        "blocked": bool(ran_mode.get("blocked")),
+    }
+
+
+@router.post("/testbed/ran/stop")
+async def ran_stop(request: Request):
+    """Stop the Spark's RAN mode for the run that holds the lease.
+
+    A convenience, not the enforcement: a stop sent for somebody else's run is
+    refused by ran-ctl with exit 6, and ETHOS passes that back as a 409. The
+    button is disabled in that case, but the refusal is what actually holds.
+    """
+    form = await request.form()
+    config_id = str(form.get("config_id") or "")
+    run_id = str(form.get("run_id") or "")
+    if not config_id or not run_id:
+        return _toast("That stop named no run; reload the page.", "warning", 422)
+
+    client = request.app.state.client
+    try:
+        await client.ran_stop(config_id, run_id)
+    except EthosRefused as exc:
+        return _toast(exc.message, "warning", 409)
+    except EthosError as exc:
+        return _toast(exc.message, "danger", exc.status or 502)
+
+    client.invalidate()
+    return Response(
+        status_code=204,
+        headers={"HX-Redirect": "/testbed", "HX-Trigger": "ran-stopped"},
     )
 
 
@@ -115,7 +181,26 @@ async def testbed(request: Request):
 async def testbed_ue_partial(request: Request):
     """The UE table on its own, for swapping in after an action."""
     views, ue_error = await _ue_views(request.app.state.client)
-    return render(request, "testbed/ue_table.html", {"views": views, "ue_error": ue_error})
+    client = request.app.state.client
+    deployed = None
+    try:
+        deployed = await client.deploy_status()
+    except EthosError:
+        deployed = None
+    lock = None
+    try:
+        lock = await client.lock()
+    except EthosError:
+        lock = None
+    return render(
+        request,
+        "testbed/ue_table.html",
+        {
+            "views": views,
+            "ue_error": ue_error,
+            "reboot_blocked": reboot_blocked(lock, deployed),
+        },
+    )
 
 
 @router.post("/testbed/ue/{ue}/{action:path}/preview")

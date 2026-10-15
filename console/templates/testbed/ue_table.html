@@ -90,6 +90,18 @@
                         hx-post="/testbed/ue/{{ slug }}/iperf/stop/preview"
                         hx-target="#ue-confirm" hx-swap="innerHTML">Free 5201</button>
               {% endif %}
+              {# A reboot ends whatever session is running, so it is offered
+                 only when nothing is. The reason is shown rather than the
+                 button simply vanishing. #}
+              {% if reboot_blocked %}
+                <button class="btn btn-sm" type="button" disabled
+                        title="{{ reboot_blocked }}">Reboot</button>
+                <div class="reason" style="white-space:normal">{{ reboot_blocked }}</div>
+              {% else %}
+                <button class="btn btn-sm" type="button"
+                        hx-post="/testbed/ue/{{ slug }}/reboot/preview"
+                        hx-target="#ue-confirm" hx-swap="innerHTML">Reboot</button>
+              {% endif %}
             {% endif %}
           </td>
         </tr>

@@ -56,6 +56,44 @@
       A job deploys what its plan needs and tears it down afterwards.
     </p>
   {% endif %}
+  {% if spark %}
+    <div class="row" style="gap:18px;flex-wrap:wrap;margin-top:12px">
+      <span>{{ chip('DGX Spark', 'teal') }}</span>
+      <span class="faint mono">{{ spark.mode or 'no mode' }}</span>
+      {% if spark.phase %}
+        {% set tone = 'green' if spark.phase in ('up', 'down')
+                      else ('bad' if spark.phase == 'failed' else 'amber') %}
+        <span>{{ chip(spark.phase, tone) }}</span>
+      {% else %}
+        <span class="faint">no op in flight</span>
+      {% endif %}
+      {% if spark.recovery_cycle %}
+        {{ chip('one recovery cycle ran', 'amber', 'warning') }}
+      {% endif %}
+      {% if spark.lease_stale %}
+        {{ chip('lease stale', 'amber') }}
+      {% endif %}
+      {% if spark.holder %}
+        <span class="faint">held by <span class="mono">{{ spark.holder }}</span></span>
+      {% endif %}
+    </div>
+    {% if spark.holder %}
+      <form method="post" action="/testbed/ran/stop" style="margin-top:10px">
+        <input type="hidden" name="config_id" value="{{ deployed.config_id or '' }}">
+        <input type="hidden" name="run_id" value="{{ spark.holder }}">
+        <button class="btn btn-sm" type="submit">Stop RAN</button>
+        <span class="faint">stops <span class="mono">{{ spark.mode }}</span>
+          for <span class="mono">{{ spark.holder }}</span></span>
+      </form>
+    {% else %}
+      <p class="muted" style="margin:10px 0 0">
+        Nothing holds the RU, so there is nothing to stop.
+      </p>
+    {% endif %}
+    {% if spark.reason %}
+      <p class="reason" style="margin:8px 0 0">{{ spark.reason }}</p>
+    {% endif %}
+  {% endif %}
   <p class="hint">
     {{ ic('info', 'faint') }}
     Deploying on its own is deliberately not offered here. A deploy occupies a

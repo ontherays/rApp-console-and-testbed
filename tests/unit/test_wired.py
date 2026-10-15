@@ -544,7 +544,15 @@ def test_a_ue_action_is_refused_while_the_testbed_is_held(client, ethos_url):
 
 
 def test_an_unknown_ue_action_is_not_routed(client):
-    assert client.post("/testbed/ue/samsung/reboot/preview").status_code == 404
+    """`reboot` used to be the example here. It is a real action now (step
+    10e), so the example is one that is still not offered."""
+    assert client.post("/testbed/ue/samsung/factory-reset/preview").status_code == 404
+    assert client.post("/testbed/ue/samsung/flash/preview").status_code == 404
+
+
+def test_reboot_is_routed_now(client):
+    """Routed, and still preview-then-confirm like every other action."""
+    assert client.post("/testbed/ue/samsung/reboot/preview").status_code == 200
 
 
 def test_the_testbed_page_warns_when_a_cli_campaign_holds_the_testbed(client, ethos_url):
