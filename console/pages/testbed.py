@@ -9,10 +9,11 @@ credentials; it asks ETHOS, which holds them (SE-06). What the page adds is the
 ordering an operator needs: see the state, see what an action would do, then do
 it, and see the state again.
 
-Deploy and teardown are still out. ETHOS has the preview gate for them now, but a
-deploy is minutes of a shared testbed and belongs with the job that needs it,
-which is what RUN already does. A standalone deploy button would offer a second
-way to occupy the testbed with no run to attribute it to.
+Stopping a RAN mode is here; starting one is on the Test Plan page, beside the
+selection that names it. Joule's helm profiles have no deploy button at all: a
+chart deploy is minutes of a shared testbed and belongs with the job that needs
+it, which is what RUN does, and a standalone one would be a second way to
+occupy the testbed with no run to attribute it to.
 """
 
 from __future__ import annotations

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from console.env_file import EnvFileLoad, env_file_path, load_env_file
+from console.env_file import env_file_path, load_env_file
 from console.variables import declared_env_vars, known_env_vars
 
 EXAMPLE = Path(__file__).resolve().parent.parent.parent / "console.env.example"

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from console.auth import (
     LoginLimiter,
-    Session,
     SessionCodec,
     csrf_ok,
     hash_password,

@@ -12,7 +12,6 @@ forwards the one header the resume depends on.
 
 from __future__ import annotations
 
-from pathlib import Path
 
 import pytest
 
@@ -252,7 +251,7 @@ def test_run_alone_starts_nothing(client, ethos_url):
 
 
 def test_confirming_sends_the_token_and_goes_to_the_job(client, ethos_url):
-    preview = client.post("/plan/run", data=PLAN_FORM)
+    client.post("/plan/run", data=PLAN_FORM)
     token = ethos_url._load("job_preview")["preview_token"]
     response = client.post("/plan/start", data={**PLAN_FORM, "preview_token": token})
     assert response.status_code == 204

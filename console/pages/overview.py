@@ -167,7 +167,6 @@ def _freshness_tile(summary, error: str | None) -> dict:
 @router.get("/")
 async def overview(request: Request, period: str = DEFAULT_PERIOD, kind: str = DEFAULT_KIND):
     client = request.app.state.client
-    caps = request.app.state.probe.result
     period = period if period in PERIODS else DEFAULT_PERIOD
     kind = kind if kind in KINDS else DEFAULT_KIND
 

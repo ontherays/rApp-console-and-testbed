@@ -18,7 +18,7 @@ chosen, and lists the profiles that ETHOS says it can deploy.
 from __future__ import annotations
 
 import html
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from console.rapps.ethos.series import series_for

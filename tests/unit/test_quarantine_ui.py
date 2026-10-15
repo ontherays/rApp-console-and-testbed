@@ -7,7 +7,6 @@ gives it.
 
 from __future__ import annotations
 
-import pytest
 
 HELD_JOB = "j-20260928T143403Z"
 
@@ -83,7 +82,6 @@ def test_a_held_out_job_is_shown_with_its_reason(client, ethos_url):
 
 def test_a_held_out_job_is_not_tickable_by_default(client, ethos_url):
     body = client.get("/graphs/jobs").text
-    held = body.split(HELD_JOB)[1][:400]
     assert "disabled" in body
 
 

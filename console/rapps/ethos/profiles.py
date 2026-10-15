@@ -1,14 +1,15 @@
-"""Which options can actually be deployed, until ``GET /catalogue`` exists.
+"""Which options can actually be deployed, read from the deploy profiles.
 
 ``GET /compatibility`` says what is *compatible*. It does not say what can be
-*deployed*, and the two differ: TM500, Foxconn and Aerial validate happily and
-then fail at deploy against a ``TODO(Ravi)`` profile. Offering them as if they
-were ready is the one failure mode the Test Plan page must not have.
+*deployed*, and the two differ: a selection can validate happily and then fail
+against a ``TODO(Ravi)`` profile with no chart path. Offering one as if it were
+ready is the failure mode the Test Plan page must not have.
 
-So the console reads ETHOS's ``deployment/deploy_profiles.yaml``, a plain data
-file on this host, read and never written, holding no credential, and joins it
-with the catalogue itself. That is exactly what backend change B4 will do
-server-side; when it lands, this file goes and the endpoint answers instead.
+``GET /catalogue`` answers this on ETHOS's side and is what the page uses when
+it is served. This module reads ``deployment/deploy_profiles.yaml`` directly --
+a plain data file on this host, read and never written, holding no credential
+-- and is the fallback for an ETHOS without that route, and the source of the
+profile's ``mechanism`` the Deploy RAN button needs.
 
 If the file is not configured or not readable, deployability is ``None``, which
 renders "unknown" rather than a guess. An unreadable file must not turn into
@@ -161,15 +162,15 @@ def load_profiles(path: Path | None) -> Profiles:
     return Profiles(tuple(found), str(path))
 
 
-# Reasons an option cannot be deployed today. Every one of these was checked
-# against the deploy profiles and the chart values on this host; none is a guess.
-# They disappear as B4 supplies ETHOS's own reason per option.
+# Why an option cannot be deployed, for an ETHOS that does not serve
+# `GET /catalogue`. Each was checked against the deploy profiles and the chart
+# values on this host; none is a guess. ETHOS's own reason wins wherever it has
+# one.
 #
-# `("core", "free5GC")` used to live here as "Not verified on this testbed yet".
-# It does not any more: whether free5GC can be selected is a LIVE fact about
-# ETHOS and the core host, and `GET /core` (B18) is the only thing that knows
-# it. See `console.pages.plan.core_reason`. A fixed string here would have gone
-# on greying the tile out after the testbed could run it.
+# A live fact belongs here only if it cannot change without a code change.
+# free5GC's does -- whether it can be selected depends on ETHOS and the core
+# host, so it comes from `GET /core` instead; see
+# `console.pages.plan.core_reason`.
 OPTION_REASONS: dict[tuple[str, str], str] = {
     ("ru", "Foxconn"): "No chart configuration for this RU yet.",
     ("ru", "TM500"): "No chart configuration for this RU yet.",
@@ -179,7 +180,7 @@ OPTION_REASONS: dict[tuple[str, str], str] = {
         "default, a guessed command would record an attach that never happened."
     ),
     ("l1_backend", "Aerial-cuBB"): (
-        "Requires the DGX-Spark GB10 host; no deploy profile yet."
+        "Requires the DGX-Spark GB10 host and Spark control enabled in ETHOS."
     ),
     ("server", "DGX-Spark"): (
         "ARM host: Intel RAPL does not apply, so energy capture is phase 2."

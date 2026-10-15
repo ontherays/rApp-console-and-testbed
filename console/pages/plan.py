@@ -97,7 +97,7 @@ def vendor_cards(catalogue) -> list[tuple[str, str, str, str, object]]:
 
 def topology_label(selection: dict[str, Any]) -> str:
     """What the chosen topology is called, from ETHOS's own series names."""
-    from console.topology import HEADS, LABELS, PRESET_SELECTIONS
+    from console.topology import LABELS, PRESET_SELECTIONS
 
     split = selection.get("gnb_split")
     stack = selection.get("gnb_stack")
@@ -217,8 +217,7 @@ def option_list(
     has one: `GET /catalogue` (B4) joins the matrix with the deploy profiles
     and with live readiness, so a Spark option says "Spark control disabled"
     in ETHOS's words rather than the console's. ``OPTION_REASONS`` is the
-    fallback for an ETHOS that does not have the route yet, and every entry
-    there disappears as the route covers it.
+    fallback for an ETHOS that does not serve that route.
     """
     if catalogue is None:
         return []
@@ -231,7 +230,7 @@ def option_list(
         if reason is None:
             reason = OPTION_REASONS.get((category, value), "")
         if (category, value) == ("core", "free5GC") and not reason:
-            # Live, from GET /core, rather than the B4 stand-in's fixed prose.
+            # Live, from GET /core, rather than a fixed string here.
             reason = core_reason(core_state)
         if not reason and (option.status or "") == "experimental":
             reason = ""  # experimental is selectable; it is a warning, not a block

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
 
 from console.charts import Column, HexCell, dot_matrix, hex_grid, tick_bar
 from console.overview import (

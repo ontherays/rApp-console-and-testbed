@@ -23,7 +23,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from console import holders
-from console.rapps.ethos.models import Readiness, ReadinessCheck
+from console.rapps.ethos.models import Readiness
 
 #: What each check is called on screen. A check id ETHOS adds later still renders,
 #: under its own id, rather than being dropped for want of a label here.
