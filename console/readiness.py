@@ -39,7 +39,14 @@ LABELS: dict[str, str] = {
     "iperf_server": "The iperf server is in the state this plan needs",
     "traffic_plan": "The traffic plan parses and is in range",
     "core": "The core answers from the node",
+    "ran_ctl": "The DGX Spark will accept a start",
 }
+
+#: Checks ETHOS sends only for some plans. `ran_ctl` is appended for a Spark
+#: plan and for no other, so an unanswered readiness must not invent a row for
+#: it: "the Spark was not judged" about a joule plan is not an unknown, it is
+#: a question nobody asked.
+CONDITIONAL: frozenset[str] = frozenset({"ran_ctl"})
 
 PASS = "pass"
 FAIL = "fail"
@@ -104,6 +111,7 @@ def unavailable(reason: str) -> list[Row]:
     return [
         Row(id=check_id, label=label_for(check_id), status=UNKNOWN, reason=reason)
         for check_id in LABELS
+        if check_id not in CONDITIONAL
     ]
 
 

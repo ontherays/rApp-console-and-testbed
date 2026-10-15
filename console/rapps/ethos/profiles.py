@@ -25,6 +25,10 @@ import yaml
 
 WIRED = "wired"
 
+#: The second deploy mechanism: a RAN mode on the DGX Spark, driven by
+#: `ran-ctl` over SSH. It installs no chart, so it has no releases.
+RAN_CTL = "ran-ctl"
+
 
 @dataclass(frozen=True)
 class Profile:
@@ -33,14 +37,27 @@ class Profile:
     releases: tuple[str, ...]
     match: dict[str, str]
     description: str = ""
+    mechanism: str = ""
+
+    @property
+    def is_ran_ctl(self) -> bool:
+        """Does this profile deploy a RAN mode on the Spark rather than a chart?"""
+        return self.mechanism == RAN_CTL
 
     @property
     def deployable(self) -> bool:
         """``wired`` means the chart path, release name, values and namespace
         were confirmed from the real lab commands. ``todo`` is a placeholder the
         resolver refuses rather than fabricate a chart path, a wrong
-        ``helm upgrade --install`` is a testbed change, not a bad reply."""
-        return self.status == WIRED and bool(self.releases)
+        ``helm upgrade --install`` is a testbed change, not a bad reply.
+
+        A ``ran-ctl`` profile has NO releases and is still deployable: the
+        units are already on the Spark and ETHOS asks for a mode. Requiring a
+        release made every Spark profile read as an unfilled placeholder.
+        """
+        if self.status != WIRED:
+            return False
+        return self.is_ran_ctl or bool(self.releases)
 
     def matches(self, selection: dict[str, Any]) -> bool:
         """Every key in the profile's own ``match`` block must equal the
@@ -93,6 +110,8 @@ class Profiles:
         if profile is None:
             return False, "No deploy profile matches this combination."
         if profile.deployable:
+            if profile.is_ran_ctl:
+                return True, f"profile {profile.name}, a RAN mode on the DGX Spark"
             return True, f"profile {profile.name}, {len(profile.releases)} release(s)"
         return False, (
             f"Deploy profile {profile.name} is a placeholder "
@@ -136,6 +155,7 @@ def load_profiles(path: Path | None) -> Profiles:
                 if isinstance(match, dict)
                 else {},
                 description=str(body.get("description", "")),
+                mechanism=str(body.get("mechanism", "")).strip().lower(),
             )
         )
     return Profiles(tuple(found), str(path))

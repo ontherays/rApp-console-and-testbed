@@ -444,3 +444,50 @@ profiles:
       Setup is rejected on cell identity — i.e. the alignment is a debugging
       step, not configuration. If F1 does not come up, that comment is the first
       thing to act on.
+
+  # The DGX Spark modes. These deploy through ran-ctl, not helm: the units
+  # already exist on the host and ETHOS asks for a mode rather than installing
+  # a chart, so they carry no releases and that is not a missing chart path.
+  - name: oai-mono-aerial
+    status: wired
+    mechanism: ran-ctl
+    mode: oai-mono
+    description: "Mode A: OAI monolithic gNB on the Aerial L1 (DGX Spark)"
+    match:
+      gnb_stack: OAI
+      gnb_split: monolithic
+      l1_backend: Aerial-cuBB
+    stack: OAI
+
+  - name: oai-f1-aerial
+    status: wired
+    mechanism: ran-ctl
+    mode: oai-f1
+    description: "Mode B: OAI CU+DU split on the Aerial L1 (DGX Spark)"
+    match:
+      gnb_stack: OAI
+      gnb_split: CU+DU
+      l1_backend: Aerial-cuBB
+    stack: OAI
+
+  - name: ocudu-mono-aerial
+    status: wired
+    mechanism: ran-ctl
+    mode: ocudu-mono
+    description: "Mode C: OCUDU monolithic gNB on the Aerial L1 (DGX Spark)"
+    match:
+      gnb_stack: OCUDU
+      gnb_split: monolithic
+      l1_backend: Aerial-cuBB
+    stack: OCUDU
+
+  - name: ocudu-f1-aerial
+    status: wired
+    mechanism: ran-ctl
+    mode: ocudu-f1
+    description: "Mode D: OCUDU CU+DU split on the Aerial L1 (DGX Spark)"
+    match:
+      gnb_stack: OCUDU
+      gnb_split: CU+DU
+      l1_backend: Aerial-cuBB
+    stack: OCUDU
