@@ -1,0 +1,57 @@
+{# One preview-then-confirm dialog, for every action that has a preview.
+
+   What is shown is ETHOS's OWN preview text, line for line. A second
+   rendering composed here would be the console confirming itself, and for a
+   ran-ctl action the exact command is the whole point of looking.
+
+   The token travels in the hidden input and only there: it is bound to the
+   request and to the testbed state the preview was computed against.
+
+   Swapped into a dialog container that sits OUTSIDE any form, so a page that
+   re-renders while the dialog is open does not remove it.
+
+   Deliberately NOT removed on `sl-after-hide`: Shoelace fires that during its
+   own open/close animation, which takes the dialog away from under the
+   operator. A hidden dialog left in the DOM is replaced by the next swap. #}
+{% from "components/macros.html" import ic %}
+
+{% macro confirm_dialog(preview, label, post_url, button_label, icon,
+                        token_id, lead, note='', include='', target='',
+                        subject='', width='640px') %}
+<sl-dialog label="{{ label }}" class="confirm-dialog" open
+           style="--width:{{ width }}">
+  <p class="hint" style="margin-top:0">
+    {{ ic('info', 'faint') }}{{ lead }}
+  </p>
+
+  <ul class="preview-list">
+    {% for line in preview.summary %}<li>{{ line }}</li>{% endfor %}
+  </ul>
+
+  {% if note %}<p class="hint">{{ note }}</p>{% endif %}
+
+  {% if preview.expires_in_s %}
+    <p class="hint">
+      This confirmation is good for {{ preview.expires_in_s }} s. After that,
+      or if the testbed changes, ETHOS refuses it and the preview has to be
+      asked for again.
+    </p>
+  {% endif %}
+
+  {% if subject %}<p class="hint mono">{{ subject }}</p>{% endif %}
+
+  <sl-button slot="footer" variant="default"
+             onclick="this.closest('sl-dialog').hide()">Cancel</sl-button>
+  <sl-button slot="footer" variant="primary"
+             hx-post="{{ post_url }}"
+             {% if include %}hx-include="{{ include }}"{% endif %}
+             {% if target %}hx-target="{{ target }}"{% endif %}
+             hx-on:htmx:after-request="this.closest('sl-dialog').hide()">
+    <svg class="ic" aria-hidden="true"><use href="#icon-{{ icon }}"/></svg>
+    {{ button_label }}
+  </sl-button>
+</sl-dialog>
+
+<input type="hidden" id="{{ token_id }}" name="preview_token"
+       value="{{ preview.preview_token }}">
+{% endmacro %}

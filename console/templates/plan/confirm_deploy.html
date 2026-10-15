@@ -1,56 +1,20 @@
-{# The confirmation for Deploy RAN (GL-07), the counterpart of confirm.html.
+{# Deploy RAN's confirmation. Swapped into #plan-dialog, outside #plan-form. #}
+{% from "components/confirm_dialog.html" import confirm_dialog %}
 
-   What is shown is ETHOS's OWN preview text, line for line: the mechanism,
-   the mode, the gates with their current answers, and the exact `ran-ctl`
-   command. A second rendering composed here would be the console confirming
-   itself, and the command is the whole point of looking.
-
-   Confirming creates the run ETHOS takes the lease in the name of, and then
-   deploys. No campaign is started, no UE is touched and no traffic is run. #}
-{% from "components/macros.html" import ic %}
-
-<sl-dialog label="Deploy this RAN mode?" class="confirm-dialog" open
-           style="--width:660px">
-  <p class="hint" style="margin-top:0">
-    {{ ic('info', 'faint') }}
-    ETHOS's own description of what it will do. Nothing has been sent to the
-    Spark yet beyond one read-only status.
-  </p>
-
-  <ul class="preview-list">
-    {% for line in preview.summary %}<li>{{ line }}</li>{% endfor %}
-  </ul>
-
-  <p class="hint">
-    This brings the mode up and leaves it up. No campaign is started, no UE is
-    touched and no traffic is run. ETHOS creates a run to take the Spark's
-    lease in the name of and keeps that lease fresh while the mode is up; Stop
-    RAN on the Testbed page releases it.
-  </p>
-
-  {% if preview.expires_in_s %}
-    <p class="hint">
-      This confirmation is good for {{ preview.expires_in_s }} s. After that, or
-      if the Spark changes, ETHOS refuses it and the preview has to be asked
-      for again.
-    </p>
-  {% endif %}
-
-  {% if config_id %}
-    <p class="hint mono">{{ config_id }}</p>
-  {% endif %}
-
-  <sl-button slot="footer" variant="default"
-             onclick="this.closest('sl-dialog').hide()">Cancel</sl-button>
-  <sl-button slot="footer" variant="primary"
-             hx-post="/plan/deploy/start"
-             hx-include="#plan-form, #confirm-deploy-token"
-             hx-target="#plan-result"
-             hx-on:htmx:after-request="this.closest('sl-dialog').hide()">
-    <svg class="ic" aria-hidden="true"><use href="#icon-l1"/></svg>
-    Deploy the RAN mode
-  </sl-button>
-</sl-dialog>
-
-<input type="hidden" id="confirm-deploy-token" name="preview_token"
-       value="{{ preview.preview_token }}">
+{{ confirm_dialog(
+     preview=preview,
+     label="Deploy this RAN mode?",
+     post_url="/plan/deploy/start",
+     button_label="Deploy the RAN mode",
+     icon="l1",
+     token_id="confirm-deploy-token",
+     lead="ETHOS's own description of what it will do. Nothing has been sent
+           to the Spark yet beyond one read-only status.",
+     note="This brings the mode up and leaves it up. No campaign is started,
+           no UE is touched and no traffic is run. ETHOS creates a run to take
+           the Spark's lease in the name of and keeps that lease fresh while
+           the mode is up; Stop RAN on the Testbed page releases it.",
+     include="#plan-form, #confirm-deploy-token",
+     target="#plan-result",
+     subject=config_id,
+     width="660px") }}
