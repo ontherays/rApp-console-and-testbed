@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import ic, chip %}
+{% from "components/macros.html" import ic, chip, utc %}
 {% from "components/header.html" import primary %}
 
 {% block title %}Testbed · Testbed Console{% endblock %}
@@ -76,15 +76,31 @@
       {% if spark.holder %}
         <span class="faint">held by <span class="mono">{{ spark.holder }}</span></span>
       {% endif %}
+      {% if spark.heartbeat %}
+        <span class="faint">ETHOS is holding the lease, every
+          {{ spark.heartbeat.interval_s | int }} s{% if spark.heartbeat.last_ok_at %},
+          last at {{ utc(spark.heartbeat.last_ok_at) }}{% endif %}</span>
+      {% elif spark.holder %}
+        <span class="faint">no heartbeat in this ETHOS: the lease will go
+          stale unless something else refreshes it</span>
+      {% endif %}
     </div>
-    {% if spark.holder %}
-      <form method="post" action="/testbed/ran/stop" style="margin-top:10px">
-        <input type="hidden" name="config_id" value="{{ deployed.config_id or '' }}">
+    {% if spark.holder and spark.config_id %}
+      <form id="stop-ran-form" style="margin-top:10px">
+        <input type="hidden" name="config_id" value="{{ spark.config_id }}">
         <input type="hidden" name="run_id" value="{{ spark.holder }}">
-        <button class="btn btn-sm" type="submit">Stop RAN</button>
+        <button class="btn btn-sm" type="button"
+                hx-post="/testbed/ran/stop" hx-include="#stop-ran-form"
+                hx-target="#testbed-dialog">Stop RAN</button>
         <span class="faint">stops <span class="mono">{{ spark.mode }}</span>
           for <span class="mono">{{ spark.holder }}</span></span>
       </form>
+    {% elif spark.holder %}
+      <p class="muted" style="margin:10px 0 0">
+        Held by <span class="mono">{{ spark.holder }}</span>, whose
+        configuration this archive does not know, so there is nothing to name
+        in a stop.
+      </p>
     {% else %}
       <p class="muted" style="margin:10px 0 0">
         Nothing holds the RU, so there is nothing to stop.
@@ -96,11 +112,14 @@
   {% endif %}
   <p class="hint">
     {{ ic('info', 'faint') }}
-    Deploying on its own is deliberately not offered here. A deploy occupies a
-    shared testbed for minutes, and RUN already deploys exactly what the plan it
-    is running needs, then tears it down. A standalone button would be a second
-    way to occupy it with no run to attribute it to.
+    Deploying is on the Test Plan page, beside the selection that names the
+    mode. Joule's helm profiles have no deploy button at all: a chart deploy
+    occupies a shared testbed for minutes and belongs with the job that needs
+    it, which is what RUN does.
   </p>
 </div>
+
+{# Confirmations live here, outside every form, so a swap does not remove one. #}
+<div id="testbed-dialog"></div>
 
 {% endblock %}

@@ -62,6 +62,8 @@ class FakeEthos:
         #: followed, so a test can assert the order and the run_id travelled.
         self.created_runs: list[dict[str, Any]] = []
         self.deployed: list[dict[str, Any]] = []
+        #: Stops accepted, so a test can assert what the button actually sent.
+        self.stopped: list[dict[str, Any]] = []
         #: Figures this fake has drawn, by id, and the bodies it was asked for.
         self.figures: dict[str, dict[str, Any]] = {}
         self.plot_requests: list[dict[str, Any]] = []
@@ -386,6 +388,47 @@ class FakeEthos:
             return httpx.Response(200, json=self._load("job_preview"), request=request)
 
         # --- Deploy RAN: a Spark mode with no campaign behind it ------------
+        if path == "/teardown/preview" and method == "POST":
+            config_id = request.url.params.get("config_id") or ""
+            mode = "ocudu-mono" if "-mono_" in config_id else "ocudu-f1"
+            return httpx.Response(200, json={
+                "action": "teardown",
+                "summary": [
+                    f"tear down profile {mode}-aerial",
+                    f"  it would send: sudo /usr/local/bin/ran-ctl stop {mode} <run_id>",
+                    "  the lease is released when the mode reaches down",
+                ],
+                "preview_token": "teardown-token-1",
+                "expires_in_s": 300,
+                "state": {"releases": [], "running_pods": [], "node_free": False},
+            }, request=request)
+
+        if path.startswith("/deploy/") and method == "DELETE":
+            if self.locked_by:
+                return self._locked(request)
+            params = request.url.params
+            if not params.get("confirm") or not params.get("preview_token"):
+                return httpx.Response(
+                    428,
+                    json={"detail": {"error": "confirmation_required",
+                                     "action": "teardown"}},
+                    request=request,
+                )
+            if not params.get("run_id"):
+                return httpx.Response(
+                    422, json={"detail": "a ran-ctl stop needs a run_id"},
+                    request=request,
+                )
+            self.stopped.append({
+                "config_id": path.split("/", 2)[2],
+                "run_id": params.get("run_id"),
+                "preview_token": params.get("preview_token"),
+            })
+            return httpx.Response(200, json={"deployment": {
+                "outcome": "torn_down", "ok": True,
+                "reason": "ocudu-mono reached phase 'down'",
+            }}, request=request)
+
         if path == "/deploy/preview" and method == "POST":
             body = json.loads(request.content or b"{}")
             config_id = str(body.get("config_id") or "")

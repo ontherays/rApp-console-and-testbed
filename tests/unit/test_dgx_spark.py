@@ -346,3 +346,138 @@ def test_a_joule_selection_cannot_deploy_ran_even_by_posting(client, ethos_url) 
     )
     assert response.status_code == 409
     assert ethos_url.deployed == []
+
+
+# --- 10f, Stop RAN: the rendered page, then the form it renders -------------
+
+import re                                                           # noqa: E402
+
+HELD_RUN = "20261015T1435Z-ocudu-mono_aerial_pega_samsung_o5gs_dgxspark-noTraffic-001"
+MODE_C = "ocudu-mono_aerial_pega_samsung_o5gs_dgxspark"
+
+
+def held_spark(ethos_url, *, holder=HELD_RUN, config_id=MODE_C,
+               mode="ocudu-mono", heartbeat=None) -> None:
+    """A Spark holding a lease, as `GET /deploy/status` with no config_id
+    answers it."""
+    body = ethos_url._load("deploy_status")
+    body["status"]["ran_mode"] = {
+        "read_ok": True, "mode": mode, "phase": "up", "holder": holder,
+        "holder_config_id": config_id, "lease_stale": False,
+        "recovery_cycle": False, "blocked": True, "drift": [],
+        "cn5g_running": False, "heartbeat": heartbeat,
+        "reason": f"the RU is held by run_id {holder!r}",
+    }
+    ethos_url.answers["GET /deploy/status"] = (200, body)
+
+
+def form_fields(html: str, form_id: str) -> dict:
+    """Every hidden input the named form actually rendered."""
+    block = re.search(rf'<form id="{form_id}".*?</form>', html, re.S)
+    assert block, f"no form {form_id} in the page"
+    return dict(re.findall(r'name="([^"]+)" value="([^"]*)"', block.group(0)))
+
+
+def test_the_testbed_page_renders_a_stop_form_naming_the_holder(client, ethos_url) -> None:
+    held_spark(ethos_url)
+    page = client.get("/testbed").text
+
+    assert "Stop RAN" in page
+    assert form_fields(page, "stop-ran-form") == {
+        "config_id": MODE_C, "run_id": HELD_RUN,
+    }
+
+
+def test_the_tile_names_the_mode_the_lease_holds(client, ethos_url) -> None:
+    held_spark(ethos_url)
+    page = client.get("/testbed").text
+    assert "ocudu-mono" in page
+    assert "no mode" not in page
+
+
+def test_no_holder_renders_no_stop_button(client, ethos_url) -> None:
+    body = ethos_url._load("deploy_status")
+    body["status"]["ran_mode"] = {
+        "read_ok": True, "mode": None, "phase": None, "holder": None,
+        "holder_config_id": None, "lease_stale": False, "blocked": False,
+        "drift": [], "cn5g_running": False, "heartbeat": None, "reason": "",
+    }
+    ethos_url.answers["GET /deploy/status"] = (200, body)
+    page = client.get("/testbed").text
+
+    assert "Stop RAN" not in page
+    assert "nothing to stop" in page
+
+
+def test_a_holder_with_no_known_config_renders_no_stop_button(client, ethos_url) -> None:
+    """A lease ETHOS cannot name a configuration for cannot be stopped by a
+    route that names one."""
+    held_spark(ethos_url, config_id=None)
+    page = client.get("/testbed").text
+
+    assert "Stop RAN" not in page
+    assert "this archive does not know" in page
+
+
+def submit(client, html: str, form_id: str, url: str, **extra):
+    """Post exactly what the rendered form carries."""
+    return client.post(url, data={**form_fields(html, form_id), **extra})
+
+
+def test_pressing_stop_ran_previews_and_sends_nothing(client, ethos_url) -> None:
+    held_spark(ethos_url)
+    page = client.get("/testbed").text
+
+    response = submit(client, page, "stop-ran-form", "/testbed/ran/stop")
+    assert response.status_code == 200, response.text
+    assert "Stop this RAN mode?" in response.text
+    assert "ran-ctl stop ocudu-mono" in response.text
+    assert ethos_url.stopped == []
+
+
+def test_confirming_the_preview_sends_the_token_and_the_holder(client, ethos_url) -> None:
+    """The whole path a person takes: the page, its form, the dialog the
+    preview returns, and the fields that dialog carries."""
+    held_spark(ethos_url)
+    page = client.get("/testbed").text
+
+    dialog = submit(client, page, "stop-ran-form", "/testbed/ran/stop").text
+    token = re.search(r'id="confirm-stop-token" name="preview_token"\s+value="([^"]+)"',
+                      dialog).group(1)
+
+    confirmed = submit(client, page, "stop-ran-form",
+                       "/testbed/ran/stop/confirm", preview_token=token)
+    assert confirmed.status_code == 204, confirmed.text
+    assert ethos_url.stopped == [{
+        "config_id": MODE_C, "run_id": HELD_RUN, "preview_token": token,
+    }]
+    assert confirmed.headers["HX-Redirect"] == "/testbed"
+
+
+def test_confirming_a_stop_without_a_token_sends_nothing(client, ethos_url) -> None:
+    held_spark(ethos_url)
+    page = client.get("/testbed").text
+
+    response = submit(client, page, "stop-ran-form", "/testbed/ran/stop/confirm")
+    assert response.status_code == 422
+    assert ethos_url.stopped == []
+
+
+def test_a_held_testbed_refuses_the_stop(client, ethos_url) -> None:
+    held_spark(ethos_url)
+    page = client.get("/testbed").text
+    ethos_url.hold_lock("CLI campaign", "a sweep", "2026-10-15T09:00:00Z")
+
+    response = submit(client, page, "stop-ran-form",
+                      "/testbed/ran/stop/confirm", preview_token="teardown-token-1")
+    assert response.status_code == 409
+    assert ethos_url.stopped == []
+
+
+def test_the_tile_shows_the_heartbeat_ethos_holds(client, ethos_url) -> None:
+    held_spark(ethos_url, heartbeat={
+        "run_id": HELD_RUN, "interval_s": 300.0,
+        "last_ok_at": "2026-10-15T14:45:00+00:00",
+    })
+    page = client.get("/testbed").text
+    assert "ETHOS is holding the lease" in page

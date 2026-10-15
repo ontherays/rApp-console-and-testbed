@@ -1,0 +1,17 @@
+{# Stop RAN's confirmation. Swapped into #testbed-dialog, outside any form. #}
+{% from "components/confirm_dialog.html" import confirm_dialog %}
+
+{{ confirm_dialog(
+     preview=preview,
+     label="Stop this RAN mode?",
+     post_url="/testbed/ran/stop/confirm",
+     button_label="Stop the RAN mode",
+     icon="l1",
+     token_id="confirm-stop-token",
+     lead="ETHOS's own description of what it will do. Nothing has been sent
+           to the Spark yet.",
+     note="The mode goes down and the lease is released. Anything measuring
+           against it stops measuring.",
+     include="#stop-ran-form, #confirm-stop-token",
+     subject=run_id,
+     width="620px") }}

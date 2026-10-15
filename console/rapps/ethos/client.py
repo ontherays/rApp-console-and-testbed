@@ -390,15 +390,31 @@ class EthosClient:
             slow=True,
         )
 
-    async def ran_stop(self, config_id: str, run_id: str) -> dict[str, Any]:
+    async def teardown_preview(self, config_id: str) -> Preview:
+        """What stopping this mode would do, and the token that allows it.
+
+        Sends nothing to the Spark. Teardown is a confirmed action like any
+        other, so the button shows this before it acts.
+        """
+        return Preview.model_validate(
+            await self.call(
+                "POST", "/teardown/preview", params={"config_id": config_id},
+                slow=True,
+            )
+        )
+
+    async def ran_stop(self, config_id: str, run_id: str,
+                       preview_token: str) -> dict[str, Any]:
         """Stop the RAN mode this run holds: ETHOS's own teardown route.
 
-        `DELETE /deploy/{config_id}` already dispatches to the ran-ctl
-        mechanism, which refuses a lease held by another run (exit 6). No new
-        ETHOS route was needed for the button.
+        `DELETE /deploy/{config_id}` dispatches to the ran-ctl mechanism,
+        which refuses a lease held by another run (exit 6).
         """
         return await self.call(
-            "DELETE", f"/deploy/{config_id}", params={"run_id": run_id}, slow=True
+            "DELETE", f"/deploy/{config_id}",
+            params={"run_id": run_id, "confirm": True,
+                    "preview_token": preview_token},
+            slow=True,
         )
 
     async def status_health(self) -> dict[str, Any]:

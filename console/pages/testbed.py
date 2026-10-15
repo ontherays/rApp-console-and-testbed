@@ -134,7 +134,12 @@ def reboot_blocked(lock, deployed) -> str:
 
 
 def spark_view(deployed) -> dict | None:
-    """The Spark's phase and lease, for the deploy tile. None for joule."""
+    """The Spark's phase and lease, for the deploy tile. None for joule.
+
+    `config_id` is the holder's, resolved by ETHOS from the archive: this
+    page names no configuration when it asks, so the status it gets back
+    carries none of its own, and Stop RAN has to name one.
+    """
     ran_mode = getattr(deployed, "ran_mode", None)
     if not ran_mode:
         return None
@@ -142,32 +147,64 @@ def spark_view(deployed) -> dict | None:
         "mode": ran_mode.get("mode"),
         "phase": ran_mode.get("phase"),
         "holder": ran_mode.get("holder"),
+        "config_id": ran_mode.get("holder_config_id") or deployed.config_id,
         "lease_stale": ran_mode.get("lease_stale"),
         "recovery_cycle": ran_mode.get("recovery_cycle"),
+        "heartbeat": ran_mode.get("heartbeat"),
         "reason": ran_mode.get("reason") or "",
         "blocked": bool(ran_mode.get("blocked")),
     }
 
 
 @router.post("/testbed/ran/stop")
-async def ran_stop(request: Request):
-    """Stop the Spark's RAN mode for the run that holds the lease.
+async def ran_stop_preview(request: Request):
+    """Stop RAN, step one: ask ETHOS what stopping this mode would do.
 
-    A convenience, not the enforcement: a stop sent for somebody else's run is
-    refused by ran-ctl with exit 6, and ETHOS passes that back as a 409. The
-    button is disabled in that case, but the refusal is what actually holds.
+    Sends nothing to the Spark. Teardown is a confirmed action, so the
+    operator sees ETHOS's own description and a token bound to it before
+    anything acts.
     """
-    form = await request.form()
-    config_id = str(form.get("config_id") or "")
-    run_id = str(form.get("run_id") or "")
-    if not config_id or not run_id:
-        return _toast("That stop named no run; reload the page.", "warning", 422)
+    config_id, run_id, refusal = _stop_target(await request.form())
+    if refusal is not None:
+        return refusal
 
     client = request.app.state.client
     try:
-        await client.ran_stop(config_id, run_id)
+        preview = await client.teardown_preview(config_id)
     except EthosRefused as exc:
         return _toast(exc.message, "warning", 409)
+    except EthosError as exc:
+        return _toast(exc.message, "danger", exc.status or 502)
+
+    return render(request, "testbed/confirm_stop.html",
+                  {"preview": preview, "config_id": config_id, "run_id": run_id})
+
+
+@router.post("/testbed/ran/stop/confirm")
+async def ran_stop_confirm(request: Request):
+    """Stop RAN, step two: the operator has seen the preview and confirmed.
+
+    A stop sent for somebody else's run is refused by ran-ctl with exit 6 and
+    comes back as a 409. The button is not offered in that case, but the
+    refusal is what actually holds.
+    """
+    form = await request.form()
+    config_id, run_id, refusal = _stop_target(form)
+    if refusal is not None:
+        return refusal
+    token = str(form.get("preview_token") or "")
+    if not token:
+        return _toast("That confirmation had no token; ask again.", "warning", 422)
+
+    client = request.app.state.client
+    try:
+        await client.ran_stop(config_id, run_id, token)
+    except EthosRefused as exc:
+        return _toast(exc.message, "warning", 409)
+    except EthosStateChanged as exc:
+        return _toast(
+            "The Spark changed after that preview, so the confirmation no "
+            f"longer describes it: {exc.message}", "warning", 412)
     except EthosError as exc:
         return _toast(exc.message, "danger", exc.status or 502)
 
@@ -176,6 +213,16 @@ async def ran_stop(request: Request):
         status_code=204,
         headers={"HX-Redirect": "/testbed", "HX-Trigger": "ran-stopped"},
     )
+
+
+def _stop_target(form) -> tuple[str, str, Response | None]:
+    """The configuration and run a stop names, or the toast that refuses it."""
+    config_id = str(form.get("config_id") or "")
+    run_id = str(form.get("run_id") or "")
+    if not config_id or not run_id:
+        return "", "", _toast("That stop named no run; reload the page.",
+                              "warning", 422)
+    return config_id, run_id, None
 
 
 @router.get("/testbed/ue")
