@@ -60,6 +60,29 @@ class Chain:
         return ", ".join(part for part in (outside, middle, tail) if part)
 
 
+#: The L1 backend that runs on the DGX Spark. A plan naming it draws the
+#: Aerial path instead of the software-PHY one.
+AERIAL_L1 = "Aerial-cuBB"
+SPARK_SERVER = "DGX-Spark"
+
+
+def is_aerial(selection: dict[str, Any]) -> bool:
+    """Does this selection run on the Aerial L1?"""
+    return str(selection.get("l1_backend", "")) == AERIAL_L1
+
+
+def server_of(config_id: str) -> str:
+    """The server a run's config_id names. The sixth field of six.
+
+    Derived, not asked for: the config_id already carries the server, so a run
+    needs no new API field to be drawn on the right path.
+    """
+    parts = str(config_id or "").split("_")
+    if len(parts) < 6:
+        return ""
+    return {"dgxspark": SPARK_SERVER, "joule": "joule"}.get(parts[-1].lower(), "")
+
+
 def nodes_for(selection: dict[str, Any], *, split: str = "") -> Chain:
     """The chain for one selection, split into what the O-Cloud holds and what
     it does not."""
@@ -80,8 +103,21 @@ def nodes_for(selection: dict[str, Any], *, split: str = "") -> Chain:
             cu, du = "OAI", "OCUDU"
         hosted = [Node("du", "O-DU", du, "orange"), Node("cu", "O-CU", cu, "purple")]
 
+    if is_aerial(selection):
+        # The Aerial L1 sits between the gNB and the radio: the gNB speaks FAPI
+        # over nvIPC to it, and it drives the fronthaul off the ConnectX-7
+        # through OcNOS. Drawn first in `hosted` because the row reads
+        # outwards from the RU.
+        hosted = [
+            Node("l1", "Aerial L1", "cuPHY, FAPI over nvIPC", "teal"),
+            *hosted,
+        ]
+        ru_node = Node("ru", "O-RU", f"{ru}, 7.2x via CX7 and OcNOS", "teal")
+    else:
+        ru_node = Node("ru", "O-RU", ru, "teal")
+
     return Chain(
-        before=[Node("ue", "UE", ue, "blue"), Node("ru", "O-RU", ru, "teal")],
+        before=[Node("ue", "UE", ue, "blue"), ru_node],
         hosted=hosted,
         after=[Node("core", "5GC", core, "purple")],
         server=server,
