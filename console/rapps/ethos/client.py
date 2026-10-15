@@ -268,6 +268,23 @@ class EthosClient:
 
         return await self._cached("compatibility", 300.0, fetch)
 
+    async def catalogue(self) -> Catalogue | None:
+        """`GET /catalogue` (B4): the matrix with ETHOS's own deployability.
+
+        ``None`` when this ETHOS does not have the route yet, so the console
+        falls back to joining the profiles itself rather than showing nothing.
+        """
+        async def fetch() -> Catalogue | None:
+            try:
+                return Catalogue.model_validate(await self.call("GET", "/catalogue"))
+            except EthosNotImplemented:
+                return None
+
+        # The short cache, not compatibility's 300 s: this one carries live
+        # Spark readiness, and a five-minute-old "RU held by another run" is
+        # worse than no reason at all.
+        return await self._cached("catalogue", self.status_cache_s, fetch)
+
     async def validate(self, selection: dict[str, Any]) -> ValidationResult:
         return ValidationResult.model_validate(
             await self.call("POST", "/validate", json=selection)
@@ -324,6 +341,17 @@ class EthosClient:
 
         key = f"deploy_status:{config_id or ''}"
         return await self._cached(key, self.status_cache_s, fetch)
+
+    async def ran_stop(self, config_id: str, run_id: str) -> dict[str, Any]:
+        """Stop the RAN mode this run holds: ETHOS's own teardown route.
+
+        `DELETE /deploy/{config_id}` already dispatches to the ran-ctl
+        mechanism, which refuses a lease held by another run (exit 6). No new
+        ETHOS route was needed for the button.
+        """
+        return await self.call(
+            "DELETE", f"/deploy/{config_id}", params={"run_id": run_id}, slow=True
+        )
 
     async def status_health(self) -> dict[str, Any]:
         async def fetch() -> dict[str, Any]:

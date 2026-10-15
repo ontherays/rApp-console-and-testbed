@@ -108,7 +108,10 @@ def topology_label(selection: dict[str, Any]) -> str:
 
 
 def card_list(
-    catalogue, category: str, core_state: CoreState | None = None
+    catalogue,
+    category: str,
+    core_state: CoreState | None = None,
+    deployability=None,
 ) -> list[tuple[str, str, str, str, object]]:
     """(value, label, reason, blurb, vendor mark) for the picker's cards."""
     return [
@@ -119,7 +122,9 @@ def card_list(
             BLURBS.get((category, value), ""),
             mark_for(category, value),
         )
-        for value, label, reason in option_list(catalogue, category, core_state)
+        for value, label, reason in option_list(
+            catalogue, category, core_state, deployability
+        )
     ]
 
 
@@ -201,22 +206,31 @@ def combination_note(*, core: str, ue: str) -> str:
 
 
 def option_list(
-    catalogue, category: str, core_state: CoreState | None = None
+    catalogue,
+    category: str,
+    core_state: CoreState | None = None,
+    deployability=None,
 ) -> list[tuple[str, str, str]]:
     """(value, label, reason-it-is-disabled) for one catalogue category.
 
-    The label is always what is shown (GL-05). A reason comes from
-    ``OPTION_REASONS``, every entry there was checked against the deploy
-    profiles and the chart values on this host, and each one disappears as
-    ``GET /catalogue`` (B4) starts carrying ETHOS's own reason per option.
+    The label is always what is shown (GL-05). ETHOS's own reason wins when it
+    has one: `GET /catalogue` (B4) joins the matrix with the deploy profiles
+    and with live readiness, so a Spark option says "Spark control disabled"
+    in ETHOS's words rather than the console's. ``OPTION_REASONS`` is the
+    fallback for an ETHOS that does not have the route yet, and every entry
+    there disappears as the route covers it.
     """
     if catalogue is None:
         return []
     out: list[tuple[str, str, str]] = []
     for option in catalogue.category(category):
         value = option.id or option.slug or ""
-        reason = OPTION_REASONS.get((category, value), "")
-        if (category, value) == ("core", "free5GC"):
+        reason = None
+        if deployability is not None:
+            reason = deployability.reason_for(category, value)
+        if reason is None:
+            reason = OPTION_REASONS.get((category, value), "")
+        if (category, value) == ("core", "free5GC") and not reason:
             # Live, from GET /core, rather than the B4 stand-in's fixed prose.
             reason = core_reason(core_state)
         if not reason and (option.status or "") == "experimental":
@@ -453,6 +467,14 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
     except EthosError as exc:
         catalogue_error = exc.message
 
+    # ETHOS's own deployability per option (B4). None when this ETHOS has no
+    # /catalogue route, which leaves OPTION_REASONS in charge as before.
+    deployability = None
+    try:
+        deployability = await client.catalogue()
+    except EthosError:
+        deployability = None
+
     return {
         "values": values,
         "vendors": vendor_fields(values),
@@ -460,12 +482,12 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
         "catalogue": catalogue,
         "catalogue_error": catalogue_error,
         "options": {
-            category: option_list(catalogue, category, core_state)
+            category: option_list(catalogue, category, core_state, deployability)
             for category in ("gnb_stack", "l1_backend", "ru", "ue", "core", "server")
         },
         "cards": {
             **{
-                category: card_list(catalogue, category, core_state)
+                category: card_list(catalogue, category, core_state, deployability)
                 for category in ("gnb_stack", "l1_backend", "ru", "ue", "core", "server")
             },
             "split": list(SPLIT_CARDS_WITH_MARK),

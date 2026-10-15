@@ -77,6 +77,18 @@ class Catalogue(Loose):
                 return option
         return None
 
+    def reason_for(self, category: str, ident: str) -> str | None:
+        """Why ETHOS could not deploy this option, from `GET /catalogue` (B4).
+
+        ``None`` means ETHOS did not say: an older ETHOS, or `/compatibility`
+        rather than `/catalogue`: and the caller falls back to its own list.
+        ``""`` means it said yes.
+        """
+        option = self.option(category, ident)
+        if option is None or option.deployable is None:
+            return None
+        return "" if option.deployable else (option.reason or "not deployable")
+
 
 class ValidationReason(Loose):
     code: str | None = None
@@ -256,6 +268,9 @@ class Run(Loose):
     #: (ETHOS B18). None means it was never read, and the run then carries the
     #: `core_unknown` quality flag: it is NOT taken for Open5GS.
     core_switch: dict[str, Any] | None = None
+    #: What the DGX Spark was running, from ran-ctl (step 6). None for every
+    #: joule run, exactly as `core_switch` is None when none was read.
+    ran_mode: dict[str, Any] | None = None
     server_version: str | None = None
     client_version: str | None = None
     traffic_mode: str | None = None
@@ -372,6 +387,9 @@ class DeployStatus(Loose):
     node_reason: str | None = None
     node_check: Any | None = None
     deployer: str | None = None
+    #: `ran-ctl status` for a DGX Spark profile: phase, lease holder, drift.
+    #: None for every helm profile.
+    ran_mode: dict[str, Any] | None = None
     warnings: list[str] = Field(default_factory=list)
 
     @property
