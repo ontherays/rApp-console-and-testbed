@@ -43,8 +43,12 @@ STUB_501 = (
 
 
 class FakeEthos:
-    def __init__(self, recorded: Path) -> None:
+    def __init__(self, recorded: Path, serve_catalogue: bool = False) -> None:
         self.recorded = recorded
+        #: `GET /catalogue` is unrouted by default, as it was on the ETHOS the
+        #: other recordings came from. The tests that need the deployability it
+        #: carries ask for it.
+        self.serve_catalogue = serve_catalogue
         self.down = False
         self.refuse_with: tuple[int, dict[str, Any]] | None = None
         self.calls: list[tuple[str, str]] = []
@@ -190,6 +194,8 @@ class FakeEthos:
             return answered
 
         for prefix in NOT_ROUTED:
+            if prefix == "/catalogue" and self.serve_catalogue:
+                continue
             if path == prefix or path.startswith(prefix + "/"):
                 return httpx.Response(404, json={"detail": "Not Found"}, request=request)
 
@@ -218,6 +224,9 @@ class FakeEthos:
             )
         if path == "/compatibility":
             return httpx.Response(200, json=self._load("compatibility"), request=request)
+
+        if path == "/catalogue" and self.serve_catalogue:
+            return httpx.Response(200, json=self._load("catalogue"), request=request)
         if path == "/validate":
             body = json.loads(request.content or b"{}")
             return httpx.Response(200, json=self._validate(body), request=request)

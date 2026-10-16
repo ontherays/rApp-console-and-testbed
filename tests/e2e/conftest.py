@@ -40,11 +40,12 @@ def _free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def _start_fake_ethos():
+def _start_fake_ethos(catalogue: bool = False):
     """Serve the recorded ETHOS responses, so the pages have data to draw."""
     port = _free_port()
     process = subprocess.Popen(
-        [sys.executable, "-m", "tests.fake_ethos.server", "--port", str(port)],
+        [sys.executable, "-m", "tests.fake_ethos.server", "--port", str(port)]
+        + (["--catalogue"] if catalogue else []),
         cwd=str(ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -207,6 +208,33 @@ def offline_page(browser, console_without_ethos):
     )
     page = context.new_page()
     page.console_errors = []  # type: ignore[attr-defined]
+    page.goto("/login")
+    page.fill("#password", PASSWORD)
+    page.click("button[type=submit]")
+    page.wait_for_url("**/")
+    yield page
+    context.close()
+
+
+@pytest.fixture(scope="session")
+def console_with_catalogue():
+    """A console whose ETHOS answers `GET /catalogue` (B4).
+
+    Its deployability is what decides whether an option can be clicked, so the
+    tests that click a DGX-Spark option need it.
+    """
+    ethos, ethos_process = _start_fake_ethos(catalogue=True)
+    base, process = _start_console(ethos)
+    yield base
+    _stop_console(process)
+    ethos_process.terminate()
+
+
+@pytest.fixture
+def catalogue_page(browser, console_with_catalogue):
+    context = browser.new_context(base_url=console_with_catalogue,
+                                  viewport={"width": 1400, "height": 1000})
+    page = context.new_page()
     page.goto("/login")
     page.fill("#password", PASSWORD)
     page.click("button[type=submit]")

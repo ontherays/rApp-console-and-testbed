@@ -46,8 +46,8 @@ SEEDED_LOG = (
 )
 
 
-def create_app(recorded: Path = RECORDED) -> Starlette:
-    fake = FakeEthos(recorded)
+def create_app(recorded: Path = RECORDED, serve_catalogue: bool = False) -> Starlette:
+    fake = FakeEthos(recorded, serve_catalogue=serve_catalogue)
 
     fake.add_job(SEEDED_JOB, state="running", stop_requested=False, ended="",
                  outcome="", error="")
@@ -127,5 +127,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8099)
+    parser.add_argument("--catalogue", action="store_true",
+                        help="answer GET /catalogue from the recording")
     args = parser.parse_args()
-    uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
+    uvicorn.run(create_app(serve_catalogue=args.catalogue),
+                host="127.0.0.1", port=args.port, log_level="warning")
