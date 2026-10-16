@@ -11,6 +11,7 @@
    emitting them here too would draw each one twice. #}
 {% if not initial %}
   {% with oob=True %}{% include "plan/vendors.html" %}{% endwith %}
+  {% with oob=True %}{% include "plan/backend_groups.html" %}{% endwith %}
   {% with oob=True %}{% include "plan/topology_summary.html" %}{% endwith %}
   {% with oob=True %}{% include "plan/core.html" %}{% endwith %}
   {% with oob=True %}{% include "plan/readiness.html" %}{% endwith %}

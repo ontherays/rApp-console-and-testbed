@@ -1,0 +1,10 @@
+{# The L1 backend and the O-Cloud. They pick each other, so they are rendered
+   together and swapped out of band: the drawer is outside #plan-result, and
+   the card that moved has to be the one on screen. #}
+{% from "components/form.html" import pick_group %}
+<div id="backend-groups" {% if oob %}hx-swap-oob="true"{% endif %}>
+  {{ pick_group('l1_backend', 'l1', 'L1 backend', cards.l1_backend, values.l1_backend) }}
+  {{ pick_group('server', 'server', 'O-Cloud server', cards.server, values.server) }}
+  <input type="hidden" name="shown_l1_backend" value="{{ values.l1_backend }}">
+  <input type="hidden" name="shown_server" value="{{ values.server }}">
+</div>

@@ -660,23 +660,33 @@ COUPLED: dict[str, str] = {
 }
 
 
-async def _couple(request: Request, values: dict[str, Any]) -> dict[str, Any]:
-    """Move the field paired with the one just changed, so the picks agree.
+def _changed_fields(form: Any, values: dict[str, Any]) -> list[str]:
+    """Coupled fields whose value differs from the one the page last showed.
 
-    htmx names the control that fired, so the operator's own choice stays and
-    its partner is the one that moves.
+    The form posts as a whole and htmx names no control, so what the operator
+    just moved is whatever no longer matches the rendered `shown_` value.
     """
-    changed = request.headers.get("HX-Trigger-Name") or ""
-    other = COUPLED.get(changed)
-    if not other:
+    return [field for field in COUPLED
+            if form.get(f"shown_{field}") not in (None, str(values[field]))]
+
+
+async def _couple(request: Request, form: Any,
+                  values: dict[str, Any]) -> dict[str, Any]:
+    """Move the partner of each field the operator just changed."""
+    changed = _changed_fields(form, values)
+    if not changed:
         return values
     try:
         catalogue = await request.app.state.client.compatibility()
     except EthosError:
         return values
-    forced = catalogue.partner(changed, str(values[changed]), other)
-    if forced:
-        values[other] = forced
+    for field in changed:
+        other = COUPLED[field]
+        if other in changed:
+            continue          # both moved: the operator said what they meant
+        forced = catalogue.partner(field, str(values[field]), other)
+        if forced:
+            values[other] = forced
     return values
 
 
@@ -684,7 +694,7 @@ async def _values_from_request(request: Request) -> dict[str, Any]:
     form = await request.form()
     source = {key: form.get(key) for key in DEFAULTS}
     source["radio_samples"] = form.get("radio_samples") in ("1", "on", "yes", "true")
-    return await _couple(request, _form_values(request, source))
+    return await _couple(request, form, _form_values(request, source))
 
 
 @router.post("/plan/resolve")

@@ -55,12 +55,11 @@
       {{ pick_group('gnb_stack', 'gnb', 'gNB stack', cards.gnb_stack, values.gnb_stack) }}
       {{ pick_group('split_kind', 'swap', 'Split', cards.split, values.split_kind) }}
       {% with oob=False %}{% include "plan/vendors.html" %}{% endwith %}
-      {{ pick_group('l1_backend', 'l1', 'L1 backend', cards.l1_backend, values.l1_backend) }}
+      {% with oob=False %}{% include "plan/backend_groups.html" %}{% endwith %}
       {{ pick_group('ru', 'ru', 'Radio unit', cards.ru, values.ru) }}
       {{ pick_group('ue', 'ue', 'UE', cards.ue, values.ue,
                     hint='A TM500 UE runs only against the TM500 RU emulation, and the other way round (catalogue RULE-1).') }}
       {{ pick_group('core', 'core', 'Core network', cards.core, values.core) }}
-      {{ pick_group('server', 'server', 'O-Cloud server', cards.server, values.server) }}
     </sl-tab-panel>
   </sl-tab-group>
 
