@@ -481,3 +481,68 @@ def test_the_tile_shows_the_heartbeat_ethos_holds(client, ethos_url) -> None:
     })
     page = client.get("/testbed").text
     assert "ETHOS is holding the lease" in page
+
+
+# --- the L1 backend and the O-Cloud follow each other -----------------------
+
+def resolved_id(body: str) -> str:
+    """The config_id the page resolved to, not the ones its presets offer."""
+    import re
+    hit = re.search(r'class="config-id">\s*([a-z0-9_-]+)', body)
+    return hit.group(1) if hit else body
+
+
+def _resolve(client, form, changed):
+    """POST the form the way htmx does, naming the control that fired."""
+    return client.post("/plan/resolve", data=form,
+                       headers={"HX-Trigger-Name": changed})
+
+
+def test_choosing_aerial_selects_the_dgx_spark(client) -> None:
+    """RULE-6 pairs them in the catalogue; the form follows that data."""
+    body = _resolve(client, spark_form(l1_backend=AERIAL_L1, server="joule"),
+                    "l1_backend").text
+    assert "ocudu-mono_aerial_pega_samsung_o5gs_dgxspark" in body
+    assert "ocudu-mono_swphy_pega_samsung_o5gs_joule" not in resolved_id(body)
+
+
+def test_choosing_the_dgx_spark_selects_aerial(client) -> None:
+    body = _resolve(client, spark_form(l1_backend="software-PHY", server="DGX-Spark"),
+                    "server").text
+    assert "ocudu-mono_aerial_pega_samsung_o5gs_dgxspark" in body
+
+
+def test_choosing_software_phy_selects_joule(client) -> None:
+    body = _resolve(client, spark_form(l1_backend="software-PHY", server="DGX-Spark"),
+                    "l1_backend").text
+    assert "ocudu-mono_swphy_pega_samsung_o5gs_joule" in body
+
+
+def test_choosing_joule_selects_software_phy(client) -> None:
+    body = _resolve(client, spark_form(l1_backend=AERIAL_L1, server="joule"),
+                    "server").text
+    assert "ocudu-mono_swphy_pega_samsung_o5gs_joule" in body
+
+
+def test_changing_the_topology_keeps_the_backend_and_the_o_cloud(client) -> None:
+    """A topology change moves neither, so all three stay a possible plan."""
+    body = _resolve(client, spark_form(gnb_stack="OAI"), "gnb_stack").text
+    assert "oai-mono_aerial_pega_samsung_o5gs_dgxspark" in body
+
+
+def test_the_wrong_deploy_reproduction_now_submits_the_dgxspark_id(client) -> None:
+    """Aerial picked while the O-Cloud still reads joule: 2026-10-16."""
+    body = _resolve(client, spark_form(l1_backend=AERIAL_L1, server="joule"),
+                    "l1_backend").text
+    assert "ocudu-mono_aerial_pega_samsung_o5gs_dgxspark" in body
+
+
+def test_a_confirm_for_another_config_id_is_refused(client) -> None:
+    """What the dialog showed is what may be started, or nothing is sent."""
+    reply = client.post("/plan/start", data={
+        **spark_form(),
+        "preview_token": "t",
+        "confirmed_config_id": "ocudu-mono_swphy_pega_samsung_o5gs_joule",
+    })
+    assert reply.status_code == 409
+    assert "nothing was sent" in reply.text
