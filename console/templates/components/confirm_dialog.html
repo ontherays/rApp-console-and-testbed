@@ -17,7 +17,7 @@
 
 {% macro confirm_dialog(preview, label, post_url, button_label, icon,
                         token_id, lead, note='', include='', target='',
-                        subject='', width='640px') %}
+                        subject='', ocloud='', width='640px') %}
 <sl-dialog label="{{ label }}" class="confirm-dialog" open
            style="--width:{{ width }}">
   <p class="hint" style="margin-top:0">
@@ -38,7 +38,12 @@
     </p>
   {% endif %}
 
-  {% if subject %}<p class="hint mono">{{ subject }}</p>{% endif %}
+  {% if subject %}
+    <p class="hint mono">{{ subject }}</p>
+  {% endif %}
+  {% if ocloud %}
+    <p class="hint">{{ ic('server', 'faint') }}O-Cloud · <b>{{ ocloud }}</b></p>
+  {% endif %}
 
   <sl-button slot="footer" variant="default"
              onclick="this.closest('sl-dialog').hide()">Cancel</sl-button>
@@ -54,4 +59,8 @@
 
 <input type="hidden" id="{{ token_id }}" name="preview_token"
        value="{{ preview.preview_token }}">
+{# What the operator was shown. The route refuses a confirm whose freshly
+   resolved config_id is not this one. #}
+<input type="hidden" id="{{ token_id }}-config" name="confirmed_config_id"
+       value="{{ subject }}">
 {% endmacro %}
