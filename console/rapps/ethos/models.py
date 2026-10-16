@@ -67,6 +67,25 @@ class Catalogue(Loose):
     required_categories: list[str] = Field(default_factory=list)
     options: dict[str, list[Option]] = Field(default_factory=dict)
     couplings: list[Coupling] = Field(default_factory=list)
+    allow_lists: dict[str, dict[str, Any]] = Field(default_factory=dict)
+
+    def partner(self, category: str, value: str, other: str) -> str | None:
+        """The only *other* option allowed beside *value*, or None.
+
+        Read from the allow-list that constrains exactly these two categories,
+        so a pair added to compatibility.yaml couples itself.
+        """
+        for entry in self.allow_lists.values():
+            if set(entry.get("categories") or ()) != {category, other}:
+                continue
+            allowed = {
+                str(row.get(other))
+                for row in entry.get("entries") or []
+                if str(row.get(category)) == value and row.get("status") != "rejected"
+            }
+            if len(allowed) == 1:
+                return allowed.pop()
+        return None
 
     def category(self, name: str) -> list[Option]:
         return self.options.get(name, [])

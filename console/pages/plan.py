@@ -652,11 +652,39 @@ async def plan_page(request: Request, load: str = ""):
     return render(request, "plan/page.html", context)
 
 
+#: The field each pick carries with it, both ways round. Which option it
+#: forces is the catalogue's to say, not this module's.
+COUPLED: dict[str, str] = {
+    "l1_backend": "server", "server": "l1_backend",
+    "ue": "ru", "ru": "ue",
+}
+
+
+async def _couple(request: Request, values: dict[str, Any]) -> dict[str, Any]:
+    """Move the field paired with the one just changed, so the picks agree.
+
+    htmx names the control that fired, so the operator's own choice stays and
+    its partner is the one that moves.
+    """
+    changed = request.headers.get("HX-Trigger-Name") or ""
+    other = COUPLED.get(changed)
+    if not other:
+        return values
+    try:
+        catalogue = await request.app.state.client.compatibility()
+    except EthosError:
+        return values
+    forced = catalogue.partner(changed, str(values[changed]), other)
+    if forced:
+        values[other] = forced
+    return values
+
+
 async def _values_from_request(request: Request) -> dict[str, Any]:
     form = await request.form()
     source = {key: form.get(key) for key in DEFAULTS}
     source["radio_samples"] = form.get("radio_samples") in ("1", "on", "yes", "true")
-    return _form_values(request, source)
+    return await _couple(request, _form_values(request, source))
 
 
 @router.post("/plan/resolve")
@@ -901,6 +929,23 @@ async def plan_start(request: Request):
     token = str(form.get("preview_token") or "")
     values = await _values_from_request(request)
     context = await _build(request, values)
+
+    shown = str(form.get("confirmed_config_id") or "")
+    if shown and shown != str(context.get("config_id") or ""):
+        drifted = (
+            f"this confirms {context.get('config_id')}, but the dialog showed "
+            f"{shown}: nothing was sent, check the selection and run again"
+        )
+        return render(
+            request,
+            "plan/resolved.html",
+            {**context, "run_error": drifted},
+            status_code=409,
+            headers={
+                "X-Console-Toast": drifted,
+                "X-Console-Toast-Variant": "danger",
+            },
+        )
 
     # Checked again here, not only at preview: this is the request that starts
     # a campaign, and it is the last moment the two can still be compared.
