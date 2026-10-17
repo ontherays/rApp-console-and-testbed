@@ -134,6 +134,36 @@ def test_two_quick_clicks_end_on_the_second_ones_result(catalogue_page):
         "input[name='gnb_stack']:checked", "e => e.value") == "OCUDU"
 
 
+def test_the_page_does_not_say_it_is_updating_while_it_is_idle(catalogue_page):
+    """"updating..." means the operator's own change, not a background poll.
+
+    Three panels inside the form poll on their own timers (the O-Cloud cards
+    every 8s, readiness every 20s, and the strip above them every 5s), and
+    htmx inherits `hx-indicator` down the tree, so every one of those lit the
+    header while the operator sat still: measured at 22 of 35 samples over a
+    quiet 70 seconds. A spinner that is on more often than off says nothing.
+    """
+    page = catalogue_page
+    _ready(page)
+
+    # Watched, not sampled. Against the recorded ETHOS a poll answers in
+    # milliseconds, so polling the DOM every second would step straight over
+    # the flashes; htmx adds and removes the class, and the observer sees
+    # every one of them however brief.
+    page.evaluate("""() => {
+      window._lit = [];
+      const el = document.getElementById('plan-updating');
+      new MutationObserver(() => {
+        if (el.classList.contains('htmx-request'))
+          window._lit.push([...document.querySelectorAll('.htmx-request')]
+            .map(e => e.id || e.tagName).join(','));
+      }).observe(el, {attributes: true, attributeFilter: ['class']});
+    }""")
+    page.wait_for_timeout(26000)      # at least three rounds of every poll
+    lit = page.evaluate("() => window._lit")
+    assert lit == [], f"the indicator lit {len(lit)} time(s) while idle: {lit[:4]}"
+
+
 def test_the_page_says_it_is_updating_and_stops_saying_it(catalogue_page):
     """The indicator is the whole of the feedback a click gets, so it has to
     appear while the resolve is in flight and clear when it lands."""

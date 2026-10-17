@@ -176,23 +176,77 @@ def _ue_item(summary: StatusSummary, checked: str) -> Item:
     return Item("UE", f"{name} detached", OK, "reachable, holding no address", at, href="/testbed")
 
 
+#: The two things a plan can ask for on port 5201, and what each needs to
+#: find there. They want opposite states, which is why one strip cannot say
+#: "5201 is fine" without naming a mode.
+IPERF_APP = "app_binary"
+IPERF_ETHOS = "ethos"
+
+
 def _iperf_item(summary: StatusSummary, checked: str) -> Item:
+    """Port 5201 on the handset, judged against the mode a run would use.
+
+    `foreign` is not a fault and not a reassurance: it means something is
+    listening on 5201 that ETHOS did not start and cannot identify. ETHOS
+    runs as `shell` and cannot read /proc/<pid>/exe of a process owned by
+    another uid, so the Magic iPerf app's own server is unidentifiable by
+    construction and is reported as what it is rather than guessed at.
+
+    Whether a run can use it depends entirely on the mode, and the two modes
+    want opposite things:
+
+    * `app_binary` needs a server already listening, because ETHOS neither
+      starts nor stops the app's one. A foreign holder is exactly right.
+    * `ethos` needs the port free so ETHOS's own server can bind, and ETHOS
+      cannot remove a listener owned by another uid. A foreign holder blocks
+      the run.
+
+    So the dot follows the pairing, not the word: green when the state suits
+    the default mode, amber when a run in that mode would be refused. This is
+    the same judgement `readiness.checks.check_iperf_server` makes, which is
+    what the run itself is gated on; the strip has no mode of its own and
+    uses the default the plan falls back to.
+    """
     part = summary.iperf_server
     at = _clock(part.checked_at, checked)
     if part.error:
         return Item("iperf 5201", "unknown", UNKNOWN, part.error, at)
-    mode = f"default mode {part.default_mode}" if part.default_mode else "no default mode"
+
+    mode = part.default_mode or ""
+    named = f"default mode {mode}" if mode else "no default mode"
+
     if not part.held:
-        return Item("iperf 5201", "free", OK, f"nothing is listening, {mode}", at, href="/testbed")
+        if mode == IPERF_APP:
+            return Item(
+                "iperf 5201", "free", WARN,
+                f"nothing is listening, and {named} needs a server already "
+                f"running on the UE. Turn Magic iPerf's server toggle on, or "
+                f"plan iperf_server=ethos",
+                at, href="/testbed",
+            )
+        return Item("iperf 5201", "free", OK,
+                    f"nothing is listening, {named}", at, href="/testbed")
+
     holder = part.holder or {}
-    return Item(
-        "iperf 5201",
-        part.owner,
-        OK,
-        f"pid {holder.get('pid') or '?'}, uid {holder.get('uid') or '?'}, {mode}",
-        at,
-        href="/testbed",
-    )
+    who = f"pid {holder.get('pid') or '?'}, uid {holder.get('uid') or '?'}"
+    owner = part.owner or "unknown"
+    if mode == IPERF_ETHOS:
+        return Item(
+            "iperf 5201", f"{owner}, blocks this mode", WARN,
+            f"{who} holds 5201 and {named} needs it free for ETHOS's own "
+            f"server. ETHOS runs as shell and cannot stop another uid's "
+            f"process: stop it on the UE, or plan iperf_server=app_binary",
+            at, href="/testbed",
+        )
+    if owner == "foreign":
+        return Item(
+            "iperf 5201", "foreign, usable", OK,
+            f"{who}; not started by ETHOS and not identifiable (shell cannot "
+            f"read another uid's /proc/<pid>/exe), which is the expected state "
+            f"for {named}: a run uses the server already listening",
+            at, href="/testbed",
+        )
+    return Item("iperf 5201", owner, OK, f"{who}, {named}", at, href="/testbed")
 
 
 def _core_item(summary: StatusSummary, checked: str) -> Item:

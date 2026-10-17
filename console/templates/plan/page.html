@@ -35,9 +35,14 @@
 
 {# hx-sync replace: a click while a resolve is in flight cancels it and asks
    again, so the last click is the one the page ends up showing. #}
+{# hx-disinherit="hx-indicator": the panels inside this form poll on their
+   own timers, and hx-indicator is inherited, so without this every 8s and
+   20s poll lit "updating..." in the header while the operator sat still. It
+   means the operator's own change, and nothing else. #}
 <form id="plan-form" hx-post="/plan/resolve" hx-target="#plan-result"
       hx-trigger="change delay:150ms, load delay:100ms" hx-swap="innerHTML"
-      hx-sync="this:replace" hx-indicator="#plan-updating">
+      hx-sync="this:replace" hx-indicator="#plan-updating"
+      hx-disinherit="hx-indicator">
 {# The topology spans the page. The chain of boxes is the widest thing here
    and the one the operator reads first, so it gets the whole width rather
    than two thirds of it. #}
