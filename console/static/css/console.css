@@ -483,17 +483,27 @@ sl-details::part(header) { padding: var(--s3) var(--s4); font-size: 13.5px; font
 
 /* --- the topology summary and its diagram -------------------------------- */
 
-/* The diagram and the facts about it, side by side. The diagram keeps its
-   natural width and scrolls inside its own frame rather than squeezing the
-   row of boxes: a topology that cannot be read is worse than one that has to
-   be scrolled. Below 768px the two stack instead. */
+/* The diagram and the facts about it. The diagram keeps its natural width
+   and scrolls inside its own frame rather than squeezing the row of boxes: a
+   topology that cannot be read is worse than one that has to be scrolled.
+
+   Side by side only where the diagram still gets the width it needs: six
+   nodes want about 800px and the content column is ~950px at 1280, so below
+   1500 the facts go underneath and the diagram takes the whole card. */
 .topo-summary { display: grid; grid-template-columns: minmax(0, 1fr) 300px;
                 gap: var(--s6); align-items: start; }
 
+/* Capped, and centred in whatever is left. The diagram is laid out to one
+   width, so on a wide monitor an uncapped frame would leave it stranded in
+   the middle of a mostly empty box. */
 .topo-art { background: #fbfbfc; border: 1px solid var(--line);
             border-radius: var(--radius-sm); padding: var(--s2) var(--s3) var(--s3);
-            min-width: 0; }
-.topo-scroll { overflow-x: auto; }
+            min-width: 0; width: 100%; max-width: 968px; margin-inline: auto; }
+/* The diagram is drawn at its own size and centred in anything wider, so a
+   chain that reached every maximum sits in the middle of the card rather
+   than against its left edge. Narrower, and it scrolls here. */
+.topo-scroll { overflow-x: auto; display: flex; justify-content: center; }
+.topo-scroll > svg { flex: none; }
 .topo { display: block; }
 .topo.mini { width: 100%; }
 
@@ -524,8 +534,21 @@ sl-details::part(header) { padding: var(--s3) var(--s4); font-size: 13.5px; font
 .card-sub { display: block; font-size: 12px; color: var(--muted); margin-top: 1px; }
 .card > header .tile { flex: none; }
 
-@media (max-width: 768px) {
+@media (max-width: 1499px) {
   .topo-summary { grid-template-columns: 1fr; }
+  /* Underneath the diagram the facts read as one line, so the card grows by
+     a line rather than by a column: the title, both chips, the id and the
+     button together, and the note under them. */
+  .topo-facts { flex-direction: row; flex-wrap: wrap; align-items: center;
+                gap: var(--s2) var(--s3); max-width: 968px;
+                margin-inline: auto; width: 100%; }
+  .topo-id { width: auto; }
+  .topo-note { order: 1; flex-basis: 100%; }
+  .topo-change { margin-top: 0; }
+}
+
+@media (max-width: 768px) {
+  .topo-facts { flex-direction: column; align-items: flex-start; }
 }
 
 /* --- the picker ----------------------------------------------------------- */

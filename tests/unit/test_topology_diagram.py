@@ -15,6 +15,14 @@ import pytest
 from console.topology import (
     CAPTION_LINES,
     CAPTION_PX,
+    CHAR_EM,
+    LINK_PAD,
+    LINK_PX,
+    LINK_MAX_W,
+    NODE_MAX_W,
+    NODE_MIN_W,
+    TARGET_W,
+    allocate,
     F1,
     FAPI,
     FRONTHAUL,
@@ -101,14 +109,58 @@ class TestGeometry:
     @pytest.mark.parametrize("split", ["monolithic", "CU+DU"])
     @pytest.mark.parametrize("selection", [SELECTION, SPARK],
                              ids=["joule", "spark"])
+    def test_every_chain_is_laid_out_to_the_same_width(self, selection, split):
+        """However many nodes it has, the row fills one width.
+
+        That is what stops a four-node chain ending halfway across the card
+        while a six-node one fills it: they share the width out differently
+        rather than being drawn at different sizes.
+        """
+        svg = diagram(selection, split=split)
+        width = float(re.search(r'viewBox="0 0 ([\d.]+)', svg).group(1))
+        assert width == pytest.approx(TARGET_W, abs=1), width
+
+    @pytest.mark.parametrize("split", ["monolithic", "CU+DU"])
+    @pytest.mark.parametrize("selection", [SELECTION, SPARK],
+                             ids=["joule", "spark"])
     def test_a_gap_is_wide_enough_for_the_name_that_sits_in_it(
         self, selection, split
     ):
-        """Each gap is sized for its own interface name, so the longest one
-        does not push every other box apart with it."""
+        """No connector is drawn narrower than the interface written on it,
+        whatever the allocation gave the rest of the row."""
         svg = diagram(selection, split=split)
-        width = float(re.search(r'viewBox="0 0 ([\d.]+)', svg).group(1))
-        assert width <= 760, f"{width} is wider than the card can hold"
+        chain = nodes_for(selection, split=split)
+        drawn = [float(w) for w in
+                 re.findall(r'<rect x="[\d.-]+" y="[\d.]+" width="([\d.]+)" height="16"', svg)]
+        wanted = [len(node.link_in) * LINK_PX * CHAR_EM + 2 * LINK_PAD
+                  for node in chain.all_nodes()[1:] if node.link_in]
+        assert len(drawn) == len(wanted), (drawn, wanted)
+        for got, need in zip(drawn, wanted):
+            assert got >= need - 0.5, (got, need)
+
+    @pytest.mark.parametrize("split", ["monolithic", "CU+DU"])
+    @pytest.mark.parametrize("selection", [SELECTION, SPARK],
+                             ids=["joule", "spark"])
+    def test_every_box_sits_between_the_minimum_and_the_maximum(
+        self, selection, split
+    ):
+        """Few nodes get wide boxes, many get compact ones, and neither runs
+        past the bounds: a 300px box is not a better box."""
+        svg = diagram(selection, split=split)
+        boxes = [float(w) + 1.5 for w in
+                 re.findall(r'<rect x="0.75" y="0.75" width="([\d.]+)"', svg)]
+        assert boxes
+        for box in boxes:
+            assert NODE_MIN_W - 0.5 <= box <= NODE_MAX_W + 0.5, box
+
+    def test_a_short_chain_reaches_its_maximum_and_is_not_stretched(self):
+        """Nothing is ever widened past its maximum to fill a gap. A chain
+        short enough to reach every maximum is drawn narrower than the target
+        and centred by the stylesheet."""
+        widths = allocate([(NODE_MIN_W, NODE_MAX_W)] * 3 + [(24, LINK_MAX_W)] * 2,
+                          TARGET_W)
+        assert widths == [NODE_MAX_W] * 3 + [LINK_MAX_W] * 2
+        assert sum(widths) < TARGET_W
 
     def test_the_full_diagram_is_drawn_at_its_own_size(self):
         """Scaling it to fit would take the type down with it."""

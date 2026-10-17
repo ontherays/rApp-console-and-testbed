@@ -118,3 +118,105 @@ def test_the_aerial_diagram_is_drawn_at_the_size_it_asks_for(catalogue_page):
     out = page.evaluate(MEASURE)
     assert out["shrunk"] == [], "; ".join(out["shrunk"])
     assert out["scale"] == pytest.approx(1.0, abs=0.02), out["scale"]
+
+
+#: The ten profiles the picker offers, as its cards name them.
+PROFILES = [
+    "OCUDU monolithic", "OAI monolithic", "OCUDU CU + OCUDU DU",
+    "OAI CU + OAI DU", "OCUDU CU + OAI DU", "OAI CU + OCUDU DU",
+    "OAI mono · DGX Spark", "OAI F1 · DGX Spark",
+    "OCUDU mono · DGX Spark", "OCUDU F1 · DGX Spark",
+]
+
+#: What the diagram occupies, against what it was given, and whether every
+#: box and link reached its maximum (the one case where using less is right).
+FILL = """() => {
+  const svg = document.querySelector('.topo:not(.mini)');
+  const scroll = document.querySelector('.topo-scroll');
+  if (!svg || !scroll) return {error: 'no diagram'};
+  const s = getComputedStyle(scroll);
+  const avail = scroll.clientWidth
+      - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
+  const used = svg.getBoundingClientRect().width;
+  const boxes = [...svg.querySelectorAll('g > rect')]
+      .map(r => parseFloat(r.getAttribute('width')) + 1.5);
+  const links = [...svg.querySelectorAll('rect[height="16"]')]
+      .map(r => parseFloat(r.getAttribute('width')));
+  return {avail: Math.round(avail), used: Math.round(used),
+          pct: used / avail, boxes, links,
+          pageScrolls: document.documentElement.scrollWidth
+                     > document.documentElement.clientWidth};
+}"""
+
+#: From console.topology. Repeated rather than imported so the test states
+#: the contract it is checking instead of agreeing with the code by
+#: construction.
+BOX_MAX = 150
+LINK_MAX = 140
+
+
+def _apply_preset(page, label: str) -> None:
+    page.click("[data-drawer-open='topology-drawer']")
+    page.wait_for_timeout(500)
+    page.click("#topology-drawer sl-tab[panel='presets']")
+    page.wait_for_timeout(300)
+    names = page.eval_on_selector_all(
+        "#topology-drawer .preset .preset-name",
+        "els => els.map(e => e.innerText.trim().split('\\n')[0])",
+    )
+    assert label in names, f"{label} is not offered: {names}"
+    page.locator("#topology-drawer [data-preset]").nth(names.index(label)).click()
+    page.wait_for_timeout(1200)
+    _settle(page)
+
+
+@pytest.mark.parametrize("width", [1440, 1280])
+def test_every_profile_fills_the_card_it_is_given(catalogue_page, width):
+    """The diagram uses the card, whatever the node count.
+
+    Four nodes used to stop halfway across while six filled it, because every
+    box was the same fixed width. The row shares one width out now, so the
+    only way to use less is for every box AND every link to have reached its
+    maximum, which is the one case where spreading further would just make
+    the boxes silly. Then it is centred instead.
+    """
+    page = catalogue_page
+    page.set_viewport_size({"width": width, "height": 1100})
+    page.goto("/plan")
+    page.wait_for_selector("#plan-form")
+    page.wait_for_function("() => !!customElements.get('sl-tab-group')")
+    page.wait_for_timeout(800)
+    _settle(page)
+
+    thin = []
+    for profile in PROFILES:
+        _apply_preset(page, profile)
+        got = page.evaluate(FILL)
+        assert "error" not in got, (profile, got)
+        at_maximum = (
+            all(box >= BOX_MAX - 0.5 for box in got["boxes"])
+            and all(link >= LINK_MAX - 0.5 for link in got["links"])
+        )
+        if got["pct"] < 0.75 and not at_maximum:
+            thin.append(f"{width}px {profile}: {got['used']} of {got['avail']} "
+                        f"({got['pct']:.0%}), boxes "
+                        f"{min(got['boxes']):.0f}-{max(got['boxes']):.0f}")
+    assert thin == [], "; ".join(thin)
+
+
+@pytest.mark.parametrize("width", [1440, 1280, 1024])
+def test_no_profile_makes_the_page_scroll_sideways(catalogue_page, width):
+    """At 1024 and wider the whole chain fits. Narrower, it scrolls inside
+    the card, which is what `.topo-scroll` is for."""
+    page = catalogue_page
+    page.set_viewport_size({"width": width, "height": 1100})
+    page.goto("/plan")
+    page.wait_for_selector("#plan-form")
+    page.wait_for_function("() => !!customElements.get('sl-tab-group')")
+    page.wait_for_timeout(800)
+    _settle(page)
+
+    for profile in ("OCUDU monolithic", "OCUDU F1 · DGX Spark"):
+        _apply_preset(page, profile)
+        got = page.evaluate(FILL)
+        assert not got["pageScrolls"], f"{width}px {profile} scrolls the page"

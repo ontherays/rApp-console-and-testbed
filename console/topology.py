@@ -175,6 +175,22 @@ HEAD_H = 16
 CAPTION_TOP = 16
 LINK_PAD = 6
 
+#: How wide the row is laid out to be. The SVG is server-rendered, so it
+#: cannot measure the card it will land in; this is the width the card gives
+#: it at the narrowest viewport that must not scroll (1024px, where the facts
+#: column has stacked below and the diagram has about 925px). Drawn at its own
+#: size and centred in anything wider, so the type is never scaled down.
+TARGET_W = 920
+
+#: What a node and a connector may grow to, and shrink to. A node is wide
+#: enough for its label at the minimum and stops before it becomes a panel; a
+#: connector is never narrower than the interface name written on it. Four
+#: nodes therefore spread into wide boxes and long links, and six compact
+#: themselves, out of the same width.
+NODE_MIN_W = 96
+NODE_MAX_W = 150
+LINK_MAX_W = 140
+
 #: How wide one character is, near enough to lay text out against a box whose
 #: width is known. system-ui averages about 0.53em, and a little more at the
 #: semibold weight the node and O-Cloud labels use.
@@ -196,6 +212,34 @@ def _text_px(text: str, size: float, em: float = CHAR_EM) -> float:
 def _to4(value: float) -> int:
     """Round up to the spacing scale, so every gap is a multiple of four."""
     return int(-(-value // 4) * 4)
+
+
+def allocate(bounds: list[tuple[float, float]], available: float) -> list[float]:
+    """Share *available* between items that each have a (min, max) width.
+
+    The row is one row of boxes and the connectors between them, and every
+    one of them has a width it must not go under and one it must not go over.
+    Three cases, and the middle one is the usual:
+
+    * everything fits at its maximum with room to spare: give each its
+      maximum and let the caller centre what is left over. Nothing is ever
+      stretched past its maximum, because a 300px box is not a better box.
+    * there is not even room for the minimums: give each its minimum and
+      overflow. The card scrolls, which is what a narrow window gets.
+    * otherwise: give each its minimum, then share the slack in proportion to
+      how much room each has left to grow. An item with no headroom takes
+      none of it, so a connector pinned to a long interface name does not
+      swallow the width its neighbours need.
+    """
+    lows = [low for low, _high in bounds]
+    headroom = [max(0.0, high - low) for low, high in bounds]
+    total_min, total_slack = sum(lows), sum(headroom)
+    if available >= total_min + total_slack:
+        return [high for _low, high in bounds]
+    if available <= total_min or total_slack <= 0:
+        return list(lows)
+    share = (available - total_min) / total_slack
+    return [low + room * share for low, room in zip(lows, headroom)]
 
 
 def wrap_caption(text: str, width: float, size: int = CAPTION_PX) -> list[str]:
@@ -245,14 +289,18 @@ def diagram(
     text around them. ``full`` names every element, captions it, and names the
     interface on every connector.
 
-    The row is laid out once, into a list of x positions, and then drawn. Each
-    gap is as wide as the interface name that sits in it needs, so a long name
-    does not push the short ones apart with it.
+    **The row shares one width between however many nodes it has.** Each box
+    and each connector is allocated between a minimum and a maximum, so a
+    four-node chain spreads into wide boxes with long links and a six-node
+    chain compacts itself, and both come out the same width instead of one
+    of them ending halfway across the card. Nothing is stretched past its
+    maximum: a chain short enough to reach every maximum is drawn at its own
+    size and centred by the stylesheet.
     """
     chain = nodes_for(selection, split=split)
     mini = size == "mini"
 
-    box_w, box_h = (54, 46) if mini else (86, 70)
+    box_h = 46 if mini else 70
     hug = 8 if mini else HUG
     pad_top = 4 if mini else PAD_TOP
     head_h = 10 if mini else HEAD_H
@@ -260,96 +308,105 @@ def diagram(
     first_hosted = len(chain.before)
     after_hosted = first_hosted + len(chain.hosted)
 
-    def gap_before(node: Node, *, crossing: bool) -> int:
-        """The gap to the node on the left, wide enough for its interface.
-
-        A link that crosses the O-Cloud outline already has the frame's own
-        padding to draw in, so it asks the row for that much less.
-        """
-        if mini:
-            return 12
-        if not node.link_in:
+    def link_min(node: Node) -> float:
+        """A connector is at least as wide as the name written on it."""
+        if mini or not node.link_in:
             return GAP_BASE
-        need = _text_px(node.link_in, LINK_PX) + 2 * LINK_PAD
-        return max(GAP_BASE, _to4(need - (hug if crossing else 0)))
+        return max(GAP_BASE, _text_px(node.link_in, LINK_PX) + 2 * LINK_PAD)
 
-    # --- lay the row out -----------------------------------------------------
+    # --- share the width ----------------------------------------------------
+    # One list, boxes and connectors interleaved exactly as they are drawn,
+    # so the allocation sees the whole row at once rather than sizing each
+    # gap against its neighbours.
+    if mini:
+        box_w = 54.0
+        widths = [12.0 if index % 2 else box_w
+                  for index in range(2 * len(row) - 1)]
+    else:
+        bounds: list[tuple[float, float]] = []
+        for index, node in enumerate(row):
+            if index:
+                bounds.append((link_min(node), max(link_min(node), LINK_MAX_W)))
+            bounds.append((NODE_MIN_W, NODE_MAX_W))
+        widths = allocate(bounds, TARGET_W)
+
+    box_ws = widths[0::2]
+    link_ws = widths[1::2]
+
+    # --- lay the row out ----------------------------------------------------
+    # The O-Cloud's own padding is part of the connector that crosses its
+    # outline, so the frame hugs its nodes by the same `hug` on both sides
+    # without the row having to leave a wider gap there.
     xs: list[float] = []
-    host_x = 0.0
-    host_right = 0.0
+    host_x = host_right = 0.0
     x = 0.0
-    for index, node in enumerate(row):
+    for index in range(len(row)):
         if index:
-            right = xs[-1] + box_w
+            gap = link_ws[index - 1]
+            x = xs[-1] + box_ws[index - 1] + gap
             if index == first_hosted:
-                host_x = right + gap_before(node, crossing=True)
-                x = host_x + hug
+                host_x = x - hug
             elif index == after_hosted:
-                host_right = right + hug
-                x = host_right + gap_before(node, crossing=True)
-            else:
-                x = right + gap_before(node, crossing=False)
+                host_right = xs[-1] + box_ws[index - 1] + hug
         xs.append(x)
     if not host_right:
-        host_right = xs[after_hosted - 1] + box_w + hug
+        host_right = xs[after_hosted - 1] + box_ws[after_hosted - 1] + hug
     host_w = host_right - host_x
 
     caption_block = 0 if mini else CAPTION_TOP + (CAPTION_LINES - 1) * CAPTION_LINE + 4
     host_h = head_h + box_h + caption_block + (hug if mini else 8)
-    width = max(xs[-1] + box_w, host_right)
+    width = max(xs[-1] + box_ws[-1], host_right)
     height = pad_top + host_h
     row_y = pad_top + head_h                     # every box sits on this line
     mid_y = row_y + box_h / 2                    # and every connector on this
 
-    # The full diagram is drawn at its own size and scrolls inside its frame
-    # when the card is narrower than it. Shrinking it to fit would take the
-    # type down with it, and a chain nobody can read is worse than one that
-    # has to be scrolled. A preset's mini diagram has no text, so it scales.
-    sizing = ('width="100%"' if mini
-              else f'width="{width}" height="{height}"')
+    # The full diagram is drawn at its own size: scaling it to fit would take
+    # the type down with it. A preset's mini diagram has no text, so it scales.
+    sizing = 'width="100%"' if mini else f'width="{width:.0f}" height="{height:.0f}"'
     parts = [
-        f'<svg viewBox="0 0 {width} {height}" {sizing} '
+        f'<svg viewBox="0 0 {width:.0f} {height:.0f}" {sizing} '
         f'class="topo {"mini" if mini else ""}" role="img" '
         f'aria-label="{_esc(chain.describe())}" '
         'preserveAspectRatio="xMidYMid meet">'
     ]
 
-    def caption_text(centre: float, top: float, text: str) -> str:
+    def caption_text(centre: float, top: float, text: str, box_w: float) -> str:
         """The caption, inside its own node's width and at most two lines.
 
         SVG text does not wrap, so the lines are measured here against the box
-        and emitted as tspans. What does not fit ends in an ellipsis, and the
-        whole caption is the element's tooltip.
+        this node was allocated and emitted as tspans. What does not fit ends
+        in an ellipsis, and the whole caption is the element's tooltip.
         """
         lines = wrap_caption(text, box_w + CAPTION_BLEED, CAPTION_PX)
         spans = "".join(
-            f'<tspan x="{centre}" dy="{0 if index == 0 else CAPTION_LINE}">'
+            f'<tspan x="{centre:.1f}" dy="{0 if index == 0 else CAPTION_LINE}">'
             f"{_esc(line)}</tspan>"
             for index, line in enumerate(lines)
         )
         return (
-            f'<text class="topo-caption" x="{centre}" y="{top}" text-anchor="middle" '
+            f'<text class="topo-caption" x="{centre:.1f}" y="{top:.0f}" text-anchor="middle" '
             f'font-size="{CAPTION_PX}" fill="{INK_MUTED}" '
             f'font-family="system-ui, sans-serif">'
             f"<title>{_esc(text)}</title>{spans}</text>"
         )
 
-    def box(x: float, node: Node) -> str:
+    def box(x: float, node: Node, box_w: float) -> str:
         colour = TONE_COLOURS.get(node.tone, TONE_COLOURS["slate"])
         icon = 24 if mini else 30
         out = (
-            f'<g transform="translate({x},{row_y})" color="{colour}">'
-            f'<rect x="0.75" y="0.75" width="{box_w - 1.5}" height="{box_h - 1.5}" rx="9" '
+            f'<g transform="translate({x:.1f},{row_y})" color="{colour}">'
+            f'<rect x="0.75" y="0.75" width="{box_w - 1.5:.1f}" height="{box_h - 1.5}" rx="9" '
             f'fill="#fff" stroke="currentColor" stroke-opacity=".35" stroke-width="1.5"/>'
-            f'<svg x="{(box_w - icon) / 2}" y="{6 if mini else 10}" '
+            f'<svg x="{(box_w - icon) / 2:.1f}" y="{6 if mini else 10}" '
             f'width="{icon}" height="{icon}"><use href="#icon-{node.icon}"/></svg>'
-            f'<text x="{box_w / 2}" y="{box_h - (6 if mini else 12)}" text-anchor="middle" '
+            f'<text x="{box_w / 2:.1f}" y="{box_h - (6 if mini else 12)}" text-anchor="middle" '
             f'font-size="{8.5 if mini else NODE_PX}" font-weight="600" fill="currentColor" '
             f'font-family="system-ui, sans-serif">{_esc(node.label)}</text>'
             "</g>"
         )
         if not mini and node.sub:
-            out += caption_text(x + box_w / 2, row_y + box_h + CAPTION_TOP, node.sub)
+            out += caption_text(x + box_w / 2, row_y + box_h + CAPTION_TOP,
+                                node.sub, box_w)
         return out
 
     def link(x_from: float, x_to: float, name: str) -> str:
@@ -359,7 +416,7 @@ def diagram(
         where the line crosses the O-Cloud outline.
         """
         out = (
-            f'<path d="M{x_from + 3} {mid_y} H{x_to - 3}" '
+            f'<path d="M{x_from + 3:.1f} {mid_y} H{x_to - 3:.1f}" '
             f'stroke="{LINE}" stroke-width="1.5" stroke-linecap="round"/>'
         )
         if mini or not name:
@@ -367,9 +424,9 @@ def diagram(
         centre = (x_from + x_to) / 2
         label_w = _text_px(name, LINK_PX) + 2 * LINK_PAD
         return out + (
-            f'<rect x="{centre - label_w / 2}" y="{mid_y - LINK_PX - 7}" '
-            f'width="{label_w}" height="{LINK_PX + 5}" rx="3" fill="#FAFBFC"/>'
-            f'<text class="topo-link" x="{centre}" y="{mid_y - 8}" text-anchor="middle" '
+            f'<rect x="{centre - label_w / 2:.1f}" y="{mid_y - LINK_PX - 7}" '
+            f'width="{label_w:.1f}" height="{LINK_PX + 5}" rx="3" fill="#FAFBFC"/>'
+            f'<text class="topo-link" x="{centre:.1f}" y="{mid_y - 8}" text-anchor="middle" '
             f'font-size="{LINK_PX}" fill="{INK_MUTED}" '
             f'font-family="system-ui, sans-serif">{_esc(name)}</text>'
         )
@@ -381,7 +438,7 @@ def diagram(
     # and not as one more box in the row.
     frame_fill = "#F7F8FA"
     parts.append(
-        f'<rect x="{host_x + 0.75}" y="{pad_top + 0.75}" width="{host_w - 1.5}" '
+        f'<rect x="{host_x + 0.75:.1f}" y="{pad_top + 0.75}" width="{host_w - 1.5:.1f}" '
         f'height="{host_h - 1.5}" rx="12" fill="{frame_fill}" stroke="{INK_LABEL}" '
         'stroke-opacity=".38" stroke-width="1.5" stroke-dasharray="5 3"/>'
     )
@@ -391,12 +448,12 @@ def diagram(
     text_x = host_x + 12 + icon_px + 5
     plate_w = icon_px + 5 + _text_px(label, cloud_px, CHAR_EM_BOLD) + 16
     parts.append(
-        f'<rect x="{host_x + 8}" y="{pad_top - cloud_px / 2 - 3}" width="{plate_w}" '
+        f'<rect x="{host_x + 8:.1f}" y="{pad_top - cloud_px / 2 - 3}" width="{plate_w:.1f}" '
         f'height="{cloud_px + 6}" rx="3" fill="{frame_fill}"/>'
-        f'<svg x="{host_x + 12}" y="{pad_top - icon_px / 2}" '
+        f'<svg x="{host_x + 12:.1f}" y="{pad_top - icon_px / 2}" '
         f'width="{icon_px}" height="{icon_px}" color="{INK_LABEL}">'
         '<use href="#icon-server"/></svg>'
-        f'<text class="topo-cloud-name" x="{text_x}" y="{pad_top + cloud_px / 2 - 1}" '
+        f'<text class="topo-cloud-name" x="{text_x:.1f}" y="{pad_top + cloud_px / 2 - 1}" '
         f'font-size="{cloud_px}" font-weight="600" fill="{INK_LABEL}" '
         f'font-family="system-ui, sans-serif">{_esc(label)}</text>'
     )
@@ -404,8 +461,9 @@ def diagram(
     # --- the row -------------------------------------------------------------
     for index, node in enumerate(row):
         if index:
-            parts.append(link(xs[index - 1] + box_w, xs[index], node.link_in))
-        parts.append(box(xs[index], node))
+            parts.append(link(xs[index - 1] + box_ws[index - 1], xs[index],
+                              node.link_in))
+        parts.append(box(xs[index], node, box_ws[index]))
 
     parts.append("</svg>")
     return "".join(parts)
