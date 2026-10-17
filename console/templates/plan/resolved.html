@@ -1,9 +1,14 @@
 {# Everything that follows from the current form state.
 
-   Three fragments live outside this one's target, so they are re-rendered here
+   Four fragments live outside this one's target, so they are re-rendered here
    and swapped in out of band: the vendor groups in the drawer, the backend
-   and O-Cloud cards, and the topology summary. The readiness panel and RUN
-   follow from the testbed rather than the form, and ask for themselves. #}
+   and O-Cloud cards, the topology summary, and RUN.
+
+   RUN is here because this response knows the plan has changed and that
+   nothing has judged the new one yet. It comes back disabled, saying so, and
+   the readiness panel enables it a moment later if ETHOS agrees. Leaving it
+   as it was would offer the previous plan's verdict for a plan ETHOS has not
+   seen. The panel itself asks for its own checks. #}
 {% from "components/macros.html" import ic %}
 
 {# Only on a swap. On the first full page load these same fragments are already
@@ -13,6 +18,7 @@
   {% with oob=True %}{% include "plan/vendors.html" %}{% endwith %}
   {% with oob=True %}{% include "plan/backend_groups.html" %}{% endwith %}
   {% with oob=True %}{% include "plan/topology_summary.html" %}{% endwith %}
+  <span id="run-button" hx-swap-oob="true">{% include "plan/run_button.html" %}</span>
 {% endif %}
 
 {% if saved_note %}

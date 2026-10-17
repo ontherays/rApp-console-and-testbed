@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from playwright.sync_api import expect
 
 PAGES = ["/", "/plan", "/jobs", "/results", "/graphs", "/testbed", "/publication",
          "/o1", "/o2", "/docs"]
@@ -72,12 +73,16 @@ def test_the_status_strip_polls_and_reports_ethos_down(offline_page):
 
 
 def test_run_is_offered_and_asks_for_a_preview_before_it_acts(logged_in):
-    """RUN is live now, and its click is a preview rather than a start (GL-07)."""
+    """RUN is live now, and its click is a preview rather than a start (GL-07).
+
+    Offered once the checks have answered: the page is served before them, so
+    the button starts disabled and this waits for the verdict the way an
+    operator does.
+    """
     logged_in.goto("/plan")
     logged_in.wait_for_load_state("networkidle")
-    logged_in.wait_for_timeout(1500)
     run = logged_in.locator("#readiness-panel .run-foot button").first
-    assert run.is_enabled()
+    expect(run).to_be_enabled(timeout=30000)
     run.click()
     logged_in.wait_for_selector("#plan-dialog sl-dialog", timeout=30000)
     dialog = logged_in.query_selector("#plan-dialog sl-dialog")
@@ -457,8 +462,9 @@ class TestWiredFlows:
         """It lives outside the form, so a resolve cannot take it away."""
         logged_in.goto("/plan")
         logged_in.wait_for_load_state("networkidle")
-        logged_in.wait_for_timeout(1500)
-        logged_in.locator("#readiness-panel .run-foot button").first.click()
+        run = logged_in.locator("#readiness-panel .run-foot button").first
+        expect(run).to_be_enabled(timeout=30000)
+        run.click()
         logged_in.wait_for_selector("#plan-dialog sl-dialog", timeout=30000)
         logged_in.wait_for_timeout(3000)
         assert logged_in.locator("#plan-dialog sl-dialog").count() == 1

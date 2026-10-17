@@ -6,8 +6,12 @@
    needs are missing. An `unknown` check does not disable it: ETHOS surfaces those
    without blocking, and the button follows ETHOS. #}
 {% if can_run %}
+  {# hx-swap is set here, never inherited: this fragment is rendered inside
+     the readiness panel, whose wrapper asks with hx-swap="none", and an
+     inherited "none" would throw the confirmation away on arrival. #}
   <button class="btn primary" type="button"
-          hx-post="/plan/run" hx-include="#plan-form" hx-target="#plan-dialog">
+          hx-post="/plan/run" hx-include="#plan-form"
+          hx-target="#plan-dialog" hx-swap="innerHTML">
     <svg class="ic" aria-hidden="true"><use href="#icon-play"/></svg>RUN
   </button>
 {% else %}
@@ -29,7 +33,8 @@
 {% if ran_ctl %}
   {% if can_deploy_ran %}
     <button class="btn" type="button"
-            hx-post="/plan/deploy" hx-include="#plan-form" hx-target="#plan-dialog">
+            hx-post="/plan/deploy" hx-include="#plan-form"
+            hx-target="#plan-dialog" hx-swap="innerHTML">
       <svg class="ic" aria-hidden="true"><use href="#icon-l1"/></svg>Deploy RAN
     </button>
   {% else %}

@@ -601,20 +601,25 @@ def test_a_resolve_carries_the_form_panels_and_readiness_carries_the_testbed_one
     """Which panel comes back from which route.
 
     A resolve follows from the form alone, so it carries the fragments that
-    follow from the form and nothing that has to reach the testbed. The
-    readiness panel and RUN come back from `/plan/readiness`, which the page
-    asks for itself once the resolve has settled.
+    follow from the form and none of the checks that have to reach the
+    testbed. It does carry RUN, disabled: it knows the plan has changed and
+    that nothing has judged the new one. The checks come from
+    `/plan/readiness`, which the page asks for once the resolve has settled,
+    and that answer is what may enable RUN again.
     """
     resolved = client.post("/plan/resolve", data=PLAN_FORM).text
     assert 'id="vendor-groups" hx-swap-oob="true"' in resolved
     assert 'id="backend-groups" hx-swap-oob="true"' in resolved
     assert 'id="topology-summary" hx-swap-oob="true"' in resolved
     assert "readiness-panel" not in resolved
-    assert 'id="run-button"' not in resolved
+    assert 'id="run-button" hx-swap-oob="true"' in resolved
+    assert 'hx-post="/plan/run"' not in resolved          # disabled, not offered
+    assert "being checked" in resolved
 
     panel = client.post("/plan/readiness", data=PLAN_FORM).text
     assert 'hx-swap-oob="true" id="readiness-panel"' in panel
     assert 'id="run-button" hx-swap-oob="true"' in panel
+    assert 'hx-post="/plan/run"' in panel                 # judged, and offered
 
 
 def test_an_endpoint_that_reaches_the_testbed_is_probed_with_the_slow_timeout():

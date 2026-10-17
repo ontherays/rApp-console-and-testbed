@@ -465,6 +465,7 @@ async def _build(request: Request, values: dict[str, Any], *,
     ran_ctl = bool(profile is not None and profile.is_ran_ctl)
     deploy_ran_reason = _deploy_ran_blocker(
         ran_ctl=ran_ctl,
+        readiness_known=readiness is not None,
         deployable=deployable,
         deploy_reason=deploy_reason,
         config_id=config_id,
@@ -558,6 +559,7 @@ async def _build(request: Request, values: dict[str, Any], *,
 def _deploy_ran_blocker(
     *,
     ran_ctl: bool,
+    readiness_known: bool,
     deployable: bool | None,
     deploy_reason: str,
     config_id: str | None,
@@ -566,10 +568,11 @@ def _deploy_ran_blocker(
 ) -> str:
     """Why Deploy RAN is not offered, or "" when it is.
 
-    Three gates, in the order an operator would ask them: is this a Spark
-    selection ETHOS says it can deploy, is the testbed free, and is the Spark's
-    own lease free. ETHOS refuses on all three anyway -- this is so the button
-    says which before it is pressed, never instead of the refusal.
+    Four gates, in the order an operator would ask them: has this plan been
+    judged at all, is this a Spark selection ETHOS says it can deploy, is the
+    testbed free, and is the Spark's own lease free. ETHOS refuses on all of
+    them anyway -- this is so the button says which before it is pressed,
+    never instead of the refusal.
 
     The lease comes from readiness's own `ran_ctl` check, which is one
     `ran-ctl status`, so the button and the readiness panel cannot disagree
@@ -577,6 +580,11 @@ def _deploy_ran_blocker(
     """
     if not ran_ctl:
         return ""                      # not offered at all; no reason to show
+    if not readiness_known:
+        # A build that skipped the checks knows nothing about the lease, and
+        # the last answer it has belongs to whatever plan was on the page
+        # before. Unjudged is not the same as free.
+        return "the readiness checks have not answered for this plan yet"
     if not config_id:
         return "This selection has no config_id yet."
     if deployable is None:

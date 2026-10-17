@@ -202,12 +202,22 @@
       </div>
       <div id="core-panel">{% include "plan/core.html" %}</div>
       {# Asks for itself after every resolve, and on a timer, so the checks
-         that reach the testbed never sit in a click's way. #}
-      <div id="readiness-panel"
+         that reach the testbed never sit in a click's way.
+
+         The element that asks is this wrapper, not the panel inside it. The
+         answer replaces #readiness-panel out of band, and a panel that
+         replaced itself would take its own hx-trigger with it and never ask
+         again: RUN would keep the verdict of the first plan the page saw. #}
+      {# One ask per resolve, and a slow timer behind it. A `load` trigger
+         here as well would ask twice for the same plan, and the second
+         answer replaces RUN under the cursor: htmx drops the swap for a
+         click whose button left the DOM, so the dialog never opens. #}
+      <div id="readiness-ask"
            hx-post="/plan/readiness" hx-include="#plan-form"
-           hx-trigger="load delay:300ms, every 20s, plan-resolved from:body delay:200ms"
-           hx-sync="this:queue last"
-           hx-swap="none">{% include "plan/readiness.html" %}</div>
+           hx-trigger="every 20s, plan-resolved from:body delay:200ms"
+           hx-sync="this:queue last" hx-swap="none">
+        <div id="readiness-panel">{% include "plan/readiness.html" %}</div>
+      </div>
     </div>
   </div>
 </div>
