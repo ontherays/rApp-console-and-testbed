@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Request
 
 from console.charts import Column, HexCell, dot_matrix, hex_grid, tick_bar
+from console.oclouds import build_oclouds, card_for_server
 from console.overview import (
     DEFAULT_KIND,
     DEFAULT_PERIOD,
@@ -318,3 +319,18 @@ async def status_partial(request: Request):
     state = request.app.state
     status = await build_status(state.client, state.probe.result)
     return render(request, "components/status_strip.html", {"status": status})
+
+
+@router.get("/partials/oclouds")
+async def oclouds_partial(request: Request):
+    """Both O-Clouds, polled on their own so no click waits for them.
+
+    The plan page sends the server it has selected, and gets back the strip
+    over its topology card as well as the two cards: the same single read
+    answers both, so the card and the strip can never disagree.
+    """
+    oclouds = await build_oclouds(request.app.state.client)
+    server = request.query_params.get("server") or ""
+    return render(request, "components/ocloud_cards.html",
+                  {"oclouds": oclouds, "server": server,
+                   "topo_cloud": card_for_server(oclouds, server)})

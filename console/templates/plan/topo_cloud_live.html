@@ -1,0 +1,16 @@
+{# The O-Cloud this plan runs on, as the live read found it.
+
+   The diagram is a pure function of the selection, so the state that changes
+   under it is drawn here beside the frame rather than inside the SVG: a
+   resolve never waits for a testbed read, and this strip never waits for a
+   resolve. Colour and word together, so the dot is never the only signal. #}
+<div class="topo-live" id="topo-cloud-live" {% if oob %}hx-swap-oob="true"{% endif %}>
+  {% if topo_cloud %}
+    <span class="topo-live-dot {{ topo_cloud.tone }}"></span>
+    <span class="topo-live-name">{{ topo_cloud.name }}</span>
+    <span class="topo-live-word">{{ topo_cloud.word }}</span>
+  {% else %}
+    <span class="topo-live-dot"></span>
+    <span class="topo-live-word">reading O-Cloud status...</span>
+  {% endif %}
+</div>

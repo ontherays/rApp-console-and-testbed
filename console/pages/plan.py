@@ -338,8 +338,17 @@ def selection_from(values: dict[str, Any]) -> dict[str, str]:
     }
 
 
-async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
-    """Everything the right-hand panel shows for one form state."""
+async def _build(request: Request, values: dict[str, Any], *,
+                 with_readiness: bool = True) -> dict[str, Any]:
+    """Everything the right-hand panel shows for one form state.
+
+    `with_readiness` is false while a page or a click is being answered.
+    `POST /readiness` runs seven checks against the deploy host, the handset
+    and the core and takes seconds, so the panel that shows them asks for
+    them itself. Everything else here stays: the lock is a few milliseconds
+    and decides the held banner, and the core host is read from ETHOS's own
+    cache.
+    """
     client = request.app.state.client
     caps = request.app.state.probe.result
     settings = request.app.state.settings
@@ -387,7 +396,9 @@ async def _build(request: Request, values: dict[str, Any]) -> dict[str, Any]:
     except EthosError as exc:
         readiness_error = exc.message
 
-    if config_id:
+    if not with_readiness:
+        readiness_error = "being checked"
+    elif config_id:
         try:
             readiness = await client.readiness(document)
         except EthosError as exc:
@@ -639,7 +650,11 @@ async def plan_page(request: Request, load: str = ""):
         )
 
     values = _form_values(request, source or None)
-    context = await _build(request, values)
+    # Served without ETHOS's readiness checks for the same reason a resolve
+    # is: they are seconds long, and nothing on the page can be read until
+    # they finish. The readiness panel asks for them itself once the page is
+    # up, and the two O-Cloud cards do the same.
+    context = await _build(request, values, with_readiness=False)
 
     context.update(
         {
@@ -699,11 +714,27 @@ async def _values_from_request(request: Request) -> dict[str, Any]:
 
 @router.post("/plan/resolve")
 async def plan_resolve(request: Request):
-    """Re-resolve the plan after any change: validate, generate the config_id,
-    re-run what readiness can answer (TP-24's debounce lives in the page)."""
+    """Re-resolve the plan after any change: validate and generate the config_id.
+
+    The checks that reach the testbed are not made here. They are seconds
+    long, and this is what every click waits for.
+    """
+    values = await _values_from_request(request)
+    context = await _build(request, values, with_readiness=False)
+    return render(request, "plan/resolved.html", context,
+                  headers={"HX-Trigger-After-Settle": "plan-resolved"})
+
+
+@router.post("/plan/readiness")
+async def plan_readiness(request: Request):
+    """The readiness panel, asking for itself.
+
+    Out of the click's way: it swaps its own panel and the RUN button, which
+    is the only part of the page that depends on the answer.
+    """
     values = await _values_from_request(request)
     context = await _build(request, values)
-    return render(request, "plan/resolved.html", context)
+    return render(request, "plan/readiness_panel.html", context)
 
 
 @router.post("/plan/save")

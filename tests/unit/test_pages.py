@@ -212,6 +212,21 @@ class TestPlanPage:
         data.update(overrides)
         return client.post("/plan/resolve", data=data)
 
+    def _readiness(self, client, **overrides):
+        """The panel that carries the checks, RUN, and the form hints beside
+        them. It is a second route since B26: a resolve must not wait for the
+        testbed, so what reaches the testbed asks for itself."""
+        data = {
+            "gnb_stack": "OCUDU", "split_kind": "monolithic",
+            "cu_vendor": "OCUDU", "du_vendor": "OCUDU",
+            "l1_backend": "software-PHY", "ru": "Pegatron", "ue": "Samsung",
+            "core": "Open5GS", "server": "joule", "direction": "DL",
+            "rates": "100-1000:100", "duration": "30s", "repeats": "1",
+            "iperf_server": "app_binary", "label": "test",
+        }
+        data.update(overrides)
+        return client.post("/plan/readiness", data=data)
+
     def test_the_config_id_comes_from_ethos(self, client, ethos_url):
         response = self._post(client)
         assert response.status_code == 200
@@ -236,7 +251,7 @@ class TestPlanPage:
         assert "experimental" in response.text
 
     def test_an_invalid_traffic_plan_is_reported_inline(self, client):
-        response = self._post(client, rates="nope")
+        response = self._readiness(client, rates="nope")
         assert "is not a rate in Mbit/s" in response.text
 
     def test_a_plan_saves_and_reloads(self, client):

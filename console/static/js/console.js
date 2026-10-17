@@ -126,17 +126,12 @@
     if (preset) applyPreset(preset.dataset.preset);
   });
 
-  // A preset is a TOPOLOGY: a gNB stack and a split, which is all
-  // PRESET_SELECTIONS defines. It sets those fields and lets the form ask
-  // ETHOS, exactly as picking them by hand would. It decides nothing itself.
-  //
-  // It must NOT touch the core, the UE, the RU, the L1 backend or the server.
-  // Those travel on the preset only so its card can draw a diagram, and they
-  // are frozen at the moment the drawer was rendered: the drawer is not
-  // re-rendered on change, so every card still carries the values the page
-  // loaded with. Applying them silently undid a core chosen in the Custom tab
-  // (free5GC back to Open5GS), which is how a run gets measured on one core
-  // and labelled the other.
+  // A preset applies exactly the fields it declares and no others. A joule
+  // preset declares a stack and a split, so the core, the UE, the RU, the L1
+  // backend and the server keep whatever the operator chose; a Spark preset
+  // declares its L1 backend and server too, because those are what make it a
+  // Spark preset. What it must never apply is the page's defaults, which are
+  // frozen at the moment the drawer was rendered.
   function applyPreset(raw) {
     let wanted;
     try {
@@ -151,6 +146,8 @@
       gnb_stack: wanted.gnb_stack,
       split_kind: wanted.gnb_split === "monolithic" ? "monolithic" : "CU+DU",
     };
+    if (wanted.l1_backend) fields.l1_backend = wanted.l1_backend;
+    if (wanted.server) fields.server = wanted.server;
     if (wanted.gnb_split === "OCUDU-CU+OAI-DU") {
       fields.cu_vendor = "OCUDU";
       fields.du_vendor = "OAI";
@@ -168,7 +165,17 @@
       const input = form.querySelector(
         'input[name="' + name + '"][value="' + value + '"]'
       );
-      if (input && !input.disabled) input.checked = true;
+      if (!input) return;
+      // The CU and DU vendor groups are disabled while the form still says
+      // monolithic, which is the state a cross-vendor preset is clicked from:
+      // skipping them there would drop the one thing that preset is for. The
+      // split is set in the same batch and the server re-renders both groups
+      // from it on the resolve that follows. Every other group is disabled
+      // because ETHOS says the option is not deployable, and that is not for
+      // a preset to overrule.
+      if (input.disabled && name !== "cu_vendor" && name !== "du_vendor") return;
+      input.disabled = false;
+      input.checked = true;
     });
     form.dispatchEvent(new Event("change", { bubbles: true }));
   }

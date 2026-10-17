@@ -240,12 +240,22 @@ def test_a_preset_still_changes_the_topology(logged_in):
     assert _resolved_core(page) == "free5gc"   # the core came through with it
 
 
-def test_the_preset_cards_carry_a_stale_core_which_is_why_it_is_not_applied(logged_in):
-    """Pins the reason. The payload is for the card's diagram, nothing else."""
+def test_a_preset_card_carries_only_the_fields_it_sets(logged_in):
+    """Pins the reason a preset cannot move the core: it carries no core.
+
+    The payload is the preset's own declaration, so there is nothing frozen
+    on the card for `applyPreset` to write back. The diagram is drawn on the
+    server from the whole selection, which is where the page's defaults
+    belong.
+    """
     page = logged_in
     _open_dialog(page, tab="presets")
-    _pick_cores = page.eval_on_selector_all(
+    payloads = page.eval_on_selector_all(
         "#topology-drawer [data-preset]",
-        "els => els.map(e => JSON.parse(e.dataset.preset).core)",
+        "els => els.map(e => JSON.parse(e.dataset.preset))",
     )
-    assert set(_pick_cores) == {"Open5GS"}      # frozen at page load
+    assert payloads
+    for sets in payloads:
+        assert not {"core", "ue", "ru"} & set(sets), sets
+        assert sets["gnb_stack"] in ("OAI", "OCUDU"), sets
+        assert "gnb_split" in sets, sets

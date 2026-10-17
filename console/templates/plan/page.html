@@ -9,6 +9,7 @@
 {% block page_tone %}purple{% endblock %}
 
 {% block actions %}
+  <span id="plan-updating" class="plan-updating">{{ ic('clock') }}updating...</span>
   {{ bell(badges.new_runs) }}
   <button class="btn" type="button" hx-post="/plan/save" hx-include="#plan-form"
           hx-target="#plan-result" hx-swap="innerHTML">{{ ic('file') }}Save plan</button>
@@ -32,21 +33,27 @@
     The option lists come from ETHOS and it is unreachable: {{ catalogue_error }}</div>
 {% endif %}
 
+{# hx-sync replace: a click while a resolve is in flight cancels it and asks
+   again, so the last click is the one the page ends up showing. #}
 <form id="plan-form" hx-post="/plan/resolve" hx-target="#plan-result"
-      hx-trigger="change delay:300ms, load delay:100ms" hx-swap="innerHTML">
+      hx-trigger="change delay:150ms, load delay:100ms" hx-swap="innerHTML"
+      hx-sync="this:replace" hx-indicator="#plan-updating">
+{# The topology spans the page. The chain of boxes is the widest thing here
+   and the one the operator reads first, so it gets the whole width rather
+   than two thirds of it. #}
+<div class="card" style="margin-bottom:16px">
+  <header>
+    <span class="tile blue">{{ ic('gnb') }}</span>
+    <span style="min-width:0">
+      <span class="card-title">Topology</span>
+      <span class="card-sub">What the test runs on, end to end</span>
+    </span>
+  </header>
+  {% with oob=False %}{% include "plan/topology_summary.html" %}{% endwith %}
+</div>
+
 <div class="grid cols-12">
   <div class="span-8" style="display:flex;flex-direction:column;gap:16px;min-width:0">
-
-    <div class="card">
-      <header>
-        <span class="tile blue">{{ ic('gnb') }}</span>
-        <span style="min-width:0">
-          <span class="card-title">Topology</span>
-          <span class="card-sub">What the test runs on, end to end</span>
-        </span>
-      </header>
-      {% with oob=False %}{% include "plan/topology_summary.html" %}{% endwith %}
-    </div>
 
     <div class="card">
       <header>
@@ -181,8 +188,26 @@
         {% endif %}
       </div>
 
+      {# Sends the selected server so the same read also refreshes the strip
+         over the topology card, and re-asks once a resolve has settled. #}
+      {# hx-target="this": the panel is inside the form, and the form aims
+         every request at #plan-result. Without it the two O-Cloud cards land
+         where the resolved plan belongs. #}
+      <div id="ocloud-cards" hx-get="/partials/oclouds"
+           hx-include="input[name='server']:checked"
+           hx-trigger="load, every 8s, plan-resolved from:body delay:250ms"
+           hx-sync="this:queue last"
+           hx-target="this" hx-swap="innerHTML">
+        {% include "components/ocloud_cards.html" %}
+      </div>
       <div id="core-panel">{% include "plan/core.html" %}</div>
-      <div id="readiness-panel">{% include "plan/readiness.html" %}</div>
+      {# Asks for itself after every resolve, and on a timer, so the checks
+         that reach the testbed never sit in a click's way. #}
+      <div id="readiness-panel"
+           hx-post="/plan/readiness" hx-include="#plan-form"
+           hx-trigger="load delay:300ms, every 20s, plan-resolved from:body delay:200ms"
+           hx-sync="this:queue last"
+           hx-swap="none">{% include "plan/readiness.html" %}</div>
     </div>
   </div>
 </div>

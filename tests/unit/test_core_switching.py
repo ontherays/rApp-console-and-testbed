@@ -656,7 +656,7 @@ def test_the_verified_combinations_carry_no_note(core, ue):
 def test_the_note_reaches_the_page_and_run_is_still_offered(client, ethos_url):
     ethos_url.answer("GET", "/core", 200, _core().model_dump())
     page = client.post(
-        "/plan/resolve",
+        "/plan/readiness",
         data={"core": "free5GC", "ue": "MTK", "rates": "100", "direction": "DL",
               "duration": "10s", "repeats": "1", "gnb_stack": "OCUDU",
               "gnb_split": "monolithic", "l1_backend": "software-PHY",
@@ -753,8 +753,9 @@ def test_the_command_comes_from_ethos_not_from_the_template():
 # the first tab and the obvious way to pick a topology, so free5GC "did not
 # stick" for anyone who used them.
 
-def test_a_preset_sets_the_topology_and_nothing_else():
-    """It is a gNB stack and a split. Everything else on the card is for the
+def test_a_preset_sets_what_it_declares_and_nothing_else():
+    """A gNB stack, a split, and for a Spark preset the L1 backend and the
+    O-Cloud that backend needs. Everything else on the card is for the
     diagram, and is frozen at the moment the drawer was rendered."""
     import pathlib
     import re
@@ -766,9 +767,23 @@ def test_a_preset_sets_the_topology_and_nothing_else():
     assigned = set(re.findall(r"(\w+):", fields)) | set(
         re.findall(r"fields\.(\w+) =", body)
     )
-    assert assigned == {"gnb_stack", "split_kind", "cu_vendor", "du_vendor"}, assigned
-    for never in ("core", "ue", "ru", "l1_backend", "server"):
+    assert assigned == {"gnb_stack", "split_kind", "cu_vendor", "du_vendor",
+                        "l1_backend", "server"}, assigned
+    for never in ("core", "ue", "ru"):
         assert f"{never}: wanted." not in fields, f"a preset must not apply {never}"
+        assert f"fields.{never}" not in body, f"a preset must not apply {never}"
+
+
+def test_no_preset_declares_a_field_that_is_frozen_at_render_time():
+    """The other half of the same rule, on the data rather than the script.
+
+    `applyPreset` writes what the card declares, so the guarantee holds only
+    while no card declares a core, a UE or an RU.
+    """
+    from console.topology import PRESET_SELECTIONS
+
+    for name, sets in PRESET_SELECTIONS.items():
+        assert not {"core", "ue", "ru"} & set(sets), name
 
 
 def test_the_preset_payload_still_carries_a_core_for_its_diagram():

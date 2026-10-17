@@ -1,0 +1,5 @@
+{# The readiness panel and RUN, which the panel asks for itself: the checks
+   reach the testbed and take seconds, so no click waits for them. #}
+{% with oob=True %}{% include "plan/readiness.html" %}{% endwith %}
+{% with oob=True %}{% include "plan/core.html" %}{% endwith %}
+<span id="run-button" hx-swap-oob="true">{% include "plan/run_button.html" %}</span>

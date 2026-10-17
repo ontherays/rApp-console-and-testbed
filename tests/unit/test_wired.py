@@ -313,7 +313,7 @@ def test_run_is_disabled_while_a_readiness_check_failed(client, ethos_url):
             ],
         },
     )
-    body = client.post("/plan/resolve", data=PLAN_FORM).text
+    body = client.post("/plan/readiness", data=PLAN_FORM).text
     assert "disabled" in body
     assert "Testbed lock" in body
 
@@ -331,7 +331,7 @@ def test_run_stays_enabled_when_a_check_is_merely_unknown(client, ethos_url):
             ],
         },
     )
-    body = client.post("/plan/resolve", data=PLAN_FORM).text
+    body = client.post("/plan/readiness", data=PLAN_FORM).text
     assert "hx-post=\"/plan/run\"" in body
     assert "could not be made" in body
 
@@ -344,7 +344,7 @@ def test_the_readiness_panel_renders_ethoss_checks_in_its_order(client, ethos_ur
     """
     from console.readiness import label_for
 
-    body = client.post("/plan/resolve", data=PLAN_FORM).text
+    body = client.post("/plan/readiness", data=PLAN_FORM).text
     recorded = ethos_url._load("readiness")
     positions = [body.index(label_for(check["id"])) for check in recorded["checks"]]
     assert positions == sorted(positions)
@@ -573,10 +573,48 @@ def test_the_plan_page_draws_each_panel_once(client):
     assert body.count("Testbed lock<") <= 1
 
 
-def test_a_swap_still_carries_the_out_of_band_panels(client):
-    body = client.post("/plan/resolve", data=PLAN_FORM).text
-    assert 'hx-swap-oob="true" id="readiness-panel"' in body
-    assert 'id="run-button" hx-swap-oob="true"' in body
+def test_a_resolve_reaches_nothing_that_touches_the_testbed(client, ethos_url):
+    """What a click costs, pinned.
+
+    Every click on the plan page posts a resolve, and `POST /readiness` runs
+    seven checks against the deploy host, the handset and the core: seconds
+    each, and one of them curls an SCTP port that can never answer over TCP.
+    It is asked for separately, by the panel that shows it. The same holds
+    for the page itself, which is the first thing an operator waits for.
+    """
+    for route in ("/plan/resolve", "/plan"):
+        ethos_url.calls.clear()
+        if route == "/plan":
+            client.get(route)
+        else:
+            client.post(route, data=PLAN_FORM)
+        reached = {path for _method, path in ethos_url.calls}
+        for endpoint in ("/readiness", "/deploy/status", "/ue"):
+            assert endpoint not in reached, f"{route} asked for {endpoint}"
+
+    ethos_url.calls.clear()
+    client.post("/plan/readiness", data=PLAN_FORM)
+    assert "/readiness" in {path for _method, path in ethos_url.calls}
+
+
+def test_a_resolve_carries_the_form_panels_and_readiness_carries_the_testbed_ones(client):
+    """Which panel comes back from which route.
+
+    A resolve follows from the form alone, so it carries the fragments that
+    follow from the form and nothing that has to reach the testbed. The
+    readiness panel and RUN come back from `/plan/readiness`, which the page
+    asks for itself once the resolve has settled.
+    """
+    resolved = client.post("/plan/resolve", data=PLAN_FORM).text
+    assert 'id="vendor-groups" hx-swap-oob="true"' in resolved
+    assert 'id="backend-groups" hx-swap-oob="true"' in resolved
+    assert 'id="topology-summary" hx-swap-oob="true"' in resolved
+    assert "readiness-panel" not in resolved
+    assert 'id="run-button"' not in resolved
+
+    panel = client.post("/plan/readiness", data=PLAN_FORM).text
+    assert 'hx-swap-oob="true" id="readiness-panel"' in panel
+    assert 'id="run-button" hx-swap-oob="true"' in panel
 
 
 def test_an_endpoint_that_reaches_the_testbed_is_probed_with_the_slow_timeout():
@@ -658,7 +696,10 @@ def test_the_confirmation_lives_outside_the_form(client):
     assert 'id="plan-dialog"' in page
     # The container is after the form closes, so a resolve cannot reach it.
     assert page.index("</form>") < page.index('id="plan-dialog"')
-    assert 'hx-target="#plan-dialog"' in page
+    # RUN is offered once ETHOS has judged the plan, and aims at that
+    # container. The page itself is served before that judgement.
+    assert 'hx-target="#plan-dialog"' in client.post(
+        "/plan/readiness", data=PLAN_FORM).text
 
 
 def test_the_confirm_fragment_is_only_the_dialog(client, ethos_url):
@@ -730,5 +771,5 @@ def test_the_console_parse_is_a_hint_and_never_blocks_run(client, ethos_url):
             ],
         },
     )
-    body = client.post("/plan/resolve", data={**PLAN_FORM, "duration": "3s"}).text
+    body = client.post("/plan/readiness", data={**PLAN_FORM, "duration": "3s"}).text
     assert 'hx-post="/plan/run"' in body

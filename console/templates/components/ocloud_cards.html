@@ -1,0 +1,36 @@
+{# Both O-Clouds, side by side. One shape, two readings; a reading that did
+   not happen says so rather than showing free or down. #}
+{% from "components/macros.html" import chip, ic %}
+<div class="ocloud-grid">
+  {% if not oclouds %}
+    {% for name in ("joule", "DGX Spark") %}
+      <div class="card ocloud-card">
+        <div class="ocloud-head">
+          <span class="ocloud-name">{{ ic('server') }}{{ name }}</span>
+          {{ chip("reading...") }}
+        </div>
+      </div>
+    {% endfor %}
+  {% endif %}
+  {% for cloud in oclouds %}
+    <div class="card ocloud-card">
+      <div class="ocloud-head">
+        <span class="ocloud-name">{{ ic('server') }}{{ cloud.name }}</span>
+        {{ chip(cloud.word, cloud.tone) }}
+      </div>
+      {% if cloud.unreadable %}
+        <p class="ocloud-reason">{{ cloud.reason }}</p>
+      {% else %}
+        <dl class="ocloud-rows">
+          {% for row in cloud.rows %}
+            <dt>{{ row.label }}</dt><dd>{{ row.value }}</dd>
+          {% endfor %}
+        </dl>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+
+{# The plan page asks with its selected server, and gets the strip over its
+   topology card from the same read. #}
+{% if server %}{% with oob=True %}{% include "plan/topo_cloud_live.html" %}{% endwith %}{% endif %}

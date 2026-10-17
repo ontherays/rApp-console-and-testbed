@@ -20,7 +20,7 @@
           {# Single quotes: tojson escapes < > & and the apostrophe, but not the
              double quote, so a double-quoted attribute would end at the first
              key. #}
-          <button type="button" class="preset" data-preset='{{ preset.selection | tojson }}'
+          <button type="button" class="preset" data-preset='{{ preset.sets | tojson }}'
                   data-drawer-close="topology-drawer">
             <span class="preset-art">{{ preset.diagram | safe }}</span>
             <span class="preset-name">

@@ -42,10 +42,17 @@ def test_a_spark_plan_draws_the_aerial_path() -> None:
     assert labels == ["UE", "O-RU", "Aerial L1", "gNB", "5GC"]
 
 
-def test_the_aerial_node_names_nvipc() -> None:
+def test_the_connector_behind_the_aerial_node_names_nvipc() -> None:
+    """FAPI over nvIPC is a link, so it is drawn on the link.
+
+    The gNB reaches the L1 over it, which is what `link_in` on the node after
+    the L1 says; the L1's own caption names what the node IS.
+    """
     chain = nodes_for(selection(l1_backend=AERIAL_L1))
     l1 = next(n for n in chain.hosted if n.label == "Aerial L1")
-    assert "nvIPC" in l1.sub
+    behind = chain.hosted[chain.hosted.index(l1) + 1]
+    assert "nvIPC" in behind.link_in
+    assert "cuPHY" in l1.sub
 
 
 def test_the_spark_ru_names_the_cx7_and_ocnos_fronthaul() -> None:
@@ -268,21 +275,22 @@ def test_a_joule_profile_still_needs_its_releases() -> None:
 
 
 def test_the_plan_page_offers_deploy_ran_for_a_spark_selection(client) -> None:
-    body = client.post("/plan/resolve", data=spark_form()).text
+    body = client.post("/plan/readiness", data=spark_form()).text
     assert "Deploy RAN" in body
     assert "/plan/deploy" in body
 
 
 def test_the_plan_page_offers_no_deploy_ran_for_joule(client) -> None:
     """Joule's helm profiles keep RUN as their only way in."""
-    body = client.post("/plan/resolve", data=spark_form(
+    body = client.post("/plan/readiness", data=spark_form(
         l1_backend="software-PHY", server="joule")).text
+    assert "RUN" in body               # the panel rendered; it just has no Deploy RAN
     assert "Deploy RAN" not in body
 
 
 def test_deploy_ran_is_disabled_while_the_testbed_is_held(client, ethos_url) -> None:
     ethos_url.hold_lock("CLI campaign", "a sweep", "2026-10-15T09:00:00Z")
-    body = client.post("/plan/resolve", data=spark_form()).text
+    body = client.post("/plan/readiness", data=spark_form()).text
     assert "Deploy RAN" in body
     assert "a campaign holds the testbed" in body
 

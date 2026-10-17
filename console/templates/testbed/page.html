@@ -29,6 +29,12 @@
   <div class="banner bad" style="margin-bottom:16px">{{ ic('warning') }}{{ lock_error }}</div>
 {% endif %}
 
+<div id="ocloud-cards" hx-get="/partials/oclouds"
+     hx-trigger="load, every 8s" hx-swap="innerHTML"
+     style="margin-bottom:16px">
+  {% include "components/ocloud_cards.html" %}
+</div>
+
 <div id="ue-panel">{% include "testbed/ue_table.html" %}</div>
 
 <div id="ue-confirm"></div>

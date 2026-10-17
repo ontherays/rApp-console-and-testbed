@@ -375,6 +375,8 @@ Terminal states: `completed`, `failed`, `aborted`, `interrupted`. The console re
 - **Job page:** SSE. The console opens `GET /jobs/{id}/events` on ETHOS and relays each event to the browser through `console/sse.py`. Every event carries a sequence number as its SSE `id`; after a reconnect, the browser sends `Last-Event-ID` and the stream resumes, with no duplicates or gaps [RN-07].
 - **Status strip and Overview tiles:** htmx polling of the console's `/partials/status` every 5 s; the console fetches `GET /status/summary` from ETHOS [ST-02]. Polling is simpler than SSE here and costs one small request.
 - **Job finished toast on any page [RN-11]:** the status poll includes the latest job's state; when a job the browser saw running becomes terminal, the page shows the toast.
+- **Readiness panel and RUN:** htmx posting the form to the console's `/plan/readiness` once a resolve has settled, and every 20 s. ETHOS's `POST /readiness` runs seven checks against the deploy host, the handset and the core and takes seconds, so it is kept off the path of a click: a resolve answers in about a third of a second and the panel catches up behind it.
+- **The two O-Cloud cards:** htmx polling of the console's `/partials/oclouds` every 8 s, and again after a resolve settles. One `GET /deploy/status` per host, read independently so an unreachable one cannot blank the other, and the same response carries the strip over the Test Plan's topology card.
 
 ### 7.5 Errors
 

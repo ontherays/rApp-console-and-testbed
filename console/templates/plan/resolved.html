@@ -1,9 +1,9 @@
 {# Everything that follows from the current form state.
 
    Three fragments live outside this one's target, so they are re-rendered here
-   and swapped in out of band: the vendor groups in the drawer, the topology
-   summary on the page, the readiness panel and RUN in the right-hand column.
-   One request, one answer, no part of the page left showing a stale plan. #}
+   and swapped in out of band: the vendor groups in the drawer, the backend
+   and O-Cloud cards, and the topology summary. The readiness panel and RUN
+   follow from the testbed rather than the form, and ask for themselves. #}
 {% from "components/macros.html" import ic %}
 
 {# Only on a swap. On the first full page load these same fragments are already
@@ -13,9 +13,6 @@
   {% with oob=True %}{% include "plan/vendors.html" %}{% endwith %}
   {% with oob=True %}{% include "plan/backend_groups.html" %}{% endwith %}
   {% with oob=True %}{% include "plan/topology_summary.html" %}{% endwith %}
-  {% with oob=True %}{% include "plan/core.html" %}{% endwith %}
-  {% with oob=True %}{% include "plan/readiness.html" %}{% endwith %}
-  <span id="run-button" hx-swap-oob="true">{% include "plan/run_button.html" %}</span>
 {% endif %}
 
 {% if saved_note %}
