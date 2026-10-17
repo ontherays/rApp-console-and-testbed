@@ -11,11 +11,12 @@ Two things a reader cannot work around:
 * two runs painted over one another, and
 * a diagram shrunk to fit, which takes its type down with it.
 
-Both were true of the Aerial path before this work: at 007b0b2 the selection
-`ocudu-mono_aerial_pega_samsung_o5gs_dgxspark` painted "Pegatron, 7.2x via
-CX7 and OcNOS" across "cuPHY, FAPI over nvIPC", and the whole chain was drawn
-at 0.70 scale, putting 10px captions on the page at about 3.5px per
-character.
+Both were true of the Aerial path before this work. At 007b0b2, for the
+selection `ocudu-mono_aerial_pega_samsung_o5gs_dgxspark`, "Pegatron, 7.2x
+via CX7 and OcNOS" was painted across "cuPHY, FAPI over nvIPC" by 1.8px at
+1440, 2.6px at 1280 and 2.7px at both 1024 and 768; and the chain was drawn
+at 0.70 scale, putting five runs of 10 to 11px type on the page at about
+3.5px per character.
 """
 
 from __future__ import annotations
