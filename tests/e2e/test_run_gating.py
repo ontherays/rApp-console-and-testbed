@@ -8,12 +8,22 @@ a matter of luck, and read the buttons the operator would press.
 
 The server refuses as well, and the two are not the same gate:
 
-* `POST /plan/run` and `POST /plan/deploy` rebuild with the checks and answer
+* `POST /plan/run` and `POST /plan/deploy` rebuild with the checks and read
+  the verdict: `can_run` and `can_deploy_ran` are re-checked there and answer
   409 when they fail. That is what makes a stale page harmless.
-* `POST /plan/start` does NOT re-run the checks. It takes the preview token
-  issued by `/plan/run`, and ETHOS binds that token to the testbed state it
-  was read against, answering 412 when that state has moved. So the readiness
-  gate on the start path is `/plan/run` plus ETHOS's token, never the button.
+* `POST /plan/start` re-runs the checks and then **ignores them**. It builds
+  with readiness, paying the seconds that costs, but gates only on three
+  things: the `config_id` still matching the one the dialog showed (409), the
+  core still matching (409), and a preview token being present (422). It
+  never reads `can_run`. What actually protects the start is ETHOS: the token
+  is bound to the testbed state it was read against, so a state that has
+  moved comes back 412.
+
+  So on the start path the readiness gate is `/plan/run` plus ETHOS's token,
+  never the button and never `/plan/start` itself. Recorded here rather than
+  changed: adding a `can_run` gate to the start path is a behaviour change on
+  the one route that starts a job, and ETHOS's 412 already covers the case it
+  would catch.
 """
 
 from __future__ import annotations
